@@ -1,27 +1,69 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
+* { box-sizing: border-box; }
 
 body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: #0b0f1a;
+  color: #e2e8f0;
+  font-family: 'Inter', sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
 
-@layer utilities {
-  .text-balance {
-    text-wrap: balance;
-  }
+/* Custom scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #0b0f1a; }
+::-webkit-scrollbar-thumb { background: #1e2a3a; border-radius: 3px; }
+
+/* KPI card accent line */
+.kpi-bar {
+  height: 2px;
+  background: linear-gradient(90deg, #0ea5e9 0%, #1d4ed8 100%);
+  border-radius: 1px;
+  margin: 8px 0 6px 0;
 }
+
+/* Equipment badge pill */
+.equipment-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-family: monospace;
+  background: #0f2040;
+  border: 1px solid #1d4ed8;
+  color: #0ea5e9;
+  white-space: nowrap;
+}
+
+/* Table column filter input */
+.filter-input {
+  width: 100%;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid #1e2a3a;
+  font-size: 11px;
+  color: #64748b;
+  outline: none;
+  padding-bottom: 3px;
+}
+
+/* Status badge */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+/* Micro-animations */
+button { transition: opacity 0.15s ease, transform 0.1s ease; }
+button:active { transform: scale(0.97); }
+tr { transition: background-color 0.15s ease; }
+
+/* Panel hover */
+.hover-panel:hover { border-color: #1d4ed8; }
