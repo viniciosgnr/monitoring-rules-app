@@ -1,26 +1,26 @@
 import Image from 'next/image';
-import { HelpCircle } from 'lucide-react';
+import { HelpCircle, Home } from 'lucide-react';
 
 export default function Topbar({ breadcrumb }: { breadcrumb: string }) {
   return (
     <header className="fixed top-0 left-0 right-0 z-50 h-10 bg-topbar border-b border-border-panel flex items-center justify-between px-4">
       <div className="flex items-center gap-3">
-        {/* SLB Logo */}
+        {/* SLB Logo — larger to match Figma */}
         <Image
           src="/slb-logo.png"
           alt="SLB"
-          width={40}
-          height={24}
+          width={68}
+          height={32}
           priority
-          className="object-contain"
+          className="h-8 w-auto object-contain"
         />
         {/* Breadcrumb */}
         <nav className="flex items-center gap-1 text-xs text-text-muted">
-          <span>Home</span>
+          <Home size={13} className="flex-shrink-0" />
           <span className="mx-1">›</span>
           <span>Monitoring Rules</span>
           <span className="mx-1">›</span>
-          <span className="text-text-primary">{breadcrumb}</span>
+          <span className="text-text-primary font-medium">{breadcrumb}</span>
         </nav>
       </div>
       <div className="flex items-center gap-3">
@@ -32,3 +32,4 @@ export default function Topbar({ breadcrumb }: { breadcrumb: string }) {
     </header>
   );
 }
+

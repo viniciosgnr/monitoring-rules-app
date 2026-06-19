@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import EquipmentBadge from '@/components/ui/EquipmentBadge';
 import Pagination from '@/components/ui/Pagination';
-import ViewDiffModal from './ViewDiffModal';
+import ParamDiffModal from './ParamDiffModal';
 import { SlidersHorizontal } from 'lucide-react';
 
 interface AuditEntry {
@@ -79,7 +79,7 @@ export default function AuditHistoryTable({ rows }: { rows: AuditEntry[] }) {
                   <td className="px-4 py-3">
                     <button
                       onClick={() => setDiffEntry(row)}
-                      className="px-3 py-1 text-xs rounded-full border border-border-panel text-text-primary hover:border-accent-blue hover:text-accent-blue transition-colors whitespace-nowrap"
+                      className="px-3 py-1.5 text-xs rounded border border-border-panel text-text-primary hover:border-accent-blue hover:text-accent-blue transition-colors whitespace-nowrap font-medium"
                     >
                       View Diff
                     </button>
@@ -103,7 +103,7 @@ export default function AuditHistoryTable({ rows }: { rows: AuditEntry[] }) {
         />
       </div>
 
-      <ViewDiffModal
+      <ParamDiffModal
         open={!!diffEntry}
         onClose={() => setDiffEntry(null)}
         entry={diffEntry}

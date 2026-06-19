@@ -4,13 +4,15 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 export default function HBarChart({ data }: { data: { label: string; value: number }[] }) {
   return (
     <ResponsiveContainer width="100%" height={200}>
-      <BarChart data={data} layout="vertical" margin={{ top: 5, right: 30, left: 10, bottom: 5 }}>
+      <BarChart data={data} layout="vertical" margin={{ top: 5, right: 15, left: 10, bottom: 20 }}>
         <CartesianGrid strokeDasharray="3 3" stroke="#1e2a3a" horizontal={false} />
         <XAxis
           type="number"
           tick={{ fill: '#64748b', fontSize: 11 }}
           axisLine={false}
           tickLine={false}
+          domain={[0, 10]}
+          ticks={[0, 2, 4, 6, 8, 10]}
         />
         <YAxis
           dataKey="label"

@@ -26,24 +26,6 @@ export default async function AuditChangesPage() {
     .innerJoin(fpsos,           eq(equipment.fpsoId,          fpsos.id))
     .orderBy(auditLog.createdAt);
 
-  // Compute chart data from actual audit rows
-  const equipCounts: Record<string, number> = {};
-  const ruleCounts:  Record<string, number> = {};
-  rows.forEach(r => {
-    equipCounts[r.equipmentCode] = (equipCounts[r.equipmentCode] ?? 0) + 1;
-    ruleCounts[r.ruleName]       = (ruleCounts[r.ruleName]       ?? 0) + 1;
-  });
-
-  const equipmentData = Object.entries(equipCounts)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 5)
-    .map(([label, value]) => ({ label, value }));
-
-  const rulesData = Object.entries(ruleCounts)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 5)
-    .map(([label, value]) => ({ label, value }));
-
   const serialized = rows.map(r => ({
     ...r,
     timestamp:   r.timestamp.toLocaleString('pt-BR'),
@@ -61,8 +43,6 @@ export default async function AuditChangesPage() {
           peakDay={4}
           topEditorShare="40%"
           hotRule="8"
-          equipmentData={equipmentData}
-          rulesData={rulesData}
           auditRows={serialized}
         />
       </main>

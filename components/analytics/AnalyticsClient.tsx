@@ -40,11 +40,37 @@ export default function AnalyticsClient({ fpsos, rules }: Props) {
       </div>
 
       {/* KPI Cards */}
-      <div className="flex gap-4 mb-5">
-        <KpiCard title="False +"  value={28}     subtitle="Last month" />
-        <KpiCard title="False -"  value={6}      subtitle="Last month" />
-        <KpiCard title="Coverage" value={22}     subtitle="Last month" />
-        <KpiCard title="Accuracy" value="21.4%"  subtitle="Last month" />
+      <div className="flex gap-4 mb-5 flex-wrap">
+        <KpiCard
+          title="False Positive"
+          value={28}
+          subtitle="Last month"
+          tooltip="Alerts triggered by the rule that did not correspond to a real anomaly. A high count indicates the rule may be too sensitive. ⚠ Logic pending validation."
+        />
+        <KpiCard
+          title="False Negative"
+          value={6}
+          subtitle="Last month"
+          tooltip="Real anomalies that occurred but were NOT detected by the rule. A high count indicates the rule may be too permissive. ⚠ Logic pending validation."
+        />
+        <KpiCard
+          title="Coverage"
+          value={22}
+          subtitle="Last month"
+          tooltip="Number of equipment instances covered by at least one active monitoring rule in the selected period. ⚠ Logic pending validation."
+        />
+        <KpiCard
+          title="Accuracy"
+          value="21.4%"
+          subtitle="Last month"
+          tooltip="Ratio of correctly classified alerts (true positives + true negatives) over total alerts. Calculated as: (TP + TN) / Total. ⚠ Logic pending validation."
+        />
+        <KpiCard
+          title="Confidence Level"
+          value="—"
+          subtitle="Pending definition"
+          tooltip="Statistical confidence that the rule's threshold is correctly calibrated for the current operational context. Definition and calculation logic to be confirmed with domain experts."
+        />
       </div>
 
       {/* Charts */}

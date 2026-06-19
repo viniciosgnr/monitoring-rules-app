@@ -1,6 +1,6 @@
 'use client';
 import * as Dialog from '@radix-ui/react-dialog';
-import { X } from 'lucide-react';
+import { X, Info } from 'lucide-react';
 import { useState } from 'react';
 import { updateProcessingSteps } from '@/app/actions/ruleInstances';
 
@@ -16,13 +16,71 @@ interface Props {
   onClose: () => void;
   ruleId: number;
   ruleName: string;
+  equipmentCode: string;
   steps: Steps;
 }
 
 const inputCls =
   'w-full mt-1 bg-[#0b0f1a] border border-border-panel rounded px-3 py-2 text-sm text-text-primary outline-none focus:border-accent-blue transition-colors';
 
-export default function EditRuleModal({ open, onClose, ruleId, steps }: Props) {
+/* ─── Inline tooltip ───────────────────────────────────────────────── */
+function ParamTooltip({ text }: { text: string }) {
+  return (
+    <span className="relative group cursor-help inline-flex ml-1.5 align-middle">
+      <Info size={12} className="text-text-muted group-hover:text-accent-blue transition-colors" />
+      <span className="
+        absolute left-1/2 -translate-x-1/2 bottom-full mb-2
+        w-64 bg-bg-panel border border-border-panel rounded-card
+        shadow-xl px-3 py-2.5 text-xs text-text-muted leading-relaxed
+        opacity-0 pointer-events-none
+        group-hover:opacity-100 group-hover:pointer-events-auto
+        transition-opacity duration-150 z-[60]
+        whitespace-normal text-left
+      ">
+        {text}
+        <span className="absolute left-1/2 -translate-x-1/2 top-full w-0 h-0 border-x-4 border-x-transparent border-t-4 border-t-border-panel" />
+      </span>
+    </span>
+  );
+}
+
+/* ─── Field row wrapper ────────────────────────────────────────────── */
+function FieldBlock({
+  label,
+  tooltip,
+  hint,
+  children,
+}: {
+  label: string;
+  tooltip: string;
+  hint?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div>
+      <label className="flex items-center text-xs text-text-muted">
+        {label}
+        <ParamTooltip text={tooltip} />
+      </label>
+      {children}
+      {hint && <p className="text-xs text-text-muted mt-1">{hint}</p>}
+    </div>
+  );
+}
+
+/* ─── Section header ───────────────────────────────────────────────── */
+function SectionTitle({ label, tooltip }: { label: string; tooltip: string }) {
+  return (
+    <p className="text-sm font-medium text-text-primary mb-3 flex items-center">
+      {label}
+      <ParamTooltip text={tooltip} />
+    </p>
+  );
+}
+
+export default function EditRuleModal({
+  open, onClose, ruleId, ruleName, equipmentCode, steps,
+}: Props) {
   const [s, setS]           = useState<Steps>(steps);
   const [saving, setSaving] = useState(false);
 
@@ -38,94 +96,130 @@ export default function EditRuleModal({ open, onClose, ruleId, steps }: Props) {
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 bg-black/60 z-50 backdrop-blur-sm" />
         <Dialog.Content className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[900px] max-h-[85vh] overflow-y-auto bg-bg-panel rounded-card border border-border-panel p-6 shadow-2xl">
-          <div className="flex items-center justify-between mb-6">
-            <Dialog.Title className="text-base font-semibold text-text-primary">
-              Monitoring Rules — Details
-            </Dialog.Title>
-            <Dialog.Close className="text-text-muted hover:text-text-primary transition-colors">
+
+          {/* ── Header ── */}
+          <div className="flex items-start justify-between mb-5">
+            <div>
+              <Dialog.Title className="text-base font-semibold text-text-primary mb-1">
+                Monitoring Rule — Details
+              </Dialog.Title>
+              {/* Selected rule identity */}
+              <div className="flex items-center gap-2 mt-1.5">
+                <span className="equipment-badge">{equipmentCode}</span>
+                <span className="text-xs font-mono text-text-primary font-semibold">{ruleName}</span>
+                <span className="text-xs text-text-muted">· Data Processing Steps</span>
+              </div>
+            </div>
+            <Dialog.Close className="text-text-muted hover:text-text-primary transition-colors mt-0.5">
               <X size={18} />
             </Dialog.Close>
           </div>
 
-          <div className="border-b border-border-panel pb-3 mb-5 flex items-center justify-between cursor-pointer">
-            <p className="text-sm font-medium text-text-primary">Data Processing Steps</p>
-            <span className="text-text-muted text-xs">▲</span>
-          </div>
+          <div className="border-t border-border-panel mb-6" />
 
-          {/* Abs Value */}
-          <div className="mb-5">
-            <p className="text-sm font-medium text-text-primary mb-2">Abs Value</p>
-            <label className="text-xs text-text-muted">Tags to apply</label>
-            <input
-              value={s.abs_value?.tags_to_apply ?? ''}
-              onChange={e => setS({ ...s, abs_value: { tags_to_apply: e.target.value } })}
-              className={inputCls}
+          {/* ── Abs Value ── */}
+          <div className="mb-6">
+            <SectionTitle
+              label="Abs Value"
+              tooltip="Converts all selected tag values to their absolute (non-negative) form before the rule logic runs. Useful when sensor readings can be negative but only the magnitude matters for threshold comparison."
             />
-            <p className="text-xs text-text-muted mt-1">Comma-separated list</p>
+            <FieldBlock
+              label="Tags to apply"
+              tooltip="Comma-separated list of timeseries tag names this step will be applied to. Use 'all' to apply to every tag in the rule's scope."
+              hint="Comma-separated list · e.g. RUN, Surge Margin Actual"
+            >
+              <input
+                value={s.abs_value?.tags_to_apply ?? ''}
+                onChange={e => setS({ ...s, abs_value: { tags_to_apply: e.target.value } })}
+                className={inputCls}
+              />
+            </FieldBlock>
           </div>
 
-          {/* Drop Missing */}
-          <div className="mb-5">
-            <p className="text-sm font-medium text-text-primary mb-2">Drop Missing</p>
-            <label className="text-xs text-text-muted">Tags to apply</label>
-            <input
-              value={s.drop_missing?.tags_to_apply ?? ''}
-              onChange={e => setS({ ...s, drop_missing: { tags_to_apply: e.target.value } })}
-              className={inputCls}
+          {/* ── Drop Missing ── */}
+          <div className="mb-6">
+            <SectionTitle
+              label="Drop Missing"
+              tooltip="Removes data points where the selected tags have null, NaN or missing values before the rule evaluates. Prevents false alerts caused by sensor outages, communication gaps or bad-quality data frames."
             />
-            <p className="text-xs text-text-muted mt-1">Comma-separated list</p>
+            <FieldBlock
+              label="Tags to apply"
+              tooltip="Comma-separated list of timeseries tags whose missing values will be dropped. Rows are removed only if ANY of the listed tags are null at that timestamp."
+              hint="Comma-separated list · e.g. RUN, all"
+            >
+              <input
+                value={s.drop_missing?.tags_to_apply ?? ''}
+                onChange={e => setS({ ...s, drop_missing: { tags_to_apply: e.target.value } })}
+                className={inputCls}
+              />
+            </FieldBlock>
           </div>
 
-          {/* Join Timeseries */}
-          <div className="mb-5">
-            <p className="text-sm font-medium text-text-primary mb-2">Join Timeseries</p>
-            <label className="text-xs text-text-muted">Tags to apply</label>
-            <input
-              value={s.join_timeseries?.tags_to_apply ?? ''}
-              onChange={e => setS({ ...s, join_timeseries: { tags_to_apply: e.target.value } })}
-              className={inputCls}
+          {/* ── Join Timeseries ── */}
+          <div className="mb-6">
+            <SectionTitle
+              label="Join Timeseries"
+              tooltip="Merges multiple timeseries into a single time-aligned dataset using an inner join on timestamps. Required when the rule compares values from different sensors that may have different sampling intervals."
             />
-            <p className="text-xs text-text-muted mt-1">Comma-separated list</p>
+            <FieldBlock
+              label="Tags to apply"
+              tooltip="Comma-separated list of tag names to include in the join operation. Tags not listed here are excluded from the merged dataset and will not be evaluated by downstream steps."
+              hint="Comma-separated list · e.g. all"
+            >
+              <input
+                value={s.join_timeseries?.tags_to_apply ?? ''}
+                onChange={e => setS({ ...s, join_timeseries: { tags_to_apply: e.target.value } })}
+                className={inputCls}
+              />
+            </FieldBlock>
           </div>
 
-          {/* Round Timestamp */}
-          <div className="mb-5">
-            <p className="text-sm font-medium text-text-primary mb-2">Round Timestamp</p>
+          {/* ── Round Timestamp ── */}
+          <div className="mb-6">
+            <SectionTitle
+              label="Round Timestamp"
+              tooltip="Rounds all timestamps to the nearest defined interval. Ensures consistent time alignment when joining data from sensors with different sampling rates (e.g. 1-minute vs 5-minute data)."
+            />
             <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="text-xs text-text-muted">Period</label>
+              <FieldBlock
+                label="Period"
+                tooltip="The rounding interval unit. Common values: 'min' (1 minute), '5min' (5 minutes), 'h' (1 hour). Must match the lowest common sampling frequency across all joined timeseries."
+                hint="e.g. min · 5min · h"
+              >
                 <input
                   value={s.round_timestamp?.period ?? ''}
                   onChange={e => setS({
                     ...s,
                     round_timestamp: {
-                      period: e.target.value,
-                      tags_to_apply: s.round_timestamp?.tags_to_apply ?? '',
+                      period:         e.target.value,
+                      tags_to_apply:  s.round_timestamp?.tags_to_apply ?? '',
                     },
                   })}
                   className={inputCls}
                 />
-                <p className="text-xs text-text-muted mt-1">Comma-separated list</p>
-              </div>
-              <div>
-                <label className="text-xs text-text-muted">Tags to apply</label>
+              </FieldBlock>
+              <FieldBlock
+                label="Tags to apply"
+                tooltip="Comma-separated list of tag names whose timestamps will be rounded. Tags not listed here keep their original timestamps and may cause misalignment in downstream join operations."
+                hint="Comma-separated list · e.g. all"
+              >
                 <input
                   value={s.round_timestamp?.tags_to_apply ?? ''}
                   onChange={e => setS({
                     ...s,
                     round_timestamp: {
-                      period: s.round_timestamp?.period ?? '',
+                      period:        s.round_timestamp?.period ?? '',
                       tags_to_apply: e.target.value,
                     },
                   })}
                   className={inputCls}
                 />
-                <p className="text-xs text-text-muted mt-1">Comma-separated list</p>
-              </div>
+              </FieldBlock>
             </div>
           </div>
 
-          <div className="flex justify-end gap-3 mt-6 border-t border-border-panel pt-4">
+          {/* ── Actions ── */}
+          <div className="flex justify-end gap-3 border-t border-border-panel pt-4">
             <button
               onClick={onClose}
               className="px-4 py-2 text-sm rounded border border-border-panel text-text-muted hover:text-text-primary hover:border-text-muted transition-colors"
@@ -140,6 +234,7 @@ export default function EditRuleModal({ open, onClose, ruleId, steps }: Props) {
               {saving ? 'Saving…' : 'Save'}
             </button>
           </div>
+
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>

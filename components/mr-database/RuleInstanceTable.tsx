@@ -135,6 +135,7 @@ export default function RuleInstanceTable({ rows }: { rows: InstanceRow[] }) {
           onClose={() => setEditRow(null)}
           ruleId={editRow.ruleId}
           ruleName={editRow.ruleName}
+          equipmentCode={editRow.equipmentCode}
           steps={editRow.processingSteps as Record<string, { tags_to_apply?: string; period?: string }>}
         />
       )}

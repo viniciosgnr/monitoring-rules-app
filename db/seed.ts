@@ -10,6 +10,14 @@ import {
 async function seed() {
   console.log('🌱 Seeding database...');
 
+  console.log('🧹 Cleaning existing data...');
+  await db.delete(auditLog);
+  await db.delete(alerts);
+  await db.delete(ruleInstances);
+  await db.delete(monitoringRules);
+  await db.delete(equipment);
+  await db.delete(fpsos);
+
   // FPSOs
   const [uny] = await db.insert(fpsos).values([
     { code: 'UNY', name: 'FPSO Unity' },
@@ -31,13 +39,13 @@ async function seed() {
     round_timestamp: { period: 'min', tags_to_apply: 'all' },
   };
 
-  // Monitoring Rules
+  // Monitoring Rules — names follow the {EQUIP}_{SYS}_{TYPE}_{NN} convention (e.g. COCE_GEN_SPK_01)
   const rules = await db.insert(monitoringRules).values([
-    { name: 'COCE_TIME_NRS_01',  description: 'Compressor time-based NRS monitoring', processingSteps },
-    { name: 'TURB_TEMP_DEV_03',  description: 'Turbine temperature deviation',          processingSteps: {} },
-    { name: 'PUMP_VIB_THRES_02', description: 'Pump vibration threshold',               processingSteps: {} },
-    { name: 'SURGE_MARGIN_06',   description: 'Surge margin monitoring',                processingSteps: {} },
-    { name: 'HX_FOULING_04',     description: 'Heat exchanger fouling index',           processingSteps: {} },
+    { name: 'COCE_GEN_SPK_01',  description: 'Compressor general spark monitoring',      processingSteps },
+    { name: 'TURB_TEMP_DEV_03', description: 'Turbine temperature deviation',             processingSteps: {} },
+    { name: 'PUMP_VIB_THR_02',  description: 'Pump vibration threshold',                 processingSteps: {} },
+    { name: 'COCE_SURG_MGN_06', description: 'Compressor surge margin monitoring',        processingSteps: {} },
+    { name: 'HTEX_FOUL_IDX_04', description: 'Heat exchanger fouling index',              processingSteps: {} },
   ]).returning();
 
   // Rule Instances
@@ -46,30 +54,34 @@ async function seed() {
 
   const instances = await db.insert(ruleInstances).values(
     equipList.map((eq, i) => ({
-      ruleId:      rules[0].id,
+      ruleId:      rules[i % rules.length].id, // Properly link ruleInstances to all 5 rules
       equipmentId: eq.id,
       timeseries:  `UNY:FPSO:771-VI-181${i + 1}_X`,
-      schedule:    'Daily',
+      schedule:    'Hourly',
       enabled:     i !== 0,
       lastRunAt:   lastRun,
       nextRunAt:   nextRun,
     }))
   ).returning();
 
-  // Alerts
-  await db.insert(alerts).values(
-    instances.map((inst, i) => ({
-      instanceId:  inst.id,
-      type:        'Compressor Performance',
-      endDate:     new Date('2026-02-23T12:47:04'),
-      triggeredAt: new Date('2026-02-23T12:47:04'),
-      reviewedAt:  i % 3 !== 2 ? new Date('2026-02-23T12:47:04') : null,
-      reviewedBy:  i % 3 !== 2 ? 'Jon Doe' : null,
-      status:      (['accepted', 'rejected', 'pending', 'accepted', 'pending'] as const)[i % 5],
-    }))
-  );
+  // Alerts - seed 10 alerts to match mockup total alerts: 10, pending: 2, overdue (>10): 2
+  // Let's make: 5 accepted, 3 rejected, 2 pending
+  await db.insert(alerts).values([
+    { instanceId: instances[0].id, type: 'Compressor Performance', endDate: new Date('2026-02-23T12:47:04'), triggeredAt: new Date('2026-02-23T12:47:04'), reviewedAt: new Date('2026-02-23T12:47:04'), reviewedBy: 'Jon Doe', status: 'accepted' },
+    { instanceId: instances[1].id, type: 'Turbine Temp Deviation', endDate: new Date('2026-02-23T12:47:04'), triggeredAt: new Date('2026-02-23T12:47:04'), reviewedAt: new Date('2026-02-23T12:47:04'), reviewedBy: 'Jon Doe', status: 'rejected' },
+    { instanceId: instances[2].id, type: 'Pump Vibration Threshold', endDate: new Date('2026-02-23T12:47:04'), triggeredAt: new Date('2026-02-23T12:47:04'), reviewedAt: null, reviewedBy: null, status: 'pending' },
+    { instanceId: instances[3].id, type: 'Surge Margin Alert', endDate: new Date('2026-02-23T12:47:04'), triggeredAt: new Date('2026-02-23T12:47:04'), reviewedAt: new Date('2026-02-23T12:47:04'), reviewedBy: 'Jon Doe', status: 'accepted' },
+    { instanceId: instances[4].id, type: 'HX Fouling Index Alert', endDate: new Date('2026-02-23T12:47:04'), triggeredAt: new Date('2026-02-23T12:47:04'), reviewedAt: null, reviewedBy: null, status: 'pending' },
+    { instanceId: instances[0].id, type: 'Compressor Performance', endDate: new Date('2026-02-23T12:47:04'), triggeredAt: new Date('2026-02-23T12:47:04'), reviewedAt: new Date('2026-02-23T12:47:04'), reviewedBy: 'Jon Doe', status: 'accepted' },
+    { instanceId: instances[1].id, type: 'Turbine Temp Deviation', endDate: new Date('2026-02-23T12:47:04'), triggeredAt: new Date('2026-02-23T12:47:04'), reviewedAt: new Date('2026-02-23T12:47:04'), reviewedBy: 'Jon Doe', status: 'rejected' },
+    { instanceId: instances[2].id, type: 'Pump Vibration Threshold', endDate: new Date('2026-02-23T12:47:04'), triggeredAt: new Date('2026-02-23T12:47:04'), reviewedAt: new Date('2026-02-23T12:47:04'), reviewedBy: 'Jon Doe', status: 'accepted' },
+    { instanceId: instances[3].id, type: 'Surge Margin Alert', endDate: new Date('2026-02-23T12:47:04'), triggeredAt: new Date('2026-02-23T12:47:04'), reviewedAt: new Date('2026-02-23T12:47:04'), reviewedBy: 'Jon Doe', status: 'rejected' },
+    { instanceId: instances[4].id, type: 'HX Fouling Index Alert', endDate: new Date('2026-02-23T12:47:04'), triggeredAt: new Date('2026-02-23T12:47:04'), reviewedAt: new Date('2026-02-23T12:47:04'), reviewedBy: 'Jon Doe', status: 'accepted' },
+  ]);
 
-  // Audit Log
+  // Audit Log: Seed exactly 42 records
+  // beforeState and afterState are deliberately different so the ParamDiffModal
+  // highlights meaningful changes during demo sessions.
   const beforeState = {
     rule_trigger_params: [{
       status_check: { value: 1, tags_to_apply: ['RUN'] },
@@ -80,24 +92,59 @@ async function seed() {
     }],
   };
 
-  const descriptions = [
-    'Updated threshold_comparison operator',
-    'Adjusted time_totalization period',
-    'Modified surge margin threshold',
-    'Enabled rule after maintenance window',
-    'Updated alert sensitivity',
+  const afterState = {
+    rule_trigger_params: [{
+      status_check: { value: 1, tags_to_apply: ['RUN'] },
+      threshold_comparison: { value: 10, operator: 'gte', tags_to_apply: ['Surge Margin Actual'] },
+    }],
+    event_trigger_params: [{
+      time_totalization: { rule: '0&1', value: 50, operator: 'gt', time_period: 48, tags_to_apply: ['all'] },
+    }],
+  };
+
+  const auditLogsToInsert = [];
+
+  // Distribution of change types/descriptions to match mockup (Change Types):
+  // Updated threshold_comparison operator: 19
+  // Adjusted time_totalization period: 19
+  // Modified surge margin threshold: 2
+  // Enabled rule after maintenance window: 1
+  // Updated alert sensitivity: 1
+  const changeTypesList: string[] = [
+    ...Array(19).fill('Updated threshold_comparison operator'),
+    ...Array(19).fill('Adjusted time_totalization period'),
+    ...Array(2).fill('Modified surge margin threshold'),
+    ...Array(1).fill('Enabled rule after maintenance window'),
+    ...Array(1).fill('Updated alert sensitivity'),
   ];
 
-  await db.insert(auditLog).values(
-    Array.from({ length: 10 }, (_, i) => ({
-      instanceId:  instances[i % instances.length].id,
-      userEmail:   'icaro.zelioli@sbmoffshore.com',
-      description: descriptions[i % descriptions.length],
+  // Round-robin distribution across 5 instances so every page of the table shows
+  // a variety of equipment/rule combinations (i % 5 → inst 0,1,2,3,4,0,1,2,3,4...)
+  const equipmentDistribution = Array.from({ length: 42 }, (_, i) => i % 5);
+
+  // Distribute users: Top Editor Share -> icaro.zelioli@sbmoffshore.com must have exactly 17 changes (40% of 42)
+  const userEmails = [
+    ...Array(17).fill('icaro.zelioli@sbmoffshore.com'),
+    ...Array(15).fill('jon.doe@sbmoffshore.com'),
+    ...Array(10).fill('admin@sbmoffshore.com'),
+  ];
+
+  for (let i = 0; i < 42; i++) {
+    const instIdx = equipmentDistribution[i];
+    const desc = changeTypesList[i];
+    const email = userEmails[i];
+
+    auditLogsToInsert.push({
+      instanceId:  instances[instIdx].id,
+      userEmail:   email,
+      description: desc,
       beforeState,
-      afterState:  { ...beforeState },
-      createdAt:   new Date(`2026-02-23T17:49:${String(33 + i).padStart(2, '0')}`),
-    }))
-  );
+      afterState:  afterState,
+      createdAt:   new Date(`2026-02-23T17:49:${String(i).padStart(2, '0')}`),
+    });
+  }
+
+  await db.insert(auditLog).values(auditLogsToInsert);
 
   console.log('✅ Seed complete');
   process.exit(0);

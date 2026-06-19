@@ -57,8 +57,8 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
     ['equipmentCode', 'Equipment'],
     ['ruleName', 'Rule'],
     ['type', 'Type'],
-    ['endDate', 'End Date'],
     ['triggeredAt', 'Triggered At'],
+    ['endDate', 'End Date'],
     ['reviewedAt', 'Reviewed At'],
     ['reviewedBy', 'Reviewed by'],
   ];
@@ -91,8 +91,8 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
                 <td className="px-4 py-3"><EquipmentBadge code={row.equipmentCode} /></td>
                 <td className="px-4 py-3 text-text-primary">{row.ruleName}</td>
                 <td className="px-4 py-3 text-text-muted">{row.type}</td>
-                <td className="px-4 py-3 text-text-muted text-xs whitespace-nowrap">{row.endDate}</td>
                 <td className="px-4 py-3 text-text-muted text-xs whitespace-nowrap">{row.triggeredAt}</td>
+                <td className="px-4 py-3 text-text-muted text-xs whitespace-nowrap">{row.endDate}</td>
                 <td className="px-4 py-3 text-text-muted text-xs whitespace-nowrap">{row.reviewedAt || '—'}</td>
                 <td className="px-4 py-3 text-text-muted">{row.reviewedBy || '—'}</td>
                 <td className="px-4 py-3">

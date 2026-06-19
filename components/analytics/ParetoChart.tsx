@@ -17,10 +17,10 @@ const COLORS = ['#a855f7', '#ec4899', '#8b5cf6', '#0ea5e9', '#1d4ed8', '#22d3ee'
 export default function ParetoChart() {
   return (
     <ResponsiveContainer width="100%" height={220}>
-      <ComposedChart data={DATA} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+      <ComposedChart data={DATA} margin={{ top: 10, right: 10, left: -10, bottom: 20 }}>
         <CartesianGrid strokeDasharray="3 3" stroke="#1e2a3a" />
         <XAxis dataKey="cause" tick={{ fill: '#64748b', fontSize: 10 }} axisLine={false} tickLine={false} />
-        <YAxis tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false} domain={[0, 80]} />
+        <YAxis tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false} domain={[0, 80]} ticks={[0, 20, 40, 60, 80]} />
         <Tooltip
           contentStyle={{ background: '#111827', border: '1px solid #1e2a3a', borderRadius: 4, color: '#e2e8f0' }}
         />
