@@ -81,7 +81,7 @@ export default function AuditHistoryTable({ rows }: { rows: AuditEntry[] }) {
                       onClick={() => setDiffEntry(row)}
                       className="px-3 py-1.5 text-xs rounded border border-border-panel text-text-primary hover:border-accent-blue hover:text-accent-blue transition-colors whitespace-nowrap font-medium"
                     >
-                      View Diff
+                      Details
                     </button>
                   </td>
                 </tr>

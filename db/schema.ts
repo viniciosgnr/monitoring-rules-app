@@ -43,7 +43,7 @@ export const alerts = pgTable('alerts', {
   triggeredAt: timestamp('triggered_at').notNull(),
   reviewedAt:  timestamp('reviewed_at'),
   reviewedBy:  text('reviewed_by'),
-  status:      varchar('status', { length: 20 }).notNull().default('pending'),
+  status:      varchar('status', { length: 30 }).notNull().default('to_be_validated'),
 });
 
 export const auditLog = pgTable('audit_log', {

@@ -64,58 +64,33 @@ async function seed() {
     }))
   ).returning();
 
-  // Alerts - seed 10 alerts to match mockup total alerts: 10, pending: 2, overdue (>10): 2
-  // Let's make: 5 accepted, 3 rejected, 2 pending
+  // Alerts — 10 records covering all 5 new status values
+  // to_be_validated: 3  |  validation_in_progress: 2  |  validated: 3  |  rejected: 1  |  closed: 1
   await db.insert(alerts).values([
-    { instanceId: instances[0].id, type: 'Compressor Performance', endDate: new Date('2026-02-23T12:47:04'), triggeredAt: new Date('2026-02-23T12:47:04'), reviewedAt: new Date('2026-02-23T12:47:04'), reviewedBy: 'Jon Doe', status: 'accepted' },
-    { instanceId: instances[1].id, type: 'Turbine Temp Deviation', endDate: new Date('2026-02-23T12:47:04'), triggeredAt: new Date('2026-02-23T12:47:04'), reviewedAt: new Date('2026-02-23T12:47:04'), reviewedBy: 'Jon Doe', status: 'rejected' },
-    { instanceId: instances[2].id, type: 'Pump Vibration Threshold', endDate: new Date('2026-02-23T12:47:04'), triggeredAt: new Date('2026-02-23T12:47:04'), reviewedAt: null, reviewedBy: null, status: 'pending' },
-    { instanceId: instances[3].id, type: 'Surge Margin Alert', endDate: new Date('2026-02-23T12:47:04'), triggeredAt: new Date('2026-02-23T12:47:04'), reviewedAt: new Date('2026-02-23T12:47:04'), reviewedBy: 'Jon Doe', status: 'accepted' },
-    { instanceId: instances[4].id, type: 'HX Fouling Index Alert', endDate: new Date('2026-02-23T12:47:04'), triggeredAt: new Date('2026-02-23T12:47:04'), reviewedAt: null, reviewedBy: null, status: 'pending' },
-    { instanceId: instances[0].id, type: 'Compressor Performance', endDate: new Date('2026-02-23T12:47:04'), triggeredAt: new Date('2026-02-23T12:47:04'), reviewedAt: new Date('2026-02-23T12:47:04'), reviewedBy: 'Jon Doe', status: 'accepted' },
-    { instanceId: instances[1].id, type: 'Turbine Temp Deviation', endDate: new Date('2026-02-23T12:47:04'), triggeredAt: new Date('2026-02-23T12:47:04'), reviewedAt: new Date('2026-02-23T12:47:04'), reviewedBy: 'Jon Doe', status: 'rejected' },
-    { instanceId: instances[2].id, type: 'Pump Vibration Threshold', endDate: new Date('2026-02-23T12:47:04'), triggeredAt: new Date('2026-02-23T12:47:04'), reviewedAt: new Date('2026-02-23T12:47:04'), reviewedBy: 'Jon Doe', status: 'accepted' },
-    { instanceId: instances[3].id, type: 'Surge Margin Alert', endDate: new Date('2026-02-23T12:47:04'), triggeredAt: new Date('2026-02-23T12:47:04'), reviewedAt: new Date('2026-02-23T12:47:04'), reviewedBy: 'Jon Doe', status: 'rejected' },
-    { instanceId: instances[4].id, type: 'HX Fouling Index Alert', endDate: new Date('2026-02-23T12:47:04'), triggeredAt: new Date('2026-02-23T12:47:04'), reviewedAt: new Date('2026-02-23T12:47:04'), reviewedBy: 'Jon Doe', status: 'accepted' },
+    { instanceId: instances[0].id, type: 'Compressor Performance',  endDate: new Date('2026-02-24T08:00:00'), triggeredAt: new Date('2026-02-23T12:47:04'), reviewedAt: null,                              reviewedBy: null,      status: 'to_be_validated'        },
+    { instanceId: instances[0].id, type: 'Compressor Performance',  endDate: new Date('2026-02-25T08:00:00'), triggeredAt: new Date('2026-02-24T09:15:22'), reviewedAt: new Date('2026-02-24T14:30:00'),   reviewedBy: 'Jon Doe', status: 'validated'              },
+    { instanceId: instances[1].id, type: 'Turbine Temp Deviation',  endDate: new Date('2026-02-24T10:00:00'), triggeredAt: new Date('2026-02-23T14:22:11'), reviewedAt: null,                              reviewedBy: null,      status: 'to_be_validated'        },
+    { instanceId: instances[1].id, type: 'Turbine Temp Deviation',  endDate: new Date('2026-02-25T10:00:00'), triggeredAt: new Date('2026-02-24T11:05:44'), reviewedAt: new Date('2026-02-24T16:00:00'),   reviewedBy: 'Jon Doe', status: 'rejected'               },
+    { instanceId: instances[2].id, type: 'Pump Vibration Threshold',endDate: new Date('2026-02-24T12:00:00'), triggeredAt: new Date('2026-02-23T16:33:09'), reviewedAt: null,                              reviewedBy: null,      status: 'validation_in_progress' },
+    { instanceId: instances[2].id, type: 'Pump Vibration Threshold',endDate: new Date('2026-02-25T12:00:00'), triggeredAt: new Date('2026-02-24T13:48:55'), reviewedAt: new Date('2026-02-25T09:00:00'),   reviewedBy: 'Jon Doe', status: 'validated'              },
+    { instanceId: instances[3].id, type: 'Surge Margin Alert',      endDate: new Date('2026-02-24T14:00:00'), triggeredAt: new Date('2026-02-23T18:01:37'), reviewedAt: null,                              reviewedBy: null,      status: 'to_be_validated'        },
+    { instanceId: instances[3].id, type: 'Surge Margin Alert',      endDate: new Date('2026-02-25T14:00:00'), triggeredAt: new Date('2026-02-24T15:20:18'), reviewedAt: new Date('2026-02-25T10:30:00'),   reviewedBy: 'Jon Doe', status: 'validation_in_progress' },
+    { instanceId: instances[4].id, type: 'HX Fouling Index Alert',  endDate: new Date('2026-02-24T16:00:00'), triggeredAt: new Date('2026-02-23T20:15:52'), reviewedAt: new Date('2026-02-24T08:00:00'),   reviewedBy: 'Jon Doe', status: 'validated'              },
+    { instanceId: instances[4].id, type: 'HX Fouling Index Alert',  endDate: new Date('2026-02-25T16:00:00'), triggeredAt: new Date('2026-02-24T17:44:29'), reviewedAt: new Date('2026-02-25T11:00:00'),   reviewedBy: 'Jon Doe', status: 'closed'                },
   ]);
 
-  // Audit Log: Seed exactly 42 records
-  // beforeState and afterState are deliberately different so the ParamDiffModal
-  // highlights meaningful changes during demo sessions.
-  const beforeState = {
-    rule_trigger_params: [{
-      status_check: { value: 1, tags_to_apply: ['RUN'] },
-      threshold_comparison: { value: 10, operator: 'gt', tags_to_apply: ['Surge Margin Actual'] },
-    }],
-    event_trigger_params: [{
-      time_totalization: { rule: '0&1', value: 50, operator: 'gt', time_period: 24, tags_to_apply: ['all'] },
-    }],
-  };
-
-  const afterState = {
-    rule_trigger_params: [{
-      status_check: { value: 1, tags_to_apply: ['RUN'] },
-      threshold_comparison: { value: 10, operator: 'gte', tags_to_apply: ['Surge Margin Actual'] },
-    }],
-    event_trigger_params: [{
-      time_totalization: { rule: '0&1', value: 50, operator: 'gt', time_period: 48, tags_to_apply: ['all'] },
-    }],
-  };
-
-  const auditLogsToInsert = [];
-
   // Distribution of change types/descriptions to match mockup (Change Types):
-  // Updated threshold_comparison operator: 19
-  // Adjusted time_totalization period: 19
-  // Modified surge margin threshold: 2
+  // Updated Abs Value tags: 19
+  // Adjusted Round Timestamp period: 19
+  // Modified Drop Missing tags: 2
   // Enabled rule after maintenance window: 1
-  // Updated alert sensitivity: 1
+  // Updated Join Timeseries tags: 1
   const changeTypesList: string[] = [
-    ...Array(19).fill('Updated threshold_comparison operator'),
-    ...Array(19).fill('Adjusted time_totalization period'),
-    ...Array(2).fill('Modified surge margin threshold'),
+    ...Array(19).fill('Updated Abs Value tags'),
+    ...Array(19).fill('Adjusted Round Timestamp period'),
+    ...Array(2).fill('Modified Drop Missing tags'),
     ...Array(1).fill('Enabled rule after maintenance window'),
-    ...Array(1).fill('Updated alert sensitivity'),
+    ...Array(1).fill('Updated Join Timeseries tags'),
   ];
 
   // Round-robin distribution across 5 instances so every page of the table shows
@@ -129,17 +104,43 @@ async function seed() {
     ...Array(10).fill('admin@sbmoffshore.com'),
   ];
 
+  const auditLogsToInsert = [];
+
   for (let i = 0; i < 42; i++) {
     const instIdx = equipmentDistribution[i];
     const desc = changeTypesList[i];
     const email = userEmails[i];
 
+    const baseState = {
+      abs_value:       { tags_to_apply: 'RUN' },
+      drop_missing:    { tags_to_apply: 'all' },
+      join_timeseries: { tags_to_apply: 'all' },
+      round_timestamp: { period: 'min', tags_to_apply: 'all' },
+    };
+
+    let before = { ...baseState };
+    let after  = { ...baseState };
+
+    if (desc === 'Updated Abs Value tags') {
+      before.abs_value = { tags_to_apply: 'RUN' };
+      after.abs_value  = { tags_to_apply: 'RUN, Surge Margin Actual' };
+    } else if (desc === 'Adjusted Round Timestamp period') {
+      before.round_timestamp = { period: 'min', tags_to_apply: 'all' };
+      after.round_timestamp  = { period: '5min', tags_to_apply: 'all' };
+    } else if (desc === 'Modified Drop Missing tags') {
+      before.drop_missing = { tags_to_apply: 'all' };
+      after.drop_missing  = { tags_to_apply: 'RUN' };
+    } else if (desc === 'Updated Join Timeseries tags') {
+      before.join_timeseries = { tags_to_apply: 'all' };
+      after.join_timeseries  = { tags_to_apply: 'RUN, TEMP' };
+    }
+
     auditLogsToInsert.push({
       instanceId:  instances[instIdx].id,
       userEmail:   email,
       description: desc,
-      beforeState,
-      afterState:  afterState,
+      beforeState: before,
+      afterState:  after,
       createdAt:   new Date(`2026-02-23T17:49:${String(i).padStart(2, '0')}`),
     });
   }
