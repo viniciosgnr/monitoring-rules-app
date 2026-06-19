@@ -21,7 +21,7 @@ interface Props {
 }
 
 const inputCls =
-  'w-full mt-1 bg-[#0b0f1a] border border-border-panel rounded px-3 py-2 text-sm text-text-primary outline-none focus:border-accent-blue transition-colors';
+  'w-full mt-1 bg-bg-input border border-border-panel rounded px-3 py-2 text-sm text-text-primary outline-none focus:border-accent-blue transition-colors';
 
 /* ─── Inline tooltip ───────────────────────────────────────────────── */
 function ParamTooltip({ text }: { text: string }) {
@@ -52,7 +52,7 @@ function FieldBlock({
   children,
 }: {
   label: string;
-  tooltip: string;
+  tooltip?: string;
   hint?: string;
   children: React.ReactNode;
 }) {
@@ -60,7 +60,7 @@ function FieldBlock({
     <div>
       <label className="flex items-center text-xs text-text-muted">
         {label}
-        <ParamTooltip text={tooltip} />
+        {tooltip && <ParamTooltip text={tooltip} />}
       </label>
       {children}
       {hint && <p className="text-xs text-text-muted mt-1">{hint}</p>}
@@ -125,7 +125,6 @@ export default function EditRuleModal({
             />
             <FieldBlock
               label="Tags to apply"
-              tooltip="Comma-separated list of timeseries tag names this step will be applied to. Use 'all' to apply to every tag in the rule's scope."
               hint="Comma-separated list · e.g. RUN, Surge Margin Actual"
             >
               <input
@@ -144,7 +143,6 @@ export default function EditRuleModal({
             />
             <FieldBlock
               label="Tags to apply"
-              tooltip="Comma-separated list of timeseries tags whose missing values will be dropped. Rows are removed only if ANY of the listed tags are null at that timestamp."
               hint="Comma-separated list · e.g. RUN, all"
             >
               <input
@@ -163,7 +161,6 @@ export default function EditRuleModal({
             />
             <FieldBlock
               label="Tags to apply"
-              tooltip="Comma-separated list of tag names to include in the join operation. Tags not listed here are excluded from the merged dataset and will not be evaluated by downstream steps."
               hint="Comma-separated list · e.g. all"
             >
               <input
@@ -183,7 +180,6 @@ export default function EditRuleModal({
             <div className="grid grid-cols-2 gap-4">
               <FieldBlock
                 label="Period"
-                tooltip="The rounding interval unit. Common values: 'min' (1 minute), '5min' (5 minutes), 'h' (1 hour). Must match the lowest common sampling frequency across all joined timeseries."
                 hint="e.g. min · 5min · h"
               >
                 <input
@@ -200,7 +196,6 @@ export default function EditRuleModal({
               </FieldBlock>
               <FieldBlock
                 label="Tags to apply"
-                tooltip="Comma-separated list of tag names whose timestamps will be rounded. Tags not listed here keep their original timestamps and may cause misalignment in downstream join operations."
                 hint="Comma-separated list · e.g. all"
               >
                 <input
