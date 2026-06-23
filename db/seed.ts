@@ -41,21 +41,29 @@ async function seed() {
 
   // Monitoring Rules — names follow the {EQUIP}_{SYS}_{TYPE}_{NN} convention (e.g. COCE_GEN_SPK_01)
   const rules = await db.insert(monitoringRules).values([
-    { name: 'COCE_GEN_SPK_01',  description: 'Compressor general spark monitoring',      processingSteps },
-    { name: 'TURB_TEMP_DEV_03', description: 'Turbine temperature deviation',             processingSteps: {} },
-    { name: 'PUMP_VIB_THR_02',  description: 'Pump vibration threshold',                 processingSteps: {} },
-    { name: 'COCE_SURG_MGN_06', description: 'Compressor surge margin monitoring',        processingSteps: {} },
-    { name: 'HTEX_FOUL_IDX_04', description: 'Heat exchanger fouling index',              processingSteps: {} },
+    { name: 'COCE_GEN_SPK_01',   description: 'Compressor general spark monitoring',      processingSteps },
+    { name: 'TURB_TEMP_TRND_03',  description: 'Turbine temperature trend monitoring',     processingSteps: {} },
+    { name: 'PUMP_VIB_THR_02',   description: 'Pump vibration threshold',                 processingSteps: {} },
+    { name: 'COCE_SURG_MGN_06',  description: 'Compressor surge margin monitoring',        processingSteps: {} },
+    { name: 'HTEX_FOUL_IDX_04',  description: 'Heat exchanger fouling index',              processingSteps: {} },
   ]).returning();
 
-  // Rule Instances
+  // Rule Instances — Map each equipment to the correct rule matching its type
   const lastRun = new Date('2026-02-23T12:47:04');
   const nextRun = new Date('2026-02-24T12:47:04');
 
+  const instancesData = [
+    { equipmentId: equipList[0].id, ruleId: rules[0].id }, // Compressor -> COCE_GEN_SPK_01 (Spike)
+    { equipmentId: equipList[4].id, ruleId: rules[1].id }, // Turbine -> TURB_TEMP_TRND_03 (Trend)
+    { equipmentId: equipList[1].id, ruleId: rules[2].id }, // Pump -> PUMP_VIB_THR_02 (Surge/Threshold)
+    { equipmentId: equipList[3].id, ruleId: rules[3].id }, // Compressor -> COCE_SURG_MGN_06 (Surge/Threshold)
+    { equipmentId: equipList[2].id, ruleId: rules[4].id }, // Heat Exchanger -> HTEX_FOUL_IDX_04 (dP)
+  ];
+
   const instances = await db.insert(ruleInstances).values(
-    equipList.map((eq, i) => ({
-      ruleId:      rules[i % rules.length].id, // Properly link ruleInstances to all 5 rules
-      equipmentId: eq.id,
+    instancesData.map((data, i) => ({
+      ruleId:      data.ruleId,
+      equipmentId: data.equipmentId,
       timeseries:  `UNY:FPSO:771-VI-181${i + 1}_X`,
       schedule:    'Hourly',
       enabled:     i !== 0,

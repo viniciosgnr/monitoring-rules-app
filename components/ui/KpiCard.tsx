@@ -3,7 +3,7 @@
 interface KpiCardProps {
   title: string;
   value: string | number;
-  subtitle: string;
+  subtitle?: string;
   tooltip?: string;
 }
 
@@ -52,7 +52,7 @@ export default function KpiCard({ title, value, subtitle, tooltip }: KpiCardProp
       </div>
       <p className="text-3xl font-semibold text-text-primary mt-1">{value}</p>
       <div className="kpi-bar" />
-      <p className="text-xs text-text-muted">{subtitle}</p>
+      {subtitle && <p className="text-xs text-text-muted">{subtitle}</p>}
     </div>
   );
 }

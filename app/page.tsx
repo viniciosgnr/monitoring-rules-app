@@ -45,9 +45,9 @@ export default async function MRDatabasePage() {
       <NavTabs title="MR Database" />
       <main className="px-6 py-5 space-y-5">
         <div className="flex gap-4">
-          <KpiCard title="Monitoring Rule Instance" value={total}    subtitle="Last month" />
-          <KpiCard title="Enabled"                  value={enabled}  subtitle="Last month" />
-          <KpiCard title="Disabled"                 value={disabled} subtitle="Last month" />
+          <KpiCard title="Monitoring Rule Instance" value={total} />
+          <KpiCard title="Enabled"                  value={enabled} />
+          <KpiCard title="Disabled"                 value={disabled} />
         </div>
         <RuleInstanceTable rows={serialized} />
       </main>

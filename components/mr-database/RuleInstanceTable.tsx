@@ -27,7 +27,7 @@ function getFriendlyRuleName(ruleName: string): string {
   const name = ruleName.toUpperCase();
   if (name.includes('SPK') || name.includes('SPIKE')) return 'Spike';
   if (name.includes('SURG') || name.includes('THR') || name.includes('VIB_THR')) return 'Surge (Threshold)';
-  if (name.includes('DEV') || name.includes('TEMP_DEV')) return 'Trend';
+  if (name.includes('TRND') || name.includes('TREND') || name.includes('DEV') || name.includes('TEMP_DEV')) return 'Trend';
   if (name.includes('FOUL') || name.includes('DP') || name.includes('HTEX')) return 'Normalized dP ( step change, spike, trend)';
   if (name.includes('DRFT') || name.includes('DRIFT')) return 'Drift';
   if (name.includes('ML') || name.includes('AI')) return 'AI/ML';
