@@ -5,7 +5,7 @@ import * as Dialog from '@radix-ui/react-dialog';
 import EquipmentBadge from '@/components/ui/EquipmentBadge';
 import Pagination from '@/components/ui/Pagination';
 import EditRuleModal from './EditRuleModal';
-import { toggleInstance } from '@/app/actions/ruleInstances';
+import { toggleInstance, toggleInstancesBulk } from '@/app/actions/ruleInstances';
 import { SlidersHorizontal, ChevronDown, ChevronRight, Download, X } from 'lucide-react';
 
 interface InstanceRow {
@@ -13,6 +13,7 @@ interface InstanceRow {
   fpso: string;
   equipmentCode: string;
   timeseries: string;
+  system: string;
   ruleName: string;
   ruleId: number;
   schedule: string;
@@ -43,6 +44,7 @@ export default function RuleInstanceTable({ rows }: { rows: InstanceRow[] }) {
 
   // Disable Modal States
   const [disableRow, setDisableRow] = useState<InstanceRow | null>(null);
+  const [disableGroupData, setDisableGroupData] = useState<{ friendlyName: string; rows: InstanceRow[] } | null>(null);
   const [disableReason, setDisableReason] = useState('Process Shutdown / Maintenance');
   const [customReason, setCustomReason] = useState('');
 
@@ -106,8 +108,34 @@ export default function RuleInstanceTable({ rows }: { rows: InstanceRow[] }) {
     setDisableRow(null);
   }
 
+  async function handleGroupToggle(ids: number[], enabled: boolean, reason?: string) {
+    setData(d => d.map(r => ids.includes(r.id) ? { ...r, enabled } : r));
+    await toggleInstancesBulk(ids, enabled, reason);
+  }
+
+  function handleGroupSwitchChange(friendlyName: string, groupRows: InstanceRow[], checked: boolean) {
+    if (!checked) {
+      // Disabling all active -> Open confirmation / reason modal for the group
+      setDisableGroupData({ friendlyName, rows: groupRows });
+      setDisableReason('Process Shutdown / Maintenance');
+      setCustomReason('');
+    } else {
+      // Enabling all -> Trigger immediately
+      const ids = groupRows.map(r => r.id);
+      handleGroupToggle(ids, true);
+    }
+  }
+
+  function confirmGroupDisable() {
+    if (!disableGroupData) return;
+    const reason = disableReason === 'Other' ? customReason : disableReason;
+    const ids = disableGroupData.rows.map(r => r.id);
+    handleGroupToggle(ids, false, reason);
+    setDisableGroupData(null);
+  }
+
   function downloadExcel() {
-    const headers = ['FPSO', 'Equipment', 'Timeseries', 'Rule', 'Schedule', 'Last Run At', 'Next Run At', 'Enabled'];
+    const headers = ['FPSO', 'Equipment', 'Timeseries', 'System', 'Rule', 'Schedule', 'Last Run At', 'Next Run At', 'Enabled'];
     const csvRows = [headers.join(',')];
 
     for (const row of filtered) {
@@ -115,6 +143,7 @@ export default function RuleInstanceTable({ rows }: { rows: InstanceRow[] }) {
         row.fpso,
         row.equipmentCode,
         row.timeseries,
+        row.system,
         row.ruleName,
         row.schedule,
         row.lastRunAt,
@@ -151,6 +180,7 @@ export default function RuleInstanceTable({ rows }: { rows: InstanceRow[] }) {
     ['fpso', 'FPSO'],
     ['equipmentCode', 'Equipment'],
     ['timeseries', 'Timeseries'],
+    ['system', 'System'],
     ['ruleName', 'Rule'],
     ['schedule', 'Schedule'],
     ['lastRunAt', 'Last Run At'],
@@ -207,7 +237,7 @@ export default function RuleInstanceTable({ rows }: { rows: InstanceRow[] }) {
                         <ChevronRight size={14} className="text-text-muted" />
                       )}
                     </td>
-                    <td colSpan={9} className="px-1 py-2.5">
+                    <td colSpan={8} className="px-1 py-2.5">
                       <div className="flex items-center gap-3">
                         <span className="text-xs font-semibold text-text-primary">{friendlyName}</span>
                         <span className="text-[11px] text-text-muted">
@@ -215,6 +245,19 @@ export default function RuleInstanceTable({ rows }: { rows: InstanceRow[] }) {
                         </span>
                       </div>
                     </td>
+                    {/* Group Switch (Aligns with column switches) */}
+                    <td className="px-4 py-2.5" onClick={e => e.stopPropagation()}>
+                      <div className="flex items-center gap-2">
+                        <Switch.Root
+                          checked={enabledCount > 0}
+                          onCheckedChange={v => handleGroupSwitchChange(friendlyName, groupRows, v)}
+                          className="relative w-10 h-5 rounded-full border border-border-panel bg-bg-panel data-[state=checked]:bg-accent-blue outline-none cursor-pointer transition-colors"
+                        >
+                          <Switch.Thumb className="block w-4 h-4 bg-white rounded-full shadow-sm translate-x-0.5 data-[state=checked]:translate-x-5 transition-transform" />
+                        </Switch.Root>
+                      </div>
+                    </td>
+                    <td className="px-4 py-2.5" />
                   </tr>
 
                   {/* Individual rows in group */}
@@ -229,6 +272,7 @@ export default function RuleInstanceTable({ rows }: { rows: InstanceRow[] }) {
                         <EquipmentBadge code={row.equipmentCode} />
                       </td>
                       <td className="px-4 py-3 text-text-muted font-mono text-xs">{row.timeseries}</td>
+                      <td className="px-4 py-3 text-text-muted text-sm">{row.system}</td>
                       <td className="px-4 py-3 text-text-primary font-mono text-xs">{row.ruleName}</td>
                       <td className="px-4 py-3 text-text-muted text-sm">{row.schedule}</td>
                       <td className="px-4 py-3 text-text-muted text-xs">{row.lastRunAt}</td>
@@ -258,7 +302,7 @@ export default function RuleInstanceTable({ rows }: { rows: InstanceRow[] }) {
 
             {groups.length === 0 && (
               <tr>
-                <td colSpan={11} className="px-4 py-8 text-center text-text-muted text-sm">No results found</td>
+                <td colSpan={12} className="px-4 py-8 text-center text-text-muted text-sm">No results found</td>
               </tr>
             )}
           </tbody>
@@ -298,8 +342,8 @@ export default function RuleInstanceTable({ rows }: { rows: InstanceRow[] }) {
                 <X size={18} />
               </Dialog.Close>
             </div>
-            <p className="text-xs text-text-muted mb-4">
-              Specify a justification for disabling the rule instance <span className="font-mono text-text-primary">{disableRow?.ruleName}</span> for equipment <span className="text-text-primary font-medium">{disableRow?.equipmentCode}</span>.
+            <p className="text-xs text-text-muted mb-4 leading-relaxed">
+              Specify a justification for disabling the rule instance <span className="font-semibold text-text-primary">{disableRow ? getFriendlyRuleName(disableRow.ruleName) : ''}</span> (<span className="font-mono text-text-muted text-[11px]">{disableRow?.ruleName}</span>) for equipment <span className="text-text-primary font-medium">{disableRow?.equipmentCode}</span>.
             </p>
 
             <div className="space-y-4">
@@ -342,6 +386,72 @@ export default function RuleInstanceTable({ rows }: { rows: InstanceRow[] }) {
                 className="px-4 py-2 text-sm rounded bg-red-600 text-white font-medium hover:bg-red-700 transition-colors"
               >
                 Confirm Disable
+              </button>
+            </div>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
+
+      {/* Disable Group reason modal */}
+      <Dialog.Root open={!!disableGroupData} onOpenChange={v => !v && setDisableGroupData(null)}>
+        <Dialog.Portal>
+          <Dialog.Overlay className="fixed inset-0 bg-black/60 z-50 backdrop-blur-sm" />
+          <Dialog.Content className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[460px] bg-bg-panel rounded-card border border-border-panel p-6 shadow-2xl">
+            <div className="flex items-center justify-between mb-4">
+              <Dialog.Title className="text-base font-semibold text-text-primary">
+                Disable All Rule Instances (Bulk)
+              </Dialog.Title>
+              <Dialog.Close className="text-text-muted hover:text-text-primary transition-colors">
+                <X size={18} />
+              </Dialog.Close>
+            </div>
+            <p className="text-xs text-text-muted mb-4 leading-relaxed">
+              Specify a justification for disabling **ALL** instances of the Monitoring Rule <span className="font-bold text-text-primary">{disableGroupData?.friendlyName}</span>.
+            </p>
+            <p className="text-xs text-text-muted bg-amber-500/10 border border-amber-500/20 rounded p-2.5 mb-4 leading-relaxed">
+              <span className="font-semibold text-amber-500">Warning:</span> This will disable {disableGroupData?.rows.filter(r => r.enabled).length} active rule instance(s) across equipment: <span className="font-mono text-text-primary">{disableGroupData?.rows.filter(r => r.enabled).map(r => r.equipmentCode).join(', ')}</span>.
+            </p>
+
+            <div className="space-y-4">
+              <div>
+                <label className="text-xs text-text-muted font-medium">Justification Reason</label>
+                <select
+                  value={disableReason}
+                  onChange={e => setDisableReason(e.target.value)}
+                  className="w-full mt-1.5 bg-bg-input border border-border-panel rounded px-3 py-2 text-sm text-text-primary outline-none focus:border-accent-blue transition-colors"
+                >
+                  <option value="Process Shutdown / Maintenance">Process Shutdown / Maintenance</option>
+                  <option value="Sensor Calibration">Sensor Calibration</option>
+                  <option value="False Alert Tuning">False Alert Tuning</option>
+                  <option value="Other">Other (Write reason below)</option>
+                </select>
+              </div>
+
+              {disableReason === 'Other' && (
+                <div>
+                  <label className="text-xs text-text-muted font-medium">Custom Reason</label>
+                  <textarea
+                    value={customReason}
+                    onChange={e => setCustomReason(e.target.value)}
+                    placeholder="Describe the reason for disabling these rules..."
+                    className="w-full mt-1.5 bg-bg-input border border-border-panel rounded px-3 py-2 text-sm text-text-primary outline-none focus:border-accent-blue transition-colors h-24 resize-none"
+                  />
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-3 mt-6 border-t border-border-panel pt-4">
+              <button
+                onClick={() => setDisableGroupData(null)}
+                className="px-4 py-2 text-sm rounded border border-border-panel text-text-muted hover:text-text-primary hover:border-text-muted transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmGroupDisable}
+                className="px-4 py-2 text-sm rounded bg-red-600 text-white font-medium hover:bg-red-700 transition-colors"
+              >
+                Confirm Disable All
               </button>
             </div>
           </Dialog.Content>

@@ -29,7 +29,7 @@ function ParamTooltip({ text }: { text: string }) {
     <span className="relative group cursor-help inline-flex ml-1.5 align-middle">
       <Info size={12} className="text-text-muted group-hover:text-accent-blue transition-colors" />
       <span className="
-        absolute left-1/2 -translate-x-1/2 bottom-full mb-2
+        absolute left-1/2 -translate-x-1/2 top-full mt-1.5
         w-64 bg-bg-panel border border-border-panel rounded-card
         shadow-xl px-3 py-2.5 text-xs text-text-muted leading-relaxed
         opacity-0 pointer-events-none
@@ -38,7 +38,7 @@ function ParamTooltip({ text }: { text: string }) {
         whitespace-normal text-left
       ">
         {text}
-        <span className="absolute left-1/2 -translate-x-1/2 top-full w-0 h-0 border-x-4 border-x-transparent border-t-4 border-t-border-panel" />
+        <span className="absolute left-1/2 -translate-x-1/2 bottom-full w-0 h-0 border-x-4 border-x-transparent border-b-4 border-b-border-panel" />
       </span>
     </span>
   );
@@ -58,8 +58,8 @@ function FieldBlock({
 }) {
   return (
     <div>
-      <label className="flex items-center text-xs text-text-muted">
-        {label}
+      <label className="flex items-center text-xs text-text-muted min-h-[16px]">
+        {label || '\u00A0'}
         {tooltip && <ParamTooltip text={tooltip} />}
       </label>
       {children}
@@ -76,6 +76,17 @@ function SectionTitle({ label, tooltip }: { label: string; tooltip: string }) {
       <ParamTooltip text={tooltip} />
     </p>
   );
+}
+
+function getFriendlyRuleName(ruleName: string): string {
+  const name = ruleName.toUpperCase();
+  if (name.includes('SPK') || name.includes('SPIKE')) return 'Spike';
+  if (name.includes('SURG') || name.includes('THR') || name.includes('VIB_THR')) return 'Surge (Threshold)';
+  if (name.includes('TRND') || name.includes('TREND') || name.includes('DEV') || name.includes('TEMP_DEV')) return 'Trend';
+  if (name.includes('FOUL') || name.includes('DP') || name.includes('HTEX')) return 'Normalized dP ( step change, spike, trend)';
+  if (name.includes('DRFT') || name.includes('DRIFT')) return 'Drift';
+  if (name.includes('ML') || name.includes('AI')) return 'AI/ML';
+  return ruleName;
 }
 
 export default function EditRuleModal({
@@ -104,9 +115,12 @@ export default function EditRuleModal({
                 Monitoring Rule — Details
               </Dialog.Title>
               {/* Selected rule identity */}
-              <div className="flex items-center gap-2 mt-1.5">
+              <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                 <span className="equipment-badge">{equipmentCode}</span>
-                <span className="text-xs font-mono text-text-primary font-semibold">{ruleName}</span>
+                <span className="text-xs font-semibold text-text-primary">
+                  {getFriendlyRuleName(ruleName)}
+                </span>
+                <span className="text-xs font-mono text-text-muted">({ruleName})</span>
                 <span className="text-xs text-text-muted">· Data Processing Steps</span>
               </div>
             </div>
@@ -124,14 +138,12 @@ export default function EditRuleModal({
               tooltip="Converts all selected tag values to their absolute (non-negative) form before the rule logic runs. Useful when sensor readings can be negative but only the magnitude matters for threshold comparison."
             />
             <FieldBlock
-              label="Tags to apply"
+              label=""
               hint="Comma-separated list · e.g. RUN, Surge Margin Actual"
             >
-              <input
-                value={s.abs_value?.tags_to_apply ?? ''}
-                onChange={e => setS({ ...s, abs_value: { tags_to_apply: e.target.value } })}
-                className={inputCls}
-              />
+              <div className="w-full mt-1 bg-bg-panel/40 border border-border-panel/40 rounded px-3 py-2 text-xs font-mono text-text-muted select-none">
+                {s.abs_value?.tags_to_apply || '—'}
+              </div>
             </FieldBlock>
           </div>
 
@@ -142,14 +154,12 @@ export default function EditRuleModal({
               tooltip="Removes data points where the selected tags have null, NaN or missing values before the rule evaluates. Prevents false alerts caused by sensor outages, communication gaps or bad-quality data frames."
             />
             <FieldBlock
-              label="Tags to apply"
+              label=""
               hint="Comma-separated list · e.g. RUN, all"
             >
-              <input
-                value={s.drop_missing?.tags_to_apply ?? ''}
-                onChange={e => setS({ ...s, drop_missing: { tags_to_apply: e.target.value } })}
-                className={inputCls}
-              />
+              <div className="w-full mt-1 bg-bg-panel/40 border border-border-panel/40 rounded px-3 py-2 text-xs font-mono text-text-muted select-none">
+                {s.drop_missing?.tags_to_apply || '—'}
+              </div>
             </FieldBlock>
           </div>
 
@@ -160,14 +170,12 @@ export default function EditRuleModal({
               tooltip="Merges multiple timeseries into a single time-aligned dataset using an inner join on timestamps. Required when the rule compares values from different sensors that may have different sampling intervals."
             />
             <FieldBlock
-              label="Tags to apply"
+              label=""
               hint="Comma-separated list · e.g. all"
             >
-              <input
-                value={s.join_timeseries?.tags_to_apply ?? ''}
-                onChange={e => setS({ ...s, join_timeseries: { tags_to_apply: e.target.value } })}
-                className={inputCls}
-              />
+              <div className="w-full mt-1 bg-bg-panel/40 border border-border-panel/40 rounded px-3 py-2 text-xs font-mono text-text-muted select-none">
+                {s.join_timeseries?.tags_to_apply || '—'}
+              </div>
             </FieldBlock>
           </div>
 
@@ -195,20 +203,12 @@ export default function EditRuleModal({
                 />
               </FieldBlock>
               <FieldBlock
-                label="Tags to apply"
+                label=""
                 hint="Comma-separated list · e.g. all"
               >
-                <input
-                  value={s.round_timestamp?.tags_to_apply ?? ''}
-                  onChange={e => setS({
-                    ...s,
-                    round_timestamp: {
-                      period:        s.round_timestamp?.period ?? '',
-                      tags_to_apply: e.target.value,
-                    },
-                  })}
-                  className={inputCls}
-                />
+                <div className="w-full mt-1 bg-bg-panel/40 border border-border-panel/40 rounded px-3 py-2 text-xs font-mono text-text-muted select-none">
+                  {s.round_timestamp?.tags_to_apply || '—'}
+                </div>
               </FieldBlock>
             </div>
           </div>

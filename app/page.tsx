@@ -8,6 +8,14 @@ import RuleInstanceTable from '@/components/mr-database/RuleInstanceTable';
 
 export const dynamic = 'force-dynamic';
 
+function getSystemFromTimeseries(timeseries: string): string {
+  if (timeseries.includes('771')) return 'Gas System';
+  if (timeseries.includes('772')) return 'Water Injection System';
+  if (timeseries.includes('773')) return 'Crude Oil System';
+  if (timeseries.includes('774')) return 'Power Generation System';
+  return 'Utility System';
+}
+
 export default async function MRDatabasePage() {
   const rows = await db
     .select({
@@ -34,6 +42,7 @@ export default async function MRDatabasePage() {
 
   const serialized = rows.map(r => ({
     ...r,
+    system:          getSystemFromTimeseries(r.timeseries),
     lastRunAt:       r.lastRunAt?.toLocaleString('pt-BR') ?? '—',
     nextRunAt:       r.nextRunAt?.toLocaleString('pt-BR') ?? '—',
     processingSteps: (r.processingSteps as object) ?? {},

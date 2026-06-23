@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import EquipmentBadge from '@/components/ui/EquipmentBadge';
 import StatusBadge from '@/components/ui/StatusBadge';
@@ -15,6 +15,7 @@ interface AlertRow {
   type: string;
   endDate: string;
   triggeredAt: string;
+  triggeredAtRaw?: string;
   reviewedAt: string;
   reviewedBy: string;
   status: Status;
@@ -50,7 +51,35 @@ export function getFriendlyRuleName(ruleName: string): string {
   return ruleName;
 }
 
+export function formatDurationOpen(triggeredAtRaw: string | undefined): string {
+  if (!triggeredAtRaw) return '—';
+  const triggeredAt = new Date(triggeredAtRaw);
+  const now = new Date();
+  const diffMs = now.getTime() - triggeredAt.getTime();
+  if (diffMs <= 0) return '0m';
+
+  const diffMins = Math.floor(diffMs / (1000 * 60));
+  const diffHours = Math.floor(diffMins / 60);
+  const diffDays = Math.floor(diffHours / 24);
+
+  if (diffDays > 0) {
+    const remainingHours = diffHours % 24;
+    return `${diffDays}d ${remainingHours}h`;
+  }
+  if (diffHours > 0) {
+    const remainingMins = diffMins % 60;
+    return `${diffHours}h ${remainingMins}m`;
+  }
+  return `${diffMins}m`;
+}
+
+
 export default function AlertTable({ rows }: { rows: AlertRow[] }) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const [data, setData]     = useState(rows);
   const [period, setPeriod] = useState('All Time');
   const [ruleSearch, setRuleSearch]     = useState('');
@@ -79,9 +108,13 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
     await updateAlertStatus(id, status);
   }
 
-  // Filter rows (column-level + rule search)
+  // Filter rows (column-level + rule search + only show open alerts)
   const filtered = useMemo(() => {
     return data.filter(r => {
+      // Only show open alerts: 'to_be_validated' or 'validation_in_progress'
+      const isOpen = r.status === 'to_be_validated' || r.status === 'validation_in_progress';
+      if (!isOpen) return false;
+
       const colMatch = Object.entries(filters).every(([k, v]) =>
         !v || String((r as Record<string, unknown>)[k]).toLowerCase().includes(v.toLowerCase())
       );
@@ -169,43 +202,47 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-border-panel">
+            <tr className="border-b border-border-panel bg-bg-panel/40">
               {/* Expand chevron column */}
-              <th className="w-8 px-3 py-2" />
-              {/* Alert ID */}
-              <th className="text-left px-4 py-2 text-xs font-medium text-text-muted whitespace-nowrap">
-                Alert ID
+              <th className="w-8 px-3 py-3" />
+              {/* Event Manager Link */}
+              <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary whitespace-nowrap">
+                Event Manager
                 <FilterInput field="id" />
               </th>
-              <th className="text-left px-4 py-2 text-xs font-medium text-text-muted whitespace-nowrap">
+              <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary whitespace-nowrap">
                 FPSO
                 <FilterInput field="fpso" />
               </th>
-              <th className="text-left px-4 py-2 text-xs font-medium text-text-muted whitespace-nowrap">
+              <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary whitespace-nowrap">
                 Equipment
                 <FilterInput field="equipmentCode" />
               </th>
-              <th className="text-left px-4 py-2 text-xs font-medium text-text-muted whitespace-nowrap">
+              <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary whitespace-nowrap">
                 Type
                 <FilterInput field="type" />
               </th>
-              <th className="text-left px-4 py-2 text-xs font-medium text-text-muted whitespace-nowrap">
+              <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary whitespace-nowrap">
                 Triggered At
                 <FilterInput field="triggeredAt" />
               </th>
-              <th className="text-left px-4 py-2 text-xs font-medium text-text-muted whitespace-nowrap">
+              <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary whitespace-nowrap">
+                Time Open
+                <div className="h-[18px] mt-1.5" aria-hidden="true" />
+              </th>
+              <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary whitespace-nowrap">
                 End Date
                 <FilterInput field="endDate" />
               </th>
-              <th className="text-left px-4 py-2 text-xs font-medium text-text-muted whitespace-nowrap">
+              <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary whitespace-nowrap">
                 Reviewed At
                 <FilterInput field="reviewedAt" />
               </th>
-              <th className="text-left px-4 py-2 text-xs font-medium text-text-muted whitespace-nowrap">
+              <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary whitespace-nowrap">
                 Reviewed by
                 <FilterInput field="reviewedBy" />
               </th>
-              <th className="text-left px-4 py-2 text-xs font-medium text-text-muted">
+              <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary">
                 Status
                 <FilterInput field="status" />
               </th>
@@ -230,7 +267,7 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
                         : <ChevronRight size={14} className="text-text-muted" />
                       }
                     </td>
-                    <td colSpan={9} className="px-1 py-2.5">
+                    <td colSpan={10} className="px-1 py-2.5">
                       <div className="flex items-center gap-3">
                         <span className="text-xs font-semibold text-text-primary">{ruleName}</span>
                         <span className="text-[11px] text-text-muted">
@@ -258,22 +295,32 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
                         <div className="w-px h-4 bg-border-panel mx-auto" />
                       </td>
 
-                      {/* Alert ID — future Optifast link */}
+                      {/* Event Manager Link */}
                       <td className="px-4 py-3">
-                        <span className="relative group inline-flex items-center gap-1 px-2 py-0.5 rounded border border-border-panel text-xs font-mono text-text-muted cursor-pointer hover:border-accent-blue hover:text-accent-blue transition-colors">
-                          #{row.id}
-                          <ExternalLink size={9} className="opacity-40" />
-                          <span className="absolute left-1/2 -translate-x-1/2 bottom-full mb-1.5 w-40 bg-bg-panel border border-border-panel rounded px-2 py-1.5 text-[10px] text-text-muted opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50 text-center whitespace-nowrap">
-                            Optifast link — coming soon
+                        <a
+                          href="#"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            alert(`Opening Event Manager for Event #${row.id} (Simulation)`);
+                          }}
+                          className="relative group inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-accent-blue/10 hover:bg-accent-blue/20 border border-accent-blue/30 text-xs font-semibold text-accent-blue transition-all cursor-pointer whitespace-nowrap shadow-sm hover:shadow-accent-blue/10"
+                        >
+                          <span>Event #{row.id}</span>
+                          <ExternalLink size={12} className="text-accent-blue opacity-85 group-hover:opacity-100 transition-opacity" />
+                          <span className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-48 bg-bg-panel border border-border-panel rounded-card p-2 text-[10px] text-text-muted opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50 text-center shadow-xl whitespace-normal leading-normal">
+                            Click to simulate opening Event #{row.id} in Event Manager
                           </span>
-                        </span>
+                        </a>
                       </td>
 
                       <td className="px-4 py-3 text-text-muted text-sm">{row.fpso}</td>
                       <td className="px-4 py-3"><EquipmentBadge code={row.equipmentCode} /></td>
                       <td className="px-4 py-3 text-text-muted">{row.type}</td>
                       <td className="px-4 py-3 text-text-muted text-xs whitespace-nowrap">{row.triggeredAt}</td>
-                      <td className="px-4 py-3 text-text-muted text-xs whitespace-nowrap">{row.endDate}</td>
+                      <td className="px-4 py-3 text-text-muted text-xs whitespace-nowrap">
+                        {mounted ? formatDurationOpen(row.triggeredAtRaw) : '—'}
+                      </td>
+                      <td className="px-4 py-3 text-text-muted text-xs whitespace-nowrap">—</td>
                       <td className="px-4 py-3 text-text-muted text-xs whitespace-nowrap">{row.reviewedAt || '—'}</td>
                       <td className="px-4 py-3 text-text-muted">{row.reviewedBy || '—'}</td>
                       <td className="px-4 py-3">
@@ -309,7 +356,7 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
 
             {groups.length === 0 && (
               <tr>
-                <td colSpan={10} className="px-4 py-8 text-center text-text-muted text-sm">
+                <td colSpan={11} className="px-4 py-8 text-center text-text-muted text-sm">
                   No results found
                 </td>
               </tr>

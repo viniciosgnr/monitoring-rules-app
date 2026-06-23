@@ -36,11 +36,12 @@ export default async function AlertReviewPage() {
 
   const serialized = rows.map(r => ({
     ...r,
-    endDate:     r.endDate.toLocaleString('pt-BR'),
-    triggeredAt: r.triggeredAt.toLocaleString('pt-BR'),
-    reviewedAt:  r.reviewedAt?.toLocaleString('pt-BR') ?? '',
-    reviewedBy:  r.reviewedBy ?? '',
-    status:      r.status as Status,
+    endDate:        r.endDate.toLocaleString('pt-BR'),
+    triggeredAt:    r.triggeredAt.toLocaleString('pt-BR'),
+    triggeredAtRaw: r.triggeredAt.toISOString(),
+    reviewedAt:     r.reviewedAt?.toLocaleString('pt-BR') ?? '',
+    reviewedBy:     r.reviewedBy ?? '',
+    status:         r.status as Status,
   }));
 
   return (

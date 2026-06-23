@@ -116,29 +116,39 @@ export default function ParamDiffModal({ open, onClose, entry }: Props) {
           </div>
 
           {/* ── Content / Parameters ── */}
-          <div className="px-6 py-5">
-            {isStatusChange ? (
-              /* Status change banner (e.g. Enabled / Disabled with justification reason) */
-              <div className="p-5 rounded-card bg-bg-banner border-l-4 border-accent-blue text-sm text-text-primary flex gap-4">
-                <div className="flex-shrink-0 text-accent-blue mt-0.5">
-                  <Info size={20} />
+          <div className="px-6 py-5 space-y-5">
+            {/* Status change banner */}
+            {entry.description.toLowerCase().includes('disable') && (
+              <div className="p-4 rounded-card bg-amber-500/10 border-l-4 border-amber-500 text-sm text-text-primary flex gap-3">
+                <div className="flex-shrink-0 text-amber-500 mt-0.5">
+                  <Info size={18} />
                 </div>
-                <div className="space-y-2.5 leading-relaxed">
-                  <p className="font-semibold text-text-primary text-base">
-                    {entry.description}
+                <div className="space-y-1">
+                  <p className="font-semibold text-text-primary">Rule Deactivation Info</p>
+                  <p className="text-xs text-text-muted leading-relaxed">
+                    <span className="font-semibold text-text-primary">Disable Reason:</span>{' '}
+                    <span className="text-amber-500 font-semibold">{after.reason || 'No reason provided'}</span>
                   </p>
-                  <div className="text-xs text-text-muted space-y-1.5">
-                    <p><span className="font-medium text-text-primary">Date and time:</span> {entry.timestamp}</p>
-                    <p><span className="font-medium text-text-primary">Author:</span> {entry.userEmail}</p>
-                    {entry.description.toLowerCase().includes('disable') && (
-                      <p><span className="font-medium text-text-primary">Reason:</span> {after.reason || 'No reason provided'}</p>
-                    )}
-                  </div>
                 </div>
               </div>
-            ) : (
-              /* Parameter comparison cards */
-              <div className="space-y-5">
+            )}
+
+            {entry.description.toLowerCase().includes('enable') && (
+              <div className="p-4 rounded-card bg-green-500/10 border-l-4 border-green-500 text-sm text-text-primary flex gap-3">
+                <div className="flex-shrink-0 text-green-500 mt-0.5">
+                  <Info size={18} />
+                </div>
+                <div className="space-y-1">
+                  <p className="font-semibold text-text-primary">Rule Activation Info</p>
+                  <p className="text-xs text-text-muted leading-relaxed">
+                    The rule instance was successfully enabled.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Parameter comparison cards */}
+            <div className="space-y-5">
                 {/* ── Abs Value ── */}
                 <div className="bg-bg-highlight border border-border-panel/80 rounded-card p-4">
                   <div className="border-b border-border-panel/40 pb-2 mb-3 flex items-center justify-between">
@@ -390,7 +400,6 @@ export default function ParamDiffModal({ open, onClose, entry }: Props) {
                   </table>
                 </div>
               </div>
-            )}
           </div>
 
           {/* ── Footer ── */}

@@ -31,6 +31,35 @@ export async function toggleInstance(id: number, enabled: boolean, reason?: stri
   revalidatePath('/');
 }
 
+export async function toggleInstancesBulk(ids: number[], enabled: boolean, reason?: string) {
+  for (const id of ids) {
+    const [current] = await db
+      .select({
+        enabled: ruleInstances.enabled,
+      })
+      .from(ruleInstances)
+      .where(eq(ruleInstances.id, id));
+
+    if (!current) continue;
+
+    await db.update(ruleInstances).set({ enabled }).where(eq(ruleInstances.id, id));
+
+    const description = enabled ? 'Enabled rule instance (Bulk)' : 'Disabled rule instance (Bulk)';
+    const beforeState = { enabled: current.enabled };
+    const afterState = { enabled, reason: reason ?? null };
+
+    await db.insert(auditLog).values({
+      instanceId: id,
+      userEmail: 'operator@sbmoffshore.com',
+      description,
+      beforeState,
+      afterState,
+    });
+  }
+
+  revalidatePath('/');
+}
+
 export async function updateProcessingSteps(ruleId: number, steps: object) {
   await db.update(monitoringRules)
     .set({ processingSteps: steps })
