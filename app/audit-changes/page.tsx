@@ -28,9 +28,10 @@ export default async function AuditChangesPage() {
 
   const serialized = rows.map(r => ({
     ...r,
-    timestamp:   r.timestamp.toLocaleString('pt-BR'),
-    beforeState: (r.beforeState as object) ?? {},
-    afterState:  (r.afterState  as object) ?? {},
+    timestamp:    r.timestamp.toLocaleString('pt-BR'),
+    timestampRaw: r.timestamp.toISOString(),
+    beforeState:  (r.beforeState as object) ?? {},
+    afterState:   (r.afterState  as object) ?? {},
   }));
 
   return (
@@ -39,10 +40,6 @@ export default async function AuditChangesPage() {
       <NavTabs title="MR Audit Changes" />
       <main className="px-6 py-5">
         <AuditClient
-          totalChanges={rows.length}
-          peakDay={4}
-          topEditorShare="40%"
-          hotRule="8"
           auditRows={serialized}
         />
       </main>
