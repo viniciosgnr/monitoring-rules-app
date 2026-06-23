@@ -108,12 +108,23 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
     await updateAlertStatus(id, status);
   }
 
-  // Filter rows (column-level + rule search + only show open alerts)
+  // Filter rows (column-level + rule search + period + only show open alerts)
   const filtered = useMemo(() => {
     return data.filter(r => {
       // Only show open alerts: 'to_be_validated' or 'validation_in_progress'
       const isOpen = r.status === 'to_be_validated' || r.status === 'validation_in_progress';
       if (!isOpen) return false;
+
+      // Period filtering
+      if (period !== 'All Time' && r.triggeredAtRaw) {
+        const date = new Date(r.triggeredAtRaw);
+        const now = new Date();
+        const diffMs = now.getTime() - date.getTime();
+        const oneDay = 1000 * 60 * 60 * 24;
+        if (period === 'Last Week' && diffMs > oneDay * 7) return false;
+        if (period === 'Last Month' && diffMs > oneDay * 30) return false;
+        if (period === 'Last 3 Months' && diffMs > oneDay * 90) return false;
+      }
 
       const colMatch = Object.entries(filters).every(([k, v]) =>
         !v || String((r as Record<string, unknown>)[k]).toLowerCase().includes(v.toLowerCase())
@@ -124,7 +135,7 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
         friendly.toLowerCase().includes(ruleSearch.toLowerCase());
       return colMatch && ruleMatch;
     });
-  }, [data, filters, ruleSearch]);
+  }, [data, filters, ruleSearch, period]);
 
   // Group by friendlyName, sorted: rules with to_be_validated alerts first
   const groups = useMemo(() => {

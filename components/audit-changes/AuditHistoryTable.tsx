@@ -9,6 +9,7 @@ import { SlidersHorizontal, ChevronDown, ChevronRight, Download, X } from 'lucid
 interface AuditEntry {
   id: number;
   timestamp: string;
+  timestampRaw?: string;
   userEmail: string;
   equipmentCode: string;
   ruleName: string;
@@ -35,6 +36,7 @@ export default function AuditHistoryTable({ rows }: { rows: AuditEntry[] }) {
   const [filters, setFilters]     = useState<Record<string, string>>({});
   const [diffEntry, setDiffEntry] = useState<AuditEntry | null>(null);
   const [showExportModal, setShowExportModal] = useState(false);
+  const [period, setPeriod]       = useState('All Time');
 
   const [expandedRules, setExpandedRules] = useState<Set<string>>(() => {
     const s = new Set<string>();
@@ -76,11 +78,22 @@ export default function AuditHistoryTable({ rows }: { rows: AuditEntry[] }) {
     document.body.removeChild(link);
   }
 
-  const filtered = rows.filter(r =>
-    Object.entries(filters).every(([k, v]) =>
-      !v || String((r as Record<string, unknown>)[k]).toLowerCase().includes(v.toLowerCase())
-    )
-  );
+  const filtered = useMemo(() => {
+    return rows.filter(r => {
+      if (period !== 'All Time' && r.timestampRaw) {
+        const date = new Date(r.timestampRaw);
+        const now = new Date();
+        const diffMs = now.getTime() - date.getTime();
+        const oneDay = 1000 * 60 * 60 * 24;
+        if (period === 'Last Week' && diffMs > oneDay * 7) return false;
+        if (period === 'Last Month' && diffMs > oneDay * 30) return false;
+        if (period === 'Last 3 Months' && diffMs > oneDay * 90) return false;
+      }
+      return Object.entries(filters).every(([k, v]) =>
+        !v || String((r as Record<string, unknown>)[k]).toLowerCase().includes(v.toLowerCase())
+      );
+    });
+  }, [rows, filters, period]);
   const paged = filtered.slice((page - 1) * pageSize, page * pageSize);
 
   const groups = useMemo(() => {
@@ -110,15 +123,28 @@ export default function AuditHistoryTable({ rows }: { rows: AuditEntry[] }) {
   return (
     <>
       <div className="bg-bg-card border border-border-panel rounded-card overflow-hidden">
-        <div className="px-4 py-3 border-b border-border-panel flex items-center justify-between">
+        <div className="px-4 py-3 border-b border-border-panel flex items-center justify-between flex-wrap gap-3">
           <h2 className="text-sm font-semibold text-text-primary">Audit History</h2>
-          <button
-            onClick={() => setShowExportModal(true)}
-            className="flex items-center gap-2 px-3 py-1.5 text-xs font-semibold rounded bg-bg-panel border border-border-panel text-text-primary hover:border-accent-blue hover:text-accent-blue transition-colors"
-          >
-            <Download size={13} />
-            Export to Excel
-          </button>
+          <div className="flex items-center gap-3">
+            {/* Time period filter */}
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-text-muted">Period</span>
+              <select
+                value={period}
+                onChange={e => { setPeriod(e.target.value); setPage(1); }}
+                className="bg-bg-panel border border-border-panel rounded px-3 py-1.5 text-xs text-text-primary outline-none cursor-pointer hover:border-accent-blue transition-colors"
+              >
+                {['Last Week', 'Last Month', 'Last 3 Months', 'All Time'].map(p => <option key={p}>{p}</option>)}
+              </select>
+            </div>
+            <button
+              onClick={() => setShowExportModal(true)}
+              className="flex items-center gap-2 px-3 py-1.5 text-xs font-semibold rounded bg-bg-panel border border-border-panel text-text-primary hover:border-accent-blue hover:text-accent-blue transition-colors"
+            >
+              <Download size={13} />
+              Export to Excel
+            </button>
+          </div>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
