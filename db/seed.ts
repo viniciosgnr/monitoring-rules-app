@@ -45,7 +45,7 @@ async function seed() {
     { name: 'TURB_TEMP_TRND_03',  description: 'Turbine temperature trend monitoring',     processingSteps: {} },
     { name: 'PUMP_VIB_THR_02',   description: 'Pump vibration threshold',                 processingSteps: {} },
     { name: 'COCE_SURG_MGN_06',  description: 'Compressor surge margin monitoring',        processingSteps: {} },
-    { name: 'HTEX_FOUL_IDX_04',  description: 'Heat exchanger fouling index',              processingSteps: {} },
+    { name: 'HTEX_NORM_DP_04',   description: 'Heat exchanger normalized dP',              processingSteps: {} },
   ]).returning();
 
   // Rule Instances — Map each equipment to the correct rule matching its type
@@ -57,7 +57,7 @@ async function seed() {
     { equipmentId: equipList[4].id, ruleId: rules[1].id }, // Turbine -> TURB_TEMP_TRND_03 (Trend)
     { equipmentId: equipList[1].id, ruleId: rules[2].id }, // Pump -> PUMP_VIB_THR_02 (Surge/Threshold)
     { equipmentId: equipList[3].id, ruleId: rules[3].id }, // Compressor -> COCE_SURG_MGN_06 (Surge/Threshold)
-    { equipmentId: equipList[2].id, ruleId: rules[4].id }, // Heat Exchanger -> HTEX_FOUL_IDX_04 (dP)
+    { equipmentId: equipList[2].id, ruleId: rules[4].id }, // Heat Exchanger -> HTEX_NORM_DP_04 (dP)
   ];
 
   const instances = await db.insert(ruleInstances).values(
