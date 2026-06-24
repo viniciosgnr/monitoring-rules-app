@@ -4,7 +4,7 @@ import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import EquipmentBadge from '@/components/ui/EquipmentBadge';
 import StatusBadge from '@/components/ui/StatusBadge';
 import { updateAlertStatus } from '@/app/actions/alerts';
-import { SlidersHorizontal, ChevronDown, ChevronRight, ExternalLink } from 'lucide-react';
+import { SlidersHorizontal, ChevronDown, ChevronRight } from 'lucide-react';
 import type { Status } from '@/components/ui/StatusBadge';
 
 interface AlertRow {
@@ -73,6 +73,24 @@ export function formatDurationOpen(triggeredAtRaw: string | undefined): string {
   return `${diffMins}m`;
 }
 
+export function getEventId(row: AlertRow): string {
+  const fpso = row.fpso || 'UNY';
+  const dateStr = row.triggeredAtRaw || '';
+  const year = dateStr ? new Date(dateStr).getFullYear() : 2026;
+  const yearTwoDigits = String(year).slice(-2);
+
+  // Acronym mapping
+  const t = (row.type || '').toLowerCase();
+  let acronym = 'EV';
+  if (t.includes('fouling') || t.includes('foul')) acronym = 'FW';
+  else if (t.includes('spike') || t.includes('spark') || t.includes('compressor')) acronym = 'CP';
+  else if (t.includes('trend') || t.includes('temp')) acronym = 'TD';
+  else if (t.includes('vibration') || t.includes('vib')) acronym = 'VT';
+  else if (t.includes('surge')) acronym = 'SM';
+  else if (t.includes('drift')) acronym = 'LO';
+
+  return `event_${fpso}${yearTwoDigits}-${acronym}${row.id}`;
+}
 
 export default function AlertTable({ rows }: { rows: AlertRow[] }) {
   const [mounted, setMounted] = useState(false);
@@ -108,9 +126,18 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
     await updateAlertStatus(id, status);
   }
 
+  // Pre-calculate Event ID and Time Open duration so they are searchable/filterable
+  const enrichedRows = useMemo(() => {
+    return data.map(r => ({
+      ...r,
+      eventId: getEventId(r),
+      timeOpen: formatDurationOpen(r.triggeredAtRaw),
+    }));
+  }, [data]);
+
   // Filter rows (column-level + rule search + period + only show open alerts)
   const filtered = useMemo(() => {
-    return data.filter(r => {
+    return enrichedRows.filter(r => {
       // Only show open alerts: 'to_be_validated' or 'validation_in_progress'
       const isOpen = r.status === 'to_be_validated' || r.status === 'validation_in_progress';
       if (!isOpen) return false;
@@ -135,11 +162,11 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
         friendly.toLowerCase().includes(ruleSearch.toLowerCase());
       return colMatch && ruleMatch;
     });
-  }, [data, filters, ruleSearch, period]);
+  }, [enrichedRows, filters, ruleSearch, period]);
 
   // Group by friendlyName, sorted: rules with to_be_validated alerts first
   const groups = useMemo(() => {
-    const map = new Map<string, AlertRow[]>();
+    const map = new Map<string, typeof enrichedRows[0][]>();
     for (const row of filtered) {
       const friendlyName = getFriendlyRuleName(row.ruleName);
       const arr = map.get(friendlyName) ?? [];
@@ -148,12 +175,12 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
     }
     // Sort rows within each group by status priority
     for (const arr of Array.from(map.values())) {
-      arr.sort((a: AlertRow, b: AlertRow) => STATUS_ORDER[a.status] - STATUS_ORDER[b.status]);
+      arr.sort((a, b) => STATUS_ORDER[a.status] - STATUS_ORDER[b.status]);
     }
     // Sort groups: lowest status priority value first (to_be_validated = 0)
     return Array.from(map.entries()).sort(([, a], [, b]) => {
-      const aMin = Math.min(...a.map((r: AlertRow) => STATUS_ORDER[r.status]));
-      const bMin = Math.min(...b.map((r: AlertRow) => STATUS_ORDER[r.status]));
+      const aMin = Math.min(...a.map(r => STATUS_ORDER[r.status]));
+      const bMin = Math.min(...b.map(r => STATUS_ORDER[r.status]));
       return aMin - bMin;
     });
   }, [filtered]);
@@ -216,10 +243,10 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
             <tr className="border-b border-border-panel bg-bg-panel/40">
               {/* Expand chevron column */}
               <th className="w-8 px-3 py-3" />
-              {/* Event Manager Link */}
+              {/* Event ID */}
               <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary whitespace-nowrap">
-                Event Manager
-                <FilterInput field="id" />
+                Event ID
+                <FilterInput field="eventId" />
               </th>
               <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary whitespace-nowrap">
                 FPSO
@@ -239,7 +266,7 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
               </th>
               <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary whitespace-nowrap">
                 Time Open
-                <div className="h-[18px] mt-1.5" aria-hidden="true" />
+                <FilterInput field="timeOpen" />
               </th>
               <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary whitespace-nowrap">
                 End Date
@@ -306,22 +333,9 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
                         <div className="w-px h-4 bg-border-panel mx-auto" />
                       </td>
 
-                      {/* Event Manager Link */}
-                      <td className="px-4 py-3">
-                        <a
-                          href="#"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            alert(`Opening Event Manager for Event #${row.id} (Simulation)`);
-                          }}
-                          className="relative group inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-accent-blue/10 hover:bg-accent-blue/20 border border-accent-blue/30 text-xs font-semibold text-accent-blue transition-all cursor-pointer whitespace-nowrap shadow-sm hover:shadow-accent-blue/10"
-                        >
-                          <span>Event #{row.id}</span>
-                          <ExternalLink size={12} className="text-accent-blue opacity-85 group-hover:opacity-100 transition-opacity" />
-                          <span className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-48 bg-bg-panel border border-border-panel rounded-card p-2 text-[10px] text-text-muted opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50 text-center shadow-xl whitespace-normal leading-normal">
-                            Click to simulate opening Event #{row.id} in Event Manager
-                          </span>
-                        </a>
+                      {/* Event ID (Plain text) */}
+                      <td className="px-4 py-3 text-text-muted text-sm font-medium whitespace-nowrap">
+                        {row.eventId}
                       </td>
 
                       <td className="px-4 py-3 text-text-muted text-sm">{row.fpso}</td>
@@ -329,7 +343,7 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
                       <td className="px-4 py-3 text-text-muted">{row.type}</td>
                       <td className="px-4 py-3 text-text-muted text-xs whitespace-nowrap">{row.triggeredAt}</td>
                       <td className="px-4 py-3 text-text-muted text-xs whitespace-nowrap">
-                        {mounted ? formatDurationOpen(row.triggeredAtRaw) : '—'}
+                        {mounted ? row.timeOpen : '—'}
                       </td>
                       <td className="px-4 py-3 text-text-muted text-xs whitespace-nowrap">—</td>
                       <td className="px-4 py-3 text-text-muted text-xs whitespace-nowrap">{row.reviewedAt || '—'}</td>
