@@ -22,19 +22,41 @@ const disabledInputCls =
 
 /* ─── Inline tooltip ───────────────────────────────────────────────── */
 function ParamTooltip({ text }: { text: string }) {
+  const lines = text.split('\n');
   return (
     <span className="relative group cursor-help inline-flex ml-1.5 align-middle">
       <Info size={12} className="text-text-muted group-hover:text-accent-blue transition-colors" />
       <span className="
         absolute left-1/2 -translate-x-1/2 top-full mt-1.5
-        w-64 bg-bg-panel border border-border-panel rounded-card
+        w-80 bg-bg-panel border border-border-panel rounded-card
         shadow-xl px-3 py-2.5 text-xs text-text-muted leading-relaxed
         opacity-0 pointer-events-none
         group-hover:opacity-100 group-hover:pointer-events-auto
         transition-opacity duration-150 z-[60]
         whitespace-normal text-left
       ">
-        {text}
+        <span className="space-y-1 block">
+          {lines.map((line, idx) => {
+            const trimmed = line.trim();
+            const isBullet = trimmed.startsWith('•');
+            const content = isBullet ? trimmed.substring(1).trim() : line;
+            
+            const parts = content.split('**');
+            const parsed = parts.map((part, i) =>
+              i % 2 === 1 ? <strong key={i} className="font-semibold text-text-primary">{part}</strong> : part
+            );
+
+            if (isBullet) {
+              return (
+                <span key={idx} className="flex items-start gap-1">
+                  <span className="text-accent-blue select-none mt-0.5">•</span>
+                  <span className="flex-1">{parsed}</span>
+                </span>
+              );
+            }
+            return <span key={idx} className="block">{parsed}</span>;
+          })}
+        </span>
         <span className="absolute left-1/2 -translate-x-1/2 bottom-full w-0 h-0 border-x-4 border-x-transparent border-b-4 border-b-border-panel" />
       </span>
     </span>
@@ -166,9 +188,12 @@ export default function EditRuleModal({
 
               {/* Rule Trigger Params */}
               <div>
-                <SectionTitle label="Rule Trigger Parameters" tooltip="Parameters used to determine if a single data point violates the surge margin threshold." />
+                <SectionTitle
+                  label="Rule Trigger Parameters"
+                  tooltip={"• **Threshold Value**: Minimum required surge margin limit (default: 10).\n• **Operator**: Comparison logic (fixed to 'gt')."}
+                />
                 <div className="grid grid-cols-2 gap-4">
-                  <FieldBlock label="Threshold Value" tooltip="The value threshold for Surge Margin Actual comparison.">
+                  <FieldBlock label="Threshold Value">
                     <input
                       type="number"
                       value={thresholdValue}
@@ -190,7 +215,7 @@ export default function EditRuleModal({
                     />
                   </FieldBlock>
 
-                  <FieldBlock label="Operator" tooltip="Comparison operator. Fixated to greater than (gt).">
+                  <FieldBlock label="Operator">
                     <input
                       type="text"
                       value="gt"
@@ -203,9 +228,12 @@ export default function EditRuleModal({
 
               {/* Event Trigger Params */}
               <div>
-                <SectionTitle label="Event Trigger Parameters" tooltip="Parameters used to totalize trigger duration and verify if a formal alert event should be raised." />
+                <SectionTitle
+                  label="Event Trigger Parameters"
+                  tooltip={"• **Rule Logic**: Combination logic rule (fixed to '0&1').\n• **Alert Value Threshold (%)**: Percentage of the window violating threshold (default: 50).\n• **Operator**: Comparison logic (fixed to 'gt').\n• **Time Period**: Duration of evaluation window (default: 24).\n• **Unit**: Unit of the time period (default: 'h')."}
+                />
                 <div className="grid grid-cols-2 gap-4">
-                  <FieldBlock label="Rule Logic" tooltip="Rule combination logic. Fixated to 0&1.">
+                  <FieldBlock label="Rule Logic">
                     <input
                       type="text"
                       value="0&1"
@@ -214,7 +242,7 @@ export default function EditRuleModal({
                     />
                   </FieldBlock>
 
-                  <FieldBlock label="Alert Value Threshold (%)" tooltip="Percentage of the time window that the condition must hold to trigger the alert.">
+                  <FieldBlock label="Alert Value Threshold (%)">
                     <input
                       type="number"
                       value={eventValueSurge}
@@ -239,7 +267,7 @@ export default function EditRuleModal({
                     />
                   </FieldBlock>
 
-                  <FieldBlock label="Operator" tooltip="Event trigger comparison operator.">
+                  <FieldBlock label="Operator">
                     <input
                       type="text"
                       value="gt"
@@ -249,7 +277,7 @@ export default function EditRuleModal({
                   </FieldBlock>
 
                   <div className="grid grid-cols-2 gap-2">
-                    <FieldBlock label="Time Period" tooltip="Duration of the evaluation window.">
+                    <FieldBlock label="Time Period">
                       <input
                         type="number"
                         value={timePeriod}
@@ -274,7 +302,7 @@ export default function EditRuleModal({
                       />
                     </FieldBlock>
 
-                    <FieldBlock label="Unit" tooltip="Unit of the time period.">
+                    <FieldBlock label="Unit">
                       <input
                         type="text"
                         value={timePeriodUnit}
@@ -311,9 +339,12 @@ export default function EditRuleModal({
 
               {/* Rule Trigger Params */}
               <div>
-                <SectionTitle label="Rule Trigger Parameters" tooltip="Parameters configured to fine-tune the mathematical detection of individual spikes." />
+                <SectionTitle
+                  label="Rule Trigger Parameters"
+                  tooltip={"• **Height**: Absolute minimum signal value to accept a peak (keep empty if unknown).\n• **Threshold**: Required vertical jump versus nearby points.\n• **Distance**: Minimum spacing between spikes (in samples) (default: 60).\n• **Prominence**: Minimum height peak stands out from baseline (default: 1.0).\n• **Timedelta**: Time in minutes to ignore startup/shutdown noise (default: 480).\n• **Status Check Value**: Minimal running state threshold value (default: 1)."}
+                />
                 <div className="grid grid-cols-2 gap-4">
-                  <FieldBlock label="Height" tooltip="Absolute minimum signal value to accept a peak. Keep empty/null if unknown.">
+                  <FieldBlock label="Height">
                     <input
                       type="number"
                       value={heightSpike ?? ''}
@@ -338,7 +369,7 @@ export default function EditRuleModal({
                     />
                   </FieldBlock>
 
-                  <FieldBlock label="Threshold" tooltip="How much the value must jump versus nearby points to trigger a spike.">
+                  <FieldBlock label="Threshold">
                     <input
                       type="number"
                       value={thresholdSpike ?? ''}
@@ -363,7 +394,7 @@ export default function EditRuleModal({
                     />
                   </FieldBlock>
 
-                  <FieldBlock label="Distance" tooltip="Minimum spacing between spikes in samples (higher collapses close spikes).">
+                  <FieldBlock label="Distance">
                     <input
                       type="number"
                       value={distanceSpike}
@@ -388,7 +419,7 @@ export default function EditRuleModal({
                     />
                   </FieldBlock>
 
-                  <FieldBlock label="Prominence" tooltip="How much the peak must stand out from the surrounding baseline.">
+                  <FieldBlock label="Prominence">
                     <input
                       type="number"
                       step="0.1"
@@ -414,7 +445,7 @@ export default function EditRuleModal({
                     />
                   </FieldBlock>
 
-                  <FieldBlock label="Timedelta (minutes)" tooltip="Time window in minutes to filter out transient startup/shutdown noise.">
+                  <FieldBlock label="Timedelta (minutes)">
                     <input
                       type="number"
                       value={timedeltaMinutes}
@@ -436,7 +467,7 @@ export default function EditRuleModal({
                     />
                   </FieldBlock>
 
-                  <FieldBlock label="Status Check Value" tooltip="Minimal running code state threshold value.">
+                  <FieldBlock label="Status Check Value">
                     <input
                       type="number"
                       value={statusCheckValueSpike}
@@ -461,9 +492,12 @@ export default function EditRuleModal({
 
               {/* Event Trigger Params */}
               <div>
-                <SectionTitle label="Event Trigger Parameters" tooltip="Standard comparison parameter logic used to trigger alert notification events." />
+                <SectionTitle
+                  label="Event Trigger Parameters"
+                  tooltip={"• **Value**: Number of spike events required to trigger an alert (default: 0).\n• **Operator**: Comparison logic (fixed to 'gt')."}
+                />
                 <div className="grid grid-cols-2 gap-4">
-                  <FieldBlock label="Value" tooltip="Trigger threshold value.">
+                  <FieldBlock label="Value">
                     <input
                       type="number"
                       value={eventValueSpike}
@@ -485,7 +519,7 @@ export default function EditRuleModal({
                     />
                   </FieldBlock>
 
-                  <FieldBlock label="Operator" tooltip="Fixated comparison operator logic.">
+                  <FieldBlock label="Operator">
                     <input
                       type="text"
                       value="gt"
