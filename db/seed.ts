@@ -108,7 +108,11 @@ async function seed() {
 
   // Round-robin distribution across 6 instances so every page of the table shows
   // a variety of equipment/rule combinations (i % 6 → inst 0,1,2,3,4,5,0,1,2,3,4,5...)
-  const equipmentDistribution = Array.from({ length: 42 }, (_, i) => i % 6);
+  const equipmentDistribution = Array.from({ length: 42 }, (_, i) => {
+    if (i === 0) return 1; // Map Disabled to Trend (inst 1)
+    if (i === 1) return 4; // Map Enabled to dP (inst 4)
+    return i % 6;
+  });
 
   // Distribute users: Top Editor Share -> icaro.zelioli@sbmoffshore.com must have exactly 17 changes (40% of 42)
   const userEmails = [
