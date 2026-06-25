@@ -266,8 +266,8 @@ export default function ParamDiffModal({ open, onClose, entry }: Props) {
               {category === 'surge' && (
                 <>
                   {/* ── Surge Rule Trigger Parameters ── */}
-                  <div className="bg-bg-highlight border border-border-panel/80 rounded-card p-4">
-                    <div className="border-b border-border-panel/40 pb-2 mb-3 flex items-center justify-between">
+                  <div className="bg-bg-highlight border border-border-panel rounded-card p-4">
+                    <div className="border-b border-border-panel pb-2 mb-3 flex items-center justify-between">
                       <div className="flex items-center">
                         <span className="text-sm font-bold text-text-primary">Rule Trigger Parameters</span>
                         <ParamTooltip text={"• **Threshold Value**: Minimum required surge margin limit (default: 10).\n• **Operator**: Comparison logic (fixed to 'gt')."} />
@@ -287,7 +287,7 @@ export default function ParamDiffModal({ open, onClose, entry }: Props) {
                           <th className="text-left pb-2 text-xs font-medium text-text-muted w-[22%]">New</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-border-panel/40">
+                      <tbody className="divide-y divide-border-panel">
                         <tr className={thresholdSurgeModified ? 'bg-bg-base/30' : ''}>
                           <td className="py-2.5 pr-4">
                             <span className="text-xs font-semibold text-text-primary">Threshold Value</span>
@@ -321,8 +321,8 @@ export default function ParamDiffModal({ open, onClose, entry }: Props) {
                   </div>
 
                   {/* ── Surge Event Trigger Parameters ── */}
-                  <div className="bg-bg-highlight border border-border-panel/80 rounded-card p-4">
-                    <div className="border-b border-border-panel/40 pb-2 mb-3 flex items-center justify-between">
+                  <div className="bg-bg-highlight border border-border-panel rounded-card p-4">
+                    <div className="border-b border-border-panel pb-2 mb-3 flex items-center justify-between">
                       <div className="flex items-center">
                         <span className="text-sm font-bold text-text-primary">Event Trigger Parameters</span>
                         <ParamTooltip text={"• **Rule Logic**: Combination logic rule (fixed to '0&1').\n• **Alert Value Threshold (%)**: Percentage of the window violating threshold (default: 50).\n• **Operator**: Comparison logic (fixed to 'gt').\n• **Time Period**: Duration of evaluation window (default: 24).\n• **Unit**: Unit of the time period (default: 'h')."} />
@@ -342,7 +342,7 @@ export default function ParamDiffModal({ open, onClose, entry }: Props) {
                           <th className="text-left pb-2 text-xs font-medium text-text-muted w-[22%]">New</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-border-panel/40">
+                      <tbody className="divide-y divide-border-panel">
                         <tr className={ruleLogicSurgeModified ? 'bg-bg-base/30' : ''}>
                           <td className="py-2.5 pr-4">
                             <span className="text-xs font-semibold text-text-primary">Rule Logic</span>
@@ -422,8 +422,8 @@ export default function ParamDiffModal({ open, onClose, entry }: Props) {
               {category === 'spike' && (
                 <>
                   {/* ── Spike Rule Trigger Parameters ── */}
-                  <div className="bg-bg-highlight border border-border-panel/80 rounded-card p-4">
-                    <div className="border-b border-border-panel/40 pb-2 mb-3 flex items-center justify-between">
+                  <div className="bg-bg-highlight border border-border-panel rounded-card p-4">
+                    <div className="border-b border-border-panel pb-2 mb-3 flex items-center justify-between">
                       <div className="flex items-center">
                         <span className="text-sm font-bold text-text-primary">Rule Trigger Parameters</span>
                         <ParamTooltip text={"• **Height**: Absolute minimum signal value to accept a peak (keep empty if unknown).\n• **Threshold**: Required vertical jump versus nearby points.\n• **Distance**: Minimum spacing between spikes (in samples) (default: 60).\n• **Prominence**: Minimum height peak stands out from baseline (default: 1.0).\n• **Timedelta**: Time in minutes to ignore startup/shutdown noise (default: 480).\n• **Status Check Value**: Minimal running state threshold value (default: 1)."} />
@@ -443,7 +443,7 @@ export default function ParamDiffModal({ open, onClose, entry }: Props) {
                           <th className="text-left pb-2 text-xs font-medium text-text-muted w-[22%]">New</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-border-panel/40">
+                      <tbody className="divide-y divide-border-panel">
                         <tr className={heightSpikeModified ? 'bg-bg-base/30' : ''}>
                           <td className="py-2.5 pr-4">
                             <span className="text-xs font-semibold text-text-primary">Height</span>
@@ -533,8 +533,8 @@ export default function ParamDiffModal({ open, onClose, entry }: Props) {
                   </div>
 
                   {/* ── Spike Event Trigger Parameters ── */}
-                  <div className="bg-bg-highlight border border-border-panel/80 rounded-card p-4">
-                    <div className="border-b border-border-panel/40 pb-2 mb-3 flex items-center justify-between">
+                  <div className="bg-bg-highlight border border-border-panel rounded-card p-4">
+                    <div className="border-b border-border-panel pb-2 mb-3 flex items-center justify-between">
                       <div className="flex items-center">
                         <span className="text-sm font-bold text-text-primary">Event Trigger Parameters</span>
                         <ParamTooltip text={"• **Value**: Number of spike events required to trigger an alert (default: 0).\n• **Operator**: Comparison logic (fixed to 'gt')."} />
@@ -554,7 +554,7 @@ export default function ParamDiffModal({ open, onClose, entry }: Props) {
                           <th className="text-left pb-2 text-xs font-medium text-text-muted w-[22%]">New</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-border-panel/40">
+                      <tbody className="divide-y divide-border-panel">
                         <tr className={eventValueSpikeModified ? 'bg-bg-base/30' : ''}>
                           <td className="py-2.5 pr-4">
                             <span className="text-xs font-semibold text-text-primary">Value</span>
@@ -592,8 +592,8 @@ export default function ParamDiffModal({ open, onClose, entry }: Props) {
               {category === 'generic' && (
                 <>
                   {/* ── Abs Value ── */}
-                  <div className="bg-bg-highlight border border-border-panel/80 rounded-card p-4">
-                    <div className="border-b border-border-panel/40 pb-2 mb-3 flex items-center justify-between">
+                  <div className="bg-bg-highlight border border-border-panel rounded-card p-4">
+                    <div className="border-b border-border-panel pb-2 mb-3 flex items-center justify-between">
                       <div className="flex items-center">
                         <span className="text-sm font-bold text-text-primary">Abs Value</span>
                         <ParamTooltip text="Converts all selected tag values to their absolute (non-negative) form before the rule logic runs. Useful when sensor readings can be negative but only the magnitude matters for threshold comparison." />
@@ -613,7 +613,7 @@ export default function ParamDiffModal({ open, onClose, entry }: Props) {
                           <th className="text-left pb-2 text-xs font-medium text-text-muted w-[22%]">New</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-border-panel/40">
+                      <tbody className="divide-y divide-border-panel">
                         <tr className={absValueModified ? 'bg-bg-base/30' : ''}>
                           <td className="py-2.5 pr-4">
                             <span className="text-xs font-semibold text-text-primary">
@@ -647,8 +647,8 @@ export default function ParamDiffModal({ open, onClose, entry }: Props) {
                   </div>
 
                   {/* ── Drop Missing ── */}
-                  <div className="bg-bg-highlight border border-border-panel/80 rounded-card p-4">
-                    <div className="border-b border-border-panel/40 pb-2 mb-3 flex items-center justify-between">
+                  <div className="bg-bg-highlight border border-border-panel rounded-card p-4">
+                    <div className="border-b border-border-panel pb-2 mb-3 flex items-center justify-between">
                       <div className="flex items-center">
                         <span className="text-sm font-bold text-text-primary">Drop Missing</span>
                         <ParamTooltip text="Removes data points where the selected tags have null, NaN or missing values before the rule evaluates. Prevents false alerts caused by sensor outages, communication gaps or bad-quality data frames." />
@@ -668,7 +668,7 @@ export default function ParamDiffModal({ open, onClose, entry }: Props) {
                           <th className="text-left pb-2 text-xs font-medium text-text-muted w-[22%]">New</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-border-panel/40">
+                      <tbody className="divide-y divide-border-panel">
                         <tr className={dropMissingModified ? 'bg-bg-base/30' : ''}>
                           <td className="py-2.5 pr-4">
                             <span className="text-xs font-semibold text-text-primary">
@@ -702,8 +702,8 @@ export default function ParamDiffModal({ open, onClose, entry }: Props) {
                   </div>
 
                   {/* ── Join Timeseries ── */}
-                  <div className="bg-bg-highlight border border-border-panel/80 rounded-card p-4">
-                    <div className="border-b border-border-panel/40 pb-2 mb-3 flex items-center justify-between">
+                  <div className="bg-bg-highlight border border-border-panel rounded-card p-4">
+                    <div className="border-b border-border-panel pb-2 mb-3 flex items-center justify-between">
                       <div className="flex items-center">
                         <span className="text-sm font-bold text-text-primary">Join Timeseries</span>
                         <ParamTooltip text="Merges multiple timeseries into a single time-aligned dataset using an inner join on timestamps. Required when the rule compares values from different sensors that may have different sampling intervals." />
@@ -723,7 +723,7 @@ export default function ParamDiffModal({ open, onClose, entry }: Props) {
                           <th className="text-left pb-2 text-xs font-medium text-text-muted w-[22%]">New</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-border-panel/40">
+                      <tbody className="divide-y divide-border-panel">
                         <tr className={joinTimeseriesModified ? 'bg-bg-base/30' : ''}>
                           <td className="py-2.5 pr-4">
                             <span className="text-xs font-semibold text-text-primary">
@@ -757,8 +757,8 @@ export default function ParamDiffModal({ open, onClose, entry }: Props) {
                   </div>
 
                   {/* ── Round Timestamp ── */}
-                  <div className="bg-bg-highlight border border-border-panel/80 rounded-card p-4">
-                    <div className="border-b border-border-panel/40 pb-2 mb-3 flex items-center justify-between">
+                  <div className="bg-bg-highlight border border-border-panel rounded-card p-4">
+                    <div className="border-b border-border-panel pb-2 mb-3 flex items-center justify-between">
                       <div className="flex items-center">
                         <span className="text-sm font-bold text-text-primary">Round Timestamp</span>
                         <ParamTooltip text="Rounds all timestamps to the nearest defined interval. Ensures consistent time alignment when joining data from sensors with different sampling rates (e.g. 1-minute vs 5-minute data)." />
@@ -778,7 +778,7 @@ export default function ParamDiffModal({ open, onClose, entry }: Props) {
                           <th className="text-left pb-2 text-xs font-medium text-text-muted w-[22%]">New</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-border-panel/40">
+                      <tbody className="divide-y divide-border-panel">
                         {/* Round Timestamp - Period */}
                         <tr className={roundPeriodModified ? 'bg-bg-base/30' : ''}>
                           <td className="py-2.5 pr-4">

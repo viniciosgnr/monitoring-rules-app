@@ -137,7 +137,7 @@ async function seed() {
       before = { enabled: false };
       after  = { enabled: true };
     } else if (isSpike) {
-      if (i % 2 === 0) {
+      if (Math.floor(i / 6) % 2 === 0) {
         desc = 'Adjusted Spike height & prominence';
         before = {
           rule_trigger_params: [{ spike_detection: { height: null, threshold: null, distance: 60, prominence: 1.0 }, filter_spikes_near_filter_false: { timedelta_minutes: 480 }, status_check: { value: 1 } }],
@@ -159,7 +159,7 @@ async function seed() {
         };
       }
     } else if (isSurge) {
-      if (i % 2 === 0) {
+      if (Math.floor(i / 6) % 2 === 0) {
         desc = 'Adjusted Surge margin threshold';
         before = {
           rule_trigger_params: [{ threshold_comparison: { value: 10, operator: 'gt', tags_to_apply: ['Surge Margin Actual'] } }],
