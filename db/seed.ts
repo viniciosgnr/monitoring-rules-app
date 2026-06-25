@@ -98,9 +98,12 @@ async function seed() {
   // Enabled rule after maintenance window: 1
   // Updated Join Timeseries tags: 1
   const changeTypesList: string[] = [
-    'Disabled rule instance (Bulk)',
-    'Enabled rule after maintenance window',
-    ...Array(17).fill('Updated Abs Value tags'),
+    'Updated Abs Value tags',                // i = 0 (Spike) -> overwritten with parameter changes
+    'Disabled rule instance (Bulk)',         // i = 1 (Trend) -> Trend disabled log
+    'Updated Abs Value tags',                // i = 2 (Surge) -> overwritten with parameter changes
+    'Updated Abs Value tags',                // i = 3 (Surge) -> overwritten with parameter changes
+    'Enabled rule after maintenance window', // i = 4 (dP) -> dP enabled log
+    ...Array(14).fill('Updated Abs Value tags'),
     ...Array(18).fill('Adjusted Round Timestamp period'),
     ...Array(2).fill('Modified Drop Missing tags'),
     ...Array(3).fill('Updated Join Timeseries tags'),
@@ -108,11 +111,7 @@ async function seed() {
 
   // Round-robin distribution across 6 instances so every page of the table shows
   // a variety of equipment/rule combinations (i % 6 → inst 0,1,2,3,4,5,0,1,2,3,4,5...)
-  const equipmentDistribution = Array.from({ length: 42 }, (_, i) => {
-    if (i === 0) return 1; // Map Disabled to Trend (inst 1)
-    if (i === 1) return 4; // Map Enabled to dP (inst 4)
-    return i % 6;
-  });
+  const equipmentDistribution = Array.from({ length: 42 }, (_, i) => i % 6);
 
   // Distribute users: Top Editor Share -> icaro.zelioli@sbmoffshore.com must have exactly 17 changes (40% of 42)
   const userEmails = [
