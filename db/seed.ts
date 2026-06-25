@@ -121,37 +121,88 @@ async function seed() {
 
   for (let i = 0; i < 42; i++) {
     const instIdx = equipmentDistribution[i];
-    const desc = changeTypesList[i];
+    let desc = changeTypesList[i];
     const email = userEmails[i];
 
-    const baseState = {
-      abs_value:       { tags_to_apply: 'RUN' },
-      drop_missing:    { tags_to_apply: 'all' },
-      join_timeseries: { tags_to_apply: 'all' },
-      round_timestamp: { period: 'min', tags_to_apply: 'all' },
-    };
+    const isSpike = instIdx === 0;
+    const isSurge = instIdx === 2 || instIdx === 3;
 
-    let before = { ...baseState };
-    let after  = { ...baseState };
+    let before: any;
+    let after: any;
 
-    if (desc === 'Updated Abs Value tags') {
-      before.abs_value = { tags_to_apply: 'RUN' };
-      after.abs_value  = { tags_to_apply: 'RUN, Surge Margin Actual' };
-    } else if (desc === 'Adjusted Round Timestamp period') {
-      before.round_timestamp = { period: 'min', tags_to_apply: 'all' };
-      after.round_timestamp  = { period: '5min', tags_to_apply: 'all' };
-    } else if (desc === 'Modified Drop Missing tags') {
-      before.drop_missing = { tags_to_apply: 'all' };
-      after.drop_missing  = { tags_to_apply: 'RUN' };
-    } else if (desc === 'Updated Join Timeseries tags') {
-      before.join_timeseries = { tags_to_apply: 'all' };
-      after.join_timeseries  = { tags_to_apply: 'RUN, TEMP' };
+    if (desc === 'Disabled rule instance (Bulk)') {
+      before = { enabled: true };
+      after  = { enabled: false, reason: 'Sensor calibration in progress' };
     } else if (desc === 'Enabled rule after maintenance window') {
-      before = { enabled: false } as any;
-      after  = { enabled: true } as any;
-    } else if (desc === 'Disabled rule instance (Bulk)') {
-      before = { enabled: true } as any;
-      after  = { enabled: false, reason: 'Sensor calibration in progress' } as any;
+      before = { enabled: false };
+      after  = { enabled: true };
+    } else if (isSpike) {
+      if (i % 2 === 0) {
+        desc = 'Adjusted Spike height & prominence';
+        before = {
+          rule_trigger_params: [{ spike_detection: { height: null, threshold: null, distance: 60, prominence: 1.0 }, filter_spikes_near_filter_false: { timedelta_minutes: 480 }, status_check: { value: 1 } }],
+          event_trigger_params: [{ spike_detection_trigger: { value: 0 } }]
+        };
+        after = {
+          rule_trigger_params: [{ spike_detection: { height: 1.5, threshold: null, distance: 60, prominence: 1.2 }, filter_spikes_near_filter_false: { timedelta_minutes: 480 }, status_check: { value: 1 } }],
+          event_trigger_params: [{ spike_detection_trigger: { value: 0 } }]
+        };
+      } else {
+        desc = 'Modified Spike timedelta filter';
+        before = {
+          rule_trigger_params: [{ spike_detection: { height: null, threshold: null, distance: 60, prominence: 1.0 }, filter_spikes_near_filter_false: { timedelta_minutes: 480 }, status_check: { value: 1 } }],
+          event_trigger_params: [{ spike_detection_trigger: { value: 0 } }]
+        };
+        after = {
+          rule_trigger_params: [{ spike_detection: { height: null, threshold: null, distance: 60, prominence: 1.0 }, filter_spikes_near_filter_false: { timedelta_minutes: 360 }, status_check: { value: 1 } }],
+          event_trigger_params: [{ spike_detection_trigger: { value: 0 } }]
+        };
+      }
+    } else if (isSurge) {
+      if (i % 2 === 0) {
+        desc = 'Adjusted Surge margin threshold';
+        before = {
+          rule_trigger_params: [{ threshold_comparison: { value: 10, operator: 'gt', tags_to_apply: ['Surge Margin Actual'] } }],
+          event_trigger_params: [{ time_totalization: { value: 50, rule: '0&1', operator: 'gt', time_period: 24, time_period_unit: 'h' } }]
+        };
+        after = {
+          rule_trigger_params: [{ threshold_comparison: { value: 12.5, operator: 'gt', tags_to_apply: ['Surge Margin Actual'] } }],
+          event_trigger_params: [{ time_totalization: { value: 50, rule: '0&1', operator: 'gt', time_period: 24, time_period_unit: 'h' } }]
+        };
+      } else {
+        desc = 'Modified Surge evaluation window';
+        before = {
+          rule_trigger_params: [{ threshold_comparison: { value: 10, operator: 'gt', tags_to_apply: ['Surge Margin Actual'] } }],
+          event_trigger_params: [{ time_totalization: { value: 50, rule: '0&1', operator: 'gt', time_period: 24, time_period_unit: 'h' } }]
+        };
+        after = {
+          rule_trigger_params: [{ threshold_comparison: { value: 10, operator: 'gt', tags_to_apply: ['Surge Margin Actual'] } }],
+          event_trigger_params: [{ time_totalization: { value: 50, rule: '0&1', operator: 'gt', time_period: 48, time_period_unit: 'h' } }]
+        };
+      }
+    } else {
+      const baseState = {
+        abs_value:       { tags_to_apply: 'RUN' },
+        drop_missing:    { tags_to_apply: 'all' },
+        join_timeseries: { tags_to_apply: 'all' },
+        round_timestamp: { period: 'min', tags_to_apply: 'all' },
+      };
+      before = { ...baseState };
+      after  = { ...baseState };
+
+      if (desc === 'Updated Abs Value tags') {
+        before.abs_value = { tags_to_apply: 'RUN' };
+        after.abs_value  = { tags_to_apply: 'RUN, Surge Margin Actual' };
+      } else if (desc === 'Adjusted Round Timestamp period') {
+        before.round_timestamp = { period: 'min', tags_to_apply: 'all' };
+        after.round_timestamp  = { period: '5min', tags_to_apply: 'all' };
+      } else if (desc === 'Modified Drop Missing tags') {
+        before.drop_missing = { tags_to_apply: 'all' };
+        after.drop_missing  = { tags_to_apply: 'RUN' };
+      } else if (desc === 'Updated Join Timeseries tags') {
+        before.join_timeseries = { tags_to_apply: 'all' };
+        after.join_timeseries  = { tags_to_apply: 'RUN, TEMP' };
+      }
     }
 
     auditLogsToInsert.push({
