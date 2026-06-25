@@ -17,6 +17,9 @@ interface Props {
 const inputCls =
   'w-full mt-1 bg-bg-input border border-border-panel rounded px-3 py-2 text-sm text-text-primary outline-none focus:border-accent-blue transition-colors';
 
+const disabledInputCls =
+  'w-full mt-1 bg-bg-highlight border border-border-panel/50 rounded px-3 py-2 text-sm text-text-muted select-none cursor-not-allowed disabled:opacity-100';
+
 /* ─── Inline tooltip ───────────────────────────────────────────────── */
 function ParamTooltip({ text }: { text: string }) {
   return (
@@ -192,7 +195,7 @@ export default function EditRuleModal({
                       type="text"
                       value="gt"
                       disabled
-                      className="w-full mt-1 bg-bg-panel/40 border border-border-panel/40 rounded px-3 py-2 text-sm text-text-muted select-none cursor-not-allowed"
+                      className={disabledInputCls}
                     />
                   </FieldBlock>
                 </div>
@@ -207,7 +210,7 @@ export default function EditRuleModal({
                       type="text"
                       value="0&1"
                       disabled
-                      className="w-full mt-1 bg-bg-panel/40 border border-border-panel/40 rounded px-3 py-2 text-sm text-text-muted select-none cursor-not-allowed"
+                      className={disabledInputCls}
                     />
                   </FieldBlock>
 
@@ -241,7 +244,7 @@ export default function EditRuleModal({
                       type="text"
                       value="gt"
                       disabled
-                      className="w-full mt-1 bg-bg-panel/40 border border-border-panel/40 rounded px-3 py-2 text-sm text-text-muted select-none cursor-not-allowed"
+                      className={disabledInputCls}
                     />
                   </FieldBlock>
 
@@ -487,7 +490,7 @@ export default function EditRuleModal({
                       type="text"
                       value="gt"
                       disabled
-                      className="w-full mt-1 bg-bg-panel/40 border border-border-panel/40 rounded px-3 py-2 text-sm text-text-muted select-none cursor-not-allowed"
+                      className={disabledInputCls}
                     />
                   </FieldBlock>
                 </div>
@@ -507,7 +510,7 @@ export default function EditRuleModal({
                   label=""
                   hint="Comma-separated list · e.g. RUN, Surge Margin Actual"
                 >
-                  <div className="w-full mt-1 bg-bg-panel/40 border border-border-panel/40 rounded px-3 py-2 text-xs font-mono text-text-muted select-none">
+                  <div className="w-full mt-1 bg-bg-highlight border border-border-panel/50 rounded px-3 py-2 text-xs font-mono text-text-muted select-none">
                     {s.abs_value?.tags_to_apply || '—'}
                   </div>
                 </FieldBlock>
@@ -523,7 +526,7 @@ export default function EditRuleModal({
                   label=""
                   hint="Comma-separated list · e.g. RUN, all"
                 >
-                  <div className="w-full mt-1 bg-bg-panel/40 border border-border-panel/40 rounded px-3 py-2 text-xs font-mono text-text-muted select-none">
+                  <div className="w-full mt-1 bg-bg-highlight border border-border-panel/50 rounded px-3 py-2 text-xs font-mono text-text-muted select-none">
                     {s.drop_missing?.tags_to_apply || '—'}
                   </div>
                 </FieldBlock>
@@ -539,7 +542,7 @@ export default function EditRuleModal({
                   label=""
                   hint="Comma-separated list · e.g. all"
                 >
-                  <div className="w-full mt-1 bg-bg-panel/40 border border-border-panel/40 rounded px-3 py-2 text-xs font-mono text-text-muted select-none">
+                  <div className="w-full mt-1 bg-bg-highlight border border-border-panel/50 rounded px-3 py-2 text-xs font-mono text-text-muted select-none">
                     {s.join_timeseries?.tags_to_apply || '—'}
                   </div>
                 </FieldBlock>
@@ -572,7 +575,7 @@ export default function EditRuleModal({
                     label=""
                     hint="Comma-separated list · e.g. all"
                   >
-                    <div className="w-full mt-1 bg-bg-panel/40 border border-border-panel/40 rounded px-3 py-2 text-xs font-mono text-text-muted select-none">
+                    <div className="w-full mt-1 bg-bg-highlight border border-border-panel/50 rounded px-3 py-2 text-xs font-mono text-text-muted select-none">
                       {s.round_timestamp?.tags_to_apply || '—'}
                     </div>
                   </FieldBlock>
