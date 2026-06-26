@@ -7,6 +7,7 @@ import Pagination from '@/components/ui/Pagination';
 import EditRuleModal from './EditRuleModal';
 import { toggleInstance, toggleInstancesBulk } from '@/app/actions/ruleInstances';
 import { SlidersHorizontal, ChevronDown, ChevronRight, Download, X } from 'lucide-react';
+import { useUserRole } from '@/components/context/UserRoleContext';
 
 interface InstanceRow {
   id: number;
@@ -36,6 +37,9 @@ function getFriendlyRuleName(ruleName: string): string {
 }
 
 export default function RuleInstanceTable({ rows }: { rows: InstanceRow[] }) {
+  const { role } = useUserRole();
+  const isViewer = role === 'viewer';
+
   const [data, setData]         = useState(rows);
   const [page, setPage]         = useState(1);
   const [pageSize, setPageSize] = useState(5);
@@ -251,7 +255,9 @@ export default function RuleInstanceTable({ rows }: { rows: InstanceRow[] }) {
                         <Switch.Root
                           checked={enabledCount > 0}
                           onCheckedChange={v => handleGroupSwitchChange(friendlyName, groupRows, v)}
-                          className="relative w-10 h-5 rounded-full border border-border-panel bg-bg-panel data-[state=checked]:bg-accent-blue outline-none cursor-pointer transition-colors"
+                          className={`relative w-10 h-5 rounded-full border border-border-panel bg-bg-panel data-[state=checked]:bg-accent-blue outline-none cursor-pointer transition-colors ${
+                            isViewer ? 'opacity-40 pointer-events-none' : ''
+                          }`}
                         >
                           <Switch.Thumb className="block w-4 h-4 bg-white rounded-full shadow-sm translate-x-0.5 data-[state=checked]:translate-x-5 transition-transform" />
                         </Switch.Root>
@@ -281,7 +287,9 @@ export default function RuleInstanceTable({ rows }: { rows: InstanceRow[] }) {
                         <Switch.Root
                           checked={row.enabled}
                           onCheckedChange={v => handleSwitchChange(row, v)}
-                          className="relative w-10 h-5 rounded-full border border-border-panel bg-bg-panel data-[state=checked]:bg-accent-blue outline-none cursor-pointer transition-colors"
+                          className={`relative w-10 h-5 rounded-full border border-border-panel bg-bg-panel data-[state=checked]:bg-accent-blue outline-none cursor-pointer transition-colors ${
+                            isViewer ? 'opacity-40 pointer-events-none' : ''
+                          }`}
                         >
                           <Switch.Thumb className="block w-4 h-4 bg-white rounded-full shadow-sm translate-x-0.5 data-[state=checked]:translate-x-5 transition-transform" />
                         </Switch.Root>
@@ -291,7 +299,7 @@ export default function RuleInstanceTable({ rows }: { rows: InstanceRow[] }) {
                           onClick={() => setEditRow(row)}
                           className="px-3 py-1 text-xs rounded-full border border-border-panel text-text-primary hover:border-accent-blue hover:text-accent-blue transition-colors"
                         >
-                          Edit
+                          {isViewer ? 'View' : 'Edit'}
                         </button>
                       </td>
                     </tr>
