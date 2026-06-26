@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { ThemeProvider } from '@/components/context/ThemeContext';
+import { UserRoleProvider } from '@/components/context/UserRoleContext';
 
 export const metadata: Metadata = {
   title: 'Monitoring Rules Management',
@@ -28,9 +29,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body className="bg-bg-base text-text-primary min-h-screen">
-        <ThemeProvider>
-          {children}
-        </ThemeProvider>
+        <UserRoleProvider>
+          <ThemeProvider>
+            {children}
+          </ThemeProvider>
+        </UserRoleProvider>
       </body>
     </html>
   );
