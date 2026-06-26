@@ -21,20 +21,20 @@ const disabledInputCls =
   'w-full mt-1 bg-bg-highlight border border-border-panel/50 rounded px-3 py-2 text-sm text-text-muted select-none cursor-not-allowed disabled:opacity-100';
 
 /* ─── Inline tooltip ───────────────────────────────────────────────── */
-function ParamTooltip({ text }: { text: string }) {
+function ParamTooltip({ text, position = 'bottom' }: { text: string; position?: 'top' | 'bottom' }) {
   const lines = text.split('\n');
   return (
     <span className="relative group cursor-help inline-flex ml-1.5 align-middle">
       <Info size={12} className="text-text-muted group-hover:text-accent-blue transition-colors" />
-      <span className="
-        absolute left-1/2 -translate-x-1/2 top-full mt-1.5
-        w-80 bg-bg-panel border border-border-panel rounded-card
+      <span className={`
+        absolute left-1/2 -translate-x-1/2 w-80 bg-bg-panel border border-border-panel rounded-card
         shadow-xl px-3 py-2.5 text-xs text-text-muted leading-relaxed
         opacity-0 pointer-events-none
         group-hover:opacity-100 group-hover:pointer-events-auto
         transition-opacity duration-150 z-[60]
         whitespace-normal text-left
-      ">
+        ${position === 'top' ? 'bottom-full mb-1.5' : 'top-full mt-1.5'}
+      `}>
         <span className="space-y-1 block">
           {lines.map((line, idx) => {
             const trimmed = line.trim();
@@ -57,7 +57,11 @@ function ParamTooltip({ text }: { text: string }) {
             return <span key={idx} className="block">{parsed}</span>;
           })}
         </span>
-        <span className="absolute left-1/2 -translate-x-1/2 bottom-full w-0 h-0 border-x-4 border-x-transparent border-b-4 border-b-border-panel" />
+        {position === 'top' ? (
+          <span className="absolute left-1/2 -translate-x-1/2 top-full w-0 h-0 border-x-4 border-x-transparent border-t-4 border-t-border-panel" />
+        ) : (
+          <span className="absolute left-1/2 -translate-x-1/2 bottom-full w-0 h-0 border-x-4 border-x-transparent border-b-4 border-b-border-panel" />
+        )}
       </span>
     </span>
   );
@@ -67,11 +71,13 @@ function ParamTooltip({ text }: { text: string }) {
 function FieldBlock({
   label,
   tooltip,
+  tooltipPosition,
   hint,
   children,
 }: {
   label: string;
   tooltip?: string;
+  tooltipPosition?: 'top' | 'bottom';
   hint?: string;
   children: React.ReactNode;
 }) {
@@ -79,7 +85,7 @@ function FieldBlock({
     <div>
       <label className="flex items-center text-xs text-text-muted min-h-[16px]">
         {label || '\u00A0'}
-        {tooltip && <ParamTooltip text={tooltip} />}
+        {tooltip && <ParamTooltip text={tooltip} position={tooltipPosition} />}
       </label>
       {children}
       {hint && <p className="text-xs text-text-muted mt-1">{hint}</p>}
@@ -88,11 +94,11 @@ function FieldBlock({
 }
 
 /* ─── Section header ───────────────────────────────────────────────── */
-function SectionTitle({ label, tooltip }: { label: string; tooltip?: string }) {
+function SectionTitle({ label, tooltip, tooltipPosition }: { label: string; tooltip?: string; tooltipPosition?: 'top' | 'bottom' }) {
   return (
     <p className="text-sm font-medium text-text-primary mb-3 flex items-center">
       {label}
-      {tooltip && <ParamTooltip text={tooltip} />}
+      {tooltip && <ParamTooltip text={tooltip} position={tooltipPosition} />}
     </p>
   );
 }
@@ -493,6 +499,7 @@ export default function EditRuleModal({
               <div>
                 <SectionTitle
                   label="Recommendations"
+                  tooltipPosition="top"
                   tooltip={"Use these as a first iteration, then tune with real data.\n\n• **Sensitive** (find more spikes; more false positives risk)\n  - height: null\n  - threshold: 0.2\n  - distance: 20\n  - prominence: 0.1\n\n• **Balanced** (recommended starting point)\n  - height: null\n  - threshold: 0.5\n  - distance: 60\n  - prominence: 0.3\n\n• **Conservative** (alerts only for strong events)\n  - height: 0.6\n  - threshold: 0.9\n  - distance: 120\n  - prominence: 0.8"}
                 />
                 <p className="text-xs text-text-muted mt-1.5 leading-relaxed">
