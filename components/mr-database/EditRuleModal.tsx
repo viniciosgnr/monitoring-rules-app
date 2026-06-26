@@ -4,6 +4,7 @@ import { X, Info } from 'lucide-react';
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { updateProcessingSteps } from '@/app/actions/ruleInstances';
+import { useUserRole } from '@/components/context/UserRoleContext';
 
 interface Props {
   open: boolean;
@@ -187,6 +188,9 @@ function getRuleCategory(ruleName: string): 'surge' | 'spike' | 'generic' {
 export default function EditRuleModal({
   open, onClose, ruleId, ruleName, equipmentCode, steps,
 }: Props) {
+  const { role } = useUserRole();
+  const isViewer = role === 'viewer';
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [s, setS]           = useState<any>(steps || {});
   const [saving, setSaving] = useState(false);
@@ -238,7 +242,17 @@ export default function EditRuleModal({
           <div className="flex items-start justify-between mb-5">
             <div>
               <Dialog.Title className="text-base font-semibold text-text-primary mb-1">
-                {category === 'surge' ? 'Surge Margin Parameters' : category === 'spike' ? 'Spike Detection Parameters' : 'Monitoring Rule — Details'}
+                {isViewer
+                  ? category === 'surge'
+                    ? 'View Surge Margin Parameters'
+                    : category === 'spike'
+                    ? 'View Spike Detection Parameters'
+                    : 'Monitoring Rule — Details'
+                  : category === 'surge'
+                  ? 'Surge Margin Parameters'
+                  : category === 'spike'
+                  ? 'Spike Detection Parameters'
+                  : 'Monitoring Rule — Details'}
               </Dialog.Title>
               {/* Selected rule identity */}
               <div className="flex items-center gap-2 mt-1.5 flex-wrap">
@@ -275,6 +289,7 @@ export default function EditRuleModal({
                     <input
                       type="number"
                       value={thresholdValue}
+                      disabled={isViewer}
                       onChange={e => {
                         const val = parseFloat(e.target.value);
                         const arr = [...(s.rule_trigger_params || [{ threshold_comparison: {}, status_check: { value: 1 } }])];
@@ -314,6 +329,7 @@ export default function EditRuleModal({
                     <input
                       type="number"
                       value={heightSpike ?? ''}
+                      disabled={isViewer}
                       onChange={e => {
                         const val = e.target.value === '' ? null : parseFloat(e.target.value);
                         const arr = [...(s.rule_trigger_params || [{ spike_detection: {}, filter_spikes_near_filter_false: {}, status_check: {} }])];
@@ -339,6 +355,7 @@ export default function EditRuleModal({
                     <input
                       type="number"
                       value={thresholdSpike ?? ''}
+                      disabled={isViewer}
                       onChange={e => {
                         const val = e.target.value === '' ? null : parseFloat(e.target.value);
                         const arr = [...(s.rule_trigger_params || [{ spike_detection: {}, filter_spikes_near_filter_false: {}, status_check: {} }])];
@@ -364,6 +381,7 @@ export default function EditRuleModal({
                     <input
                       type="number"
                       value={distanceSpike}
+                      disabled={isViewer}
                       onChange={e => {
                         const val = parseFloat(e.target.value);
                         const arr = [...(s.rule_trigger_params || [{ spike_detection: {}, filter_spikes_near_filter_false: {}, status_check: {} }])];
@@ -390,6 +408,7 @@ export default function EditRuleModal({
                       type="number"
                       step="0.1"
                       value={prominenceSpike}
+                      disabled={isViewer}
                       onChange={e => {
                         const val = parseFloat(e.target.value);
                         const arr = [...(s.rule_trigger_params || [{ spike_detection: {}, filter_spikes_near_filter_false: {}, status_check: {} }])];
@@ -491,6 +510,7 @@ export default function EditRuleModal({
                   >
                     <input
                       value={s.round_timestamp?.period ?? ''}
+                      disabled={isViewer}
                       onChange={e => setS({
                         ...s,
                         round_timestamp: {
@@ -516,19 +536,30 @@ export default function EditRuleModal({
 
           {/* ── Actions ── */}
           <div className="flex justify-end gap-3 border-t border-border-panel pt-4 mt-6">
-            <button
-              onClick={onClose}
-              className="Marcos px-4 py-2 text-sm rounded border border-border-panel text-text-muted hover:text-text-primary hover:border-text-muted transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              className="px-4 py-2 text-sm rounded bg-accent-blue text-white font-medium hover:bg-accent-blue-dark disabled:opacity-50 transition-colors"
-            >
-              {saving ? 'Saving…' : 'Save'}
-            </button>
+            {isViewer ? (
+              <button
+                onClick={onClose}
+                className="px-4 py-2 text-sm rounded bg-accent-blue text-white font-medium hover:bg-accent-blue-dark transition-colors cursor-pointer"
+              >
+                Close
+              </button>
+            ) : (
+              <>
+                <button
+                  onClick={onClose}
+                  className="Marcos px-4 py-2 text-sm rounded border border-border-panel text-text-muted hover:text-text-primary hover:border-text-muted transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSave}
+                  disabled={saving}
+                  className="px-4 py-2 text-sm rounded bg-accent-blue text-white font-medium hover:bg-accent-blue-dark disabled:opacity-50 transition-colors"
+                >
+                  {saving ? 'Saving…' : 'Save'}
+                </button>
+              </>
+            )}
           </div>
 
         </Dialog.Content>
