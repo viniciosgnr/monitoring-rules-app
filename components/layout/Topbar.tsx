@@ -2,9 +2,30 @@
 import Image from 'next/image';
 import { HelpCircle, Home, Sun, Moon } from 'lucide-react';
 import { useTheme } from '@/components/context/ThemeContext';
+import { useUserRole } from '@/components/context/UserRoleContext';
+import { useState, useEffect, useRef } from 'react';
 
 export default function Topbar({ breadcrumb }: { breadcrumb: string }) {
   const { theme, toggleTheme } = useTheme();
+  const { role, setRole } = useUserRole();
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setDropdownOpen(false);
+      }
+    }
+    if (dropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [dropdownOpen]);
+
+  const initials = role === 'admin' ? 'AD' : 'VW';
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 h-10 bg-topbar border-b border-border-panel flex items-center justify-between px-4">
@@ -38,8 +59,44 @@ export default function Topbar({ breadcrumb }: { breadcrumb: string }) {
         </button>
 
         <HelpCircle size={16} className="text-text-muted hover:text-text-primary cursor-pointer transition-colors" />
-        <div className="w-7 h-7 rounded-full bg-accent-blue-dark flex items-center justify-center text-xs font-semibold text-white select-none">
-          EP
+
+        {/* User Profile Selector Dropdown */}
+        <div className="relative flex items-center" ref={dropdownRef}>
+          <button
+            onClick={() => setDropdownOpen(!dropdownOpen)}
+            className="w-7 h-7 rounded-full bg-accent-blue-dark hover:bg-accent-blue flex items-center justify-center text-xs font-semibold text-white select-none cursor-pointer transition-colors"
+          >
+            {initials}
+          </button>
+          
+          {dropdownOpen && (
+            <div className="absolute right-0 top-8 w-32 bg-bg-panel border border-border-panel rounded shadow-xl py-1 z-50">
+              <button
+                onClick={() => {
+                  setRole('admin');
+                  setDropdownOpen(false);
+                }}
+                className={`w-full text-left px-3 py-1.5 text-xs hover:bg-bg-base/50 transition-colors flex items-center justify-between cursor-pointer ${
+                  role === 'admin' ? 'text-accent-blue font-semibold' : 'text-text-primary'
+                }`}
+              >
+                <span>Admin</span>
+                {role === 'admin' && <span className="w-1.5 h-1.5 rounded-full bg-accent-blue" />}
+              </button>
+              <button
+                onClick={() => {
+                  setRole('viewer');
+                  setDropdownOpen(false);
+                }}
+                className={`w-full text-left px-3 py-1.5 text-xs hover:bg-bg-base/50 transition-colors flex items-center justify-between cursor-pointer ${
+                  role === 'viewer' ? 'text-accent-blue font-semibold' : 'text-text-primary'
+                }`}
+              >
+                <span>Viewer</span>
+                {role === 'viewer' && <span className="w-1.5 h-1.5 rounded-full bg-accent-blue" />}
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </header>
