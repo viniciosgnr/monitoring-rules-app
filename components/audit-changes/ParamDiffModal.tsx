@@ -1,6 +1,8 @@
 'use client';
 import * as Dialog from '@radix-ui/react-dialog';
 import { X, Info } from 'lucide-react';
+import { useState } from 'react';
+import { createPortal } from 'react-dom';
 
 interface AuditEntry {
   equipmentCode: string;
@@ -18,19 +20,39 @@ interface Props {
   entry: AuditEntry | null;
 }
 
-/* ─── Inline tooltip ───────────────────────────────────────────────── */
 function ParamTooltip({ text }: { text: string }) {
   const lines = text.split('\n');
-  return (
-    <span className="relative group cursor-help inline-flex ml-1.5 align-middle">
-      <Info size={12} className="text-text-muted group-hover:text-accent-blue transition-colors" />
+  const [isOpen, setIsOpen] = useState(false);
+  const [coords, setCoords] = useState({ top: 0, left: 0 });
+
+  const handleMouseEnter = (e: React.MouseEvent<HTMLElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const left = rect.left + rect.width / 2 + window.scrollX;
+    const top = rect.top + window.scrollY; // Align to top of icon since it goes up
+
+    setCoords({ top, left });
+    setIsOpen(true);
+  };
+
+  const handleMouseLeave = () => {
+    setIsOpen(false);
+  };
+
+  const tooltipContent = isOpen && (
+    <div
+      style={{
+        position: 'absolute',
+        top: `${coords.top}px`,
+        left: `${coords.left}px`,
+        width: 0,
+        height: 0,
+        zIndex: 9999,
+      }}
+    >
       <span className="
         absolute left-1/2 -translate-x-1/2 bottom-full mb-2
         w-80 bg-bg-panel border border-border-panel rounded-card
         shadow-xl px-3 py-2.5 text-xs text-text-muted leading-relaxed
-        opacity-0 pointer-events-none
-        group-hover:opacity-100 group-hover:pointer-events-auto
-        transition-opacity duration-150 z-[60]
         whitespace-normal text-left
       ">
         <span className="space-y-1 block">
@@ -57,6 +79,17 @@ function ParamTooltip({ text }: { text: string }) {
         </span>
         <span className="absolute left-1/2 -translate-x-1/2 top-full w-0 h-0 border-x-4 border-x-transparent border-t-4 border-t-border-panel" />
       </span>
+    </div>
+  );
+
+  return (
+    <span
+      className="relative cursor-help inline-flex ml-1.5 align-middle"
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+    >
+      <Info size={12} className="text-text-muted hover:text-accent-blue transition-colors" />
+      {isOpen && typeof document !== 'undefined' && createPortal(tooltipContent, document.body)}
     </span>
   );
 }
@@ -119,32 +152,7 @@ export default function ParamDiffModal({ open, onClose, entry }: Props) {
   const newThresholdSurge  = after.rule_trigger_params?.[0]?.threshold_comparison?.value ?? 10;
   const thresholdSurgeModified = prevThresholdSurge !== newThresholdSurge;
 
-  const prevOperatorSurge = before.rule_trigger_params?.[0]?.threshold_comparison?.operator ?? 'gt';
-  const newOperatorSurge  = after.rule_trigger_params?.[0]?.threshold_comparison?.operator ?? 'gt';
-  const operatorSurgeModified = prevOperatorSurge !== newOperatorSurge;
-
-  const prevRuleLogicSurge = before.event_trigger_params?.[0]?.time_totalization?.rule ?? '0&1';
-  const newRuleLogicSurge  = after.event_trigger_params?.[0]?.time_totalization?.rule ?? '0&1';
-  const ruleLogicSurgeModified = prevRuleLogicSurge !== newRuleLogicSurge;
-
-  const prevEventValueSurge = before.event_trigger_params?.[0]?.time_totalization?.value ?? 50;
-  const newEventValueSurge  = after.event_trigger_params?.[0]?.time_totalization?.value ?? 50;
-  const eventValueSurgeModified = prevEventValueSurge !== newEventValueSurge;
-
-  const prevEventOperatorSurge = before.event_trigger_params?.[0]?.time_totalization?.operator ?? 'gt';
-  const newEventOperatorSurge  = after.event_trigger_params?.[0]?.time_totalization?.operator ?? 'gt';
-  const eventOperatorSurgeModified = prevEventOperatorSurge !== newEventOperatorSurge;
-
-  const prevTimePeriodSurge = before.event_trigger_params?.[0]?.time_totalization?.time_period ?? 24;
-  const newTimePeriodSurge  = after.event_trigger_params?.[0]?.time_totalization?.time_period ?? 24;
-  const timePeriodSurgeModified = prevTimePeriodSurge !== newTimePeriodSurge;
-
-  const prevTimePeriodUnitSurge = before.event_trigger_params?.[0]?.time_totalization?.time_period_unit ?? 'h';
-  const newTimePeriodUnitSurge  = after.event_trigger_params?.[0]?.time_totalization?.time_period_unit ?? 'h';
-  const timePeriodUnitSurgeModified = prevTimePeriodUnitSurge !== newTimePeriodUnitSurge;
-
-  const surgeRuleTriggerModified = thresholdSurgeModified || operatorSurgeModified;
-  const surgeEventTriggerModified = ruleLogicSurgeModified || eventValueSurgeModified || eventOperatorSurgeModified || timePeriodSurgeModified || timePeriodUnitSurgeModified;
+  const surgeRuleTriggerModified = thresholdSurgeModified;
 
   // Spike Parameters
   const prevHeightSpike = before.rule_trigger_params?.[0]?.spike_detection?.hasOwnProperty('height') ? before.rule_trigger_params[0].spike_detection.height : null;
@@ -163,21 +171,13 @@ export default function ParamDiffModal({ open, onClose, entry }: Props) {
   const newProminenceSpike  = after.rule_trigger_params?.[0]?.spike_detection?.prominence ?? 1.0;
   const prominenceSpikeModified = prevProminenceSpike !== newProminenceSpike;
 
-  const prevTimedeltaSpike = before.rule_trigger_params?.[0]?.filter_spikes_near_filter_false?.timedelta_minutes ?? 480;
-  const newTimedeltaSpike  = after.rule_trigger_params?.[0]?.filter_spikes_near_filter_false?.timedelta_minutes ?? 480;
-  const timedeltaSpikeModified = prevTimedeltaSpike !== newTimedeltaSpike;
-
-  const prevStatusCheckSpike = before.rule_trigger_params?.[0]?.status_check?.value ?? 1;
-  const newStatusCheckSpike  = after.rule_trigger_params?.[0]?.status_check?.value ?? 1;
-  const statusCheckSpikeModified = prevStatusCheckSpike !== newStatusCheckSpike;
-
-  const spikeRuleTriggerModified = heightSpikeModified || thresholdSpikeModified || distanceSpikeModified || prominenceSpikeModified || timedeltaSpikeModified || statusCheckSpikeModified;
+  const spikeRuleTriggerModified = heightSpikeModified || thresholdSpikeModified || distanceSpikeModified || prominenceSpikeModified;
 
   let totalChanged = 0;
   if (isStatusChange) {
     totalChanged = 0;
   } else if (category === 'surge') {
-    totalChanged = (surgeRuleTriggerModified ? 1 : 0) + (surgeEventTriggerModified ? 1 : 0);
+    totalChanged = (surgeRuleTriggerModified ? 1 : 0);
   } else if (category === 'spike') {
     totalChanged = (spikeRuleTriggerModified ? 1 : 0);
   } else {
@@ -261,7 +261,7 @@ export default function ParamDiffModal({ open, onClose, entry }: Props) {
                     <div className="border-b border-border-panel pb-2 mb-3 flex items-center justify-between">
                       <div className="flex items-center">
                         <span className="text-sm font-bold text-text-primary">Rule Trigger Parameters</span>
-                        <ParamTooltip text={"• **Threshold Value**: Minimum required surge margin limit (default: 10).\n• **Operator**: Comparison logic (fixed to 'gt')."} />
+                        <ParamTooltip text={"• **Threshold Value**: Minimum required surge margin limit (default: 10)."} />
                         {surgeRuleTriggerModified && (
                           <span className="text-[10px] font-semibold text-accent-blue bg-accent-blue/10 px-1.5 py-0.5 rounded ml-2">
                             modified
@@ -293,117 +293,6 @@ export default function ParamDiffModal({ open, onClose, entry }: Props) {
                             {renderNewVal(thresholdSurgeModified, newThresholdSurge)}
                           </td>
                         </tr>
-                        <tr className={operatorSurgeModified ? 'bg-bg-base/30' : ''}>
-                          <td className="py-2.5 pr-4">
-                            <span className="text-xs font-semibold text-text-primary">Operator</span>
-                          </td>
-                          <td className="py-2.5 pr-4">
-                            <span className="font-mono text-xs text-text-muted">gt</span>
-                          </td>
-                          <td className="py-2.5 pr-4">
-                            {renderPrevVal(operatorSurgeModified, prevOperatorSurge)}
-                          </td>
-                          <td className="py-2.5">
-                            {renderNewVal(operatorSurgeModified, newOperatorSurge)}
-                          </td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-
-                  {/* ── Surge Event Trigger Parameters ── */}
-                  <div className="bg-bg-highlight border border-border-panel rounded-card p-4">
-                    <div className="border-b border-border-panel pb-2 mb-3 flex items-center justify-between">
-                      <div className="flex items-center">
-                        <span className="text-sm font-bold text-text-primary">Event Trigger Parameters</span>
-                        <ParamTooltip text={"• **Rule Logic**: Combination logic rule (fixed to '0&1').\n• **Alert Value Threshold (%)**: Percentage of the window violating threshold (default: 50).\n• **Operator**: Comparison logic (fixed to 'gt').\n• **Time Period**: Duration of evaluation window (default: 24).\n• **Unit**: Unit of the time period (default: 'h')."} />
-                        {surgeEventTriggerModified && (
-                          <span className="text-[10px] font-semibold text-accent-blue bg-accent-blue/10 px-1.5 py-0.5 rounded ml-2">
-                            modified
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr>
-                          <th className="text-left pb-2 text-xs font-medium text-text-muted w-[34%]"></th>
-                          <th className="text-left pb-2 text-xs font-medium text-text-muted w-[22%]">Default</th>
-                          <th className="text-left pb-2 text-xs font-medium text-text-muted w-[22%]">Previous</th>
-                          <th className="text-left pb-2 text-xs font-medium text-text-muted w-[22%]">New</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-border-panel">
-                        <tr className={ruleLogicSurgeModified ? 'bg-bg-base/30' : ''}>
-                          <td className="py-2.5 pr-4">
-                            <span className="text-xs font-semibold text-text-primary">Rule Logic</span>
-                          </td>
-                          <td className="py-2.5 pr-4">
-                            <span className="font-mono text-xs text-text-muted">0&1</span>
-                          </td>
-                          <td className="py-2.5 pr-4">
-                            {renderPrevVal(ruleLogicSurgeModified, prevRuleLogicSurge)}
-                          </td>
-                          <td className="py-2.5">
-                            {renderNewVal(ruleLogicSurgeModified, newRuleLogicSurge)}
-                          </td>
-                        </tr>
-                        <tr className={eventValueSurgeModified ? 'bg-bg-base/30' : ''}>
-                          <td className="py-2.5 pr-4">
-                            <span className="text-xs font-semibold text-text-primary">Alert Value Threshold (%)</span>
-                          </td>
-                          <td className="py-2.5 pr-4">
-                            <span className="font-mono text-xs text-text-muted">50</span>
-                          </td>
-                          <td className="py-2.5 pr-4">
-                            {renderPrevVal(eventValueSurgeModified, prevEventValueSurge)}
-                          </td>
-                          <td className="py-2.5">
-                            {renderNewVal(eventValueSurgeModified, newEventValueSurge)}
-                          </td>
-                        </tr>
-                        <tr className={eventOperatorSurgeModified ? 'bg-bg-base/30' : ''}>
-                          <td className="py-2.5 pr-4">
-                            <span className="text-xs font-semibold text-text-primary">Operator</span>
-                          </td>
-                          <td className="py-2.5 pr-4">
-                            <span className="font-mono text-xs text-text-muted">gt</span>
-                          </td>
-                          <td className="py-2.5 pr-4">
-                            {renderPrevVal(eventOperatorSurgeModified, prevEventOperatorSurge)}
-                          </td>
-                          <td className="py-2.5">
-                            {renderNewVal(eventOperatorSurgeModified, newEventOperatorSurge)}
-                          </td>
-                        </tr>
-                        <tr className={timePeriodSurgeModified ? 'bg-bg-base/30' : ''}>
-                          <td className="py-2.5 pr-4">
-                            <span className="text-xs font-semibold text-text-primary">Time Period</span>
-                          </td>
-                          <td className="py-2.5 pr-4">
-                            <span className="font-mono text-xs text-text-muted">24</span>
-                          </td>
-                          <td className="py-2.5 pr-4">
-                            {renderPrevVal(timePeriodSurgeModified, prevTimePeriodSurge)}
-                          </td>
-                          <td className="py-2.5">
-                            {renderNewVal(timePeriodSurgeModified, newTimePeriodSurge)}
-                          </td>
-                        </tr>
-                        <tr className={timePeriodUnitSurgeModified ? 'bg-bg-base/30' : ''}>
-                          <td className="py-2.5 pr-4">
-                            <span className="text-xs font-semibold text-text-primary">Unit</span>
-                          </td>
-                          <td className="py-2.5 pr-4">
-                            <span className="font-mono text-xs text-text-muted">h</span>
-                          </td>
-                          <td className="py-2.5 pr-4">
-                            {renderPrevVal(timePeriodUnitSurgeModified, prevTimePeriodUnitSurge)}
-                          </td>
-                          <td className="py-2.5">
-                            {renderNewVal(timePeriodUnitSurgeModified, newTimePeriodUnitSurge)}
-                          </td>
-                        </tr>
                       </tbody>
                     </table>
                   </div>
@@ -417,7 +306,7 @@ export default function ParamDiffModal({ open, onClose, entry }: Props) {
                     <div className="border-b border-border-panel pb-2 mb-3 flex items-center justify-between">
                       <div className="flex items-center">
                         <span className="text-sm font-bold text-text-primary">Rule Trigger Parameters</span>
-                        <ParamTooltip text={"• **Height**: Absolute minimum signal value to accept a peak (keep empty if unknown).\n• **Threshold**: Required vertical jump versus nearby points.\n• **Distance**: Minimum spacing between spikes (in samples) (default: 60).\n• **Prominence**: Minimum height peak stands out from baseline (default: 1.0).\n• **Timedelta**: Time in minutes to ignore startup/shutdown noise (default: 480).\n• **Status Check Value**: Minimal running state threshold value (default: 1)."} />
+                        <ParamTooltip text={"• **Height**: Absolute minimum signal value to accept a peak (keep empty if unknown).\n• **Threshold**: Required vertical jump versus nearby points.\n• **Distance**: Minimum spacing between spikes (in samples) (default: 60).\n• **Prominence**: Minimum height peak stands out from baseline (default: 1.0)."} />
                         {spikeRuleTriggerModified && (
                           <span className="text-[10px] font-semibold text-accent-blue bg-accent-blue/10 px-1.5 py-0.5 rounded ml-2">
                             modified
@@ -489,34 +378,6 @@ export default function ParamDiffModal({ open, onClose, entry }: Props) {
                           </td>
                           <td className="py-2.5">
                             {renderNewVal(prominenceSpikeModified, newProminenceSpike)}
-                          </td>
-                        </tr>
-                        <tr className={timedeltaSpikeModified ? 'bg-bg-base/30' : ''}>
-                          <td className="py-2.5 pr-4">
-                            <span className="text-xs font-semibold text-text-primary">Timedelta (minutes)</span>
-                          </td>
-                          <td className="py-2.5 pr-4">
-                            <span className="font-mono text-xs text-text-muted">480</span>
-                          </td>
-                          <td className="py-2.5 pr-4">
-                            {renderPrevVal(timedeltaSpikeModified, prevTimedeltaSpike)}
-                          </td>
-                          <td className="py-2.5">
-                            {renderNewVal(timedeltaSpikeModified, newTimedeltaSpike)}
-                          </td>
-                        </tr>
-                        <tr className={statusCheckSpikeModified ? 'bg-bg-base/30' : ''}>
-                          <td className="py-2.5 pr-4">
-                            <span className="text-xs font-semibold text-text-primary">Status Check Value</span>
-                          </td>
-                          <td className="py-2.5 pr-4">
-                            <span className="font-mono text-xs text-text-muted">1</span>
-                          </td>
-                          <td className="py-2.5 pr-4">
-                            {renderPrevVal(statusCheckSpikeModified, prevStatusCheckSpike)}
-                          </td>
-                          <td className="py-2.5">
-                            {renderNewVal(statusCheckSpikeModified, newStatusCheckSpike)}
                           </td>
                         </tr>
                       </tbody>

@@ -2,6 +2,7 @@
 import * as Dialog from '@radix-ui/react-dialog';
 import { X, Info } from 'lucide-react';
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { updateProcessingSteps } from '@/app/actions/ruleInstances';
 
 interface Props {
@@ -17,24 +18,65 @@ interface Props {
 const inputCls =
   'w-full mt-1 bg-bg-input border border-border-panel rounded px-3 py-2 text-sm text-text-primary outline-none focus:border-accent-blue transition-colors';
 
-const disabledInputCls =
-  'w-full mt-1 bg-bg-highlight border border-border-panel/50 rounded px-3 py-2 text-sm text-text-muted select-none cursor-not-allowed disabled:opacity-100';
 
 /* ─── Inline tooltip ───────────────────────────────────────────────── */
-function ParamTooltip({ text, direction = 'down' }: { text: string; direction?: 'up' | 'down' }) {
+function ParamTooltip({
+  text,
+  direction = 'down',
+  align = 'center',
+}: {
+  text: string;
+  direction?: 'up' | 'down';
+  align?: 'center' | 'left' | 'right';
+}) {
   const lines = text.split('\n');
   const isUp = direction === 'up';
-  return (
-    <span className="relative group cursor-help inline-flex ml-1.5 align-middle">
-      <Info size={12} className="text-text-muted group-hover:text-accent-blue transition-colors" />
+  
+  const [isOpen, setIsOpen] = useState(false);
+  const [coords, setCoords] = useState({ top: 0, left: 0 });
+
+  const handleMouseEnter = (e: React.MouseEvent<HTMLElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    let left = 0;
+    if (align === 'left') {
+      left = rect.left + window.scrollX;
+    } else if (align === 'right') {
+      left = rect.right + window.scrollX;
+    } else {
+      left = rect.left + rect.width / 2 + window.scrollX;
+    }
+
+    const top = isUp
+      ? rect.top + window.scrollY
+      : rect.bottom + window.scrollY;
+
+    setCoords({ top, left });
+    setIsOpen(true);
+  };
+
+  const handleMouseLeave = () => {
+    setIsOpen(false);
+  };
+
+  const alignClass = align === 'left' ? 'left-0' : align === 'right' ? 'right-0' : 'left-1/2 -translate-x-1/2';
+  const arrowClass = align === 'left' ? 'left-2.5' : align === 'right' ? 'right-2.5' : 'left-1/2 -translate-x-1/2';
+
+  const tooltipContent = isOpen && (
+    <div
+      style={{
+        position: 'absolute',
+        top: `${coords.top}px`,
+        left: `${coords.left}px`,
+        width: 0,
+        height: 0,
+        zIndex: 9999,
+      }}
+    >
       <span className={`
-        absolute left-1/2 -translate-x-1/2
+        absolute ${alignClass}
         ${isUp ? 'bottom-full mb-1.5' : 'top-full mt-1.5'}
         w-80 bg-bg-panel border border-border-panel rounded-card
         shadow-xl px-3 py-2.5 text-xs text-text-muted leading-relaxed
-        opacity-0 pointer-events-none
-        group-hover:opacity-100 group-hover:pointer-events-auto
-        transition-opacity duration-150 z-[60]
         whitespace-normal text-left
       `}>
         <span className="space-y-1 block">
@@ -60,11 +102,22 @@ function ParamTooltip({ text, direction = 'down' }: { text: string; direction?: 
           })}
         </span>
         {isUp ? (
-          <span className="absolute left-1/2 -translate-x-1/2 top-full w-0 h-0 border-x-4 border-x-transparent border-t-4 border-t-border-panel" />
+          <span className={`absolute ${arrowClass} top-full w-0 h-0 border-x-4 border-x-transparent border-t-4 border-t-border-panel`} />
         ) : (
-          <span className="absolute left-1/2 -translate-x-1/2 bottom-full w-0 h-0 border-x-4 border-x-transparent border-b-4 border-b-border-panel" />
+          <span className={`absolute ${arrowClass} bottom-full w-0 h-0 border-x-4 border-x-transparent border-b-4 border-b-border-panel`} />
         )}
       </span>
+    </div>
+  );
+
+  return (
+    <span
+      className="relative cursor-help inline-flex ml-1.5 align-middle"
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+    >
+      <Info size={12} className="text-text-muted hover:text-accent-blue transition-colors" />
+      {isOpen && typeof document !== 'undefined' && createPortal(tooltipContent, document.body)}
     </span>
   );
 }
@@ -94,11 +147,21 @@ function FieldBlock({
 }
 
 /* ─── Section header ───────────────────────────────────────────────── */
-function SectionTitle({ label, tooltip, tooltipDirection = 'down' }: { label: string; tooltip?: string; tooltipDirection?: 'up' | 'down' }) {
+function SectionTitle({
+  label,
+  tooltip,
+  tooltipDirection = 'down',
+  tooltipAlign = 'center',
+}: {
+  label: string;
+  tooltip?: string;
+  tooltipDirection?: 'up' | 'down';
+  tooltipAlign?: 'center' | 'left' | 'right';
+}) {
   return (
     <p className="text-sm font-medium text-text-primary mb-3 flex items-center">
       {label}
-      {tooltip && <ParamTooltip text={tooltip} direction={tooltipDirection} />}
+      {tooltip && <ParamTooltip text={tooltip} direction={tooltipDirection} align={tooltipAlign} />}
     </p>
   );
 }
@@ -132,16 +195,28 @@ export default function EditRuleModal({
 
   async function handleSave() {
     setSaving(true);
-    await updateProcessingSteps(ruleId, s);
+    const finalS = { ...s };
+    if (category === 'spike' && finalS.rule_trigger_params?.[0]) {
+      const { spike_detection } = finalS.rule_trigger_params[0];
+      finalS.rule_trigger_params = [{ spike_detection }];
+    } else if (category === 'surge') {
+      delete finalS.event_trigger_params;
+      if (finalS.rule_trigger_params?.[0]?.threshold_comparison) {
+        const restThresholdComparison = { ...finalS.rule_trigger_params[0].threshold_comparison };
+        delete restThresholdComparison.operator;
+        finalS.rule_trigger_params = [{
+          ...finalS.rule_trigger_params[0],
+          threshold_comparison: restThresholdComparison
+        }];
+      }
+    }
+    await updateProcessingSteps(ruleId, finalS);
     setSaving(false);
     onClose();
   }
 
   // Surge values helper extraction
   const thresholdValue = s.rule_trigger_params?.[0]?.threshold_comparison?.value ?? 10;
-  const eventValueSurge = s.event_trigger_params?.[0]?.time_totalization?.value ?? 50;
-  const timePeriod = s.event_trigger_params?.[0]?.time_totalization?.time_period ?? 24;
-  const timePeriodUnit = s.event_trigger_params?.[0]?.time_totalization?.time_period_unit ?? 'h';
 
   // Spike values helper extraction
   const heightSpike = s.rule_trigger_params?.[0]?.spike_detection?.hasOwnProperty('height')
@@ -152,8 +227,6 @@ export default function EditRuleModal({
     : '';
   const distanceSpike = s.rule_trigger_params?.[0]?.spike_detection?.distance ?? 60;
   const prominenceSpike = s.rule_trigger_params?.[0]?.spike_detection?.prominence ?? 1.0;
-  const timedeltaMinutes = s.rule_trigger_params?.[0]?.filter_spikes_near_filter_false?.timedelta_minutes ?? 480;
-  const statusCheckValueSpike = s.rule_trigger_params?.[0]?.status_check?.value ?? 1;
 
   return (
     <Dialog.Root open={open} onOpenChange={v => !v && onClose()}>
@@ -191,11 +264,11 @@ export default function EditRuleModal({
                 <strong>Description:</strong> This rule monitors the surge margin by checking if the equipment operates in a condition lower than the minimum threshold limit. An alert is raised if the equipment operates for more than 50% of the last day in such a condition.
               </div>
 
-              {/* Rule Trigger Params */}
+              {/* Rule Trigger Parameters */}
               <div>
                 <SectionTitle
                   label="Rule Trigger Parameters"
-                  tooltip={"• **Threshold Value**: Minimum required surge margin limit (default: 10).\n• **Operator**: Comparison logic (fixed to 'gt')."}
+                  tooltip={"• **Threshold Value**: Minimum required surge margin limit (default: 10)."}
                 />
                 <div className="grid grid-cols-2 gap-4">
                   <FieldBlock label="Threshold Value">
@@ -219,118 +292,6 @@ export default function EditRuleModal({
                       className={inputCls}
                     />
                   </FieldBlock>
-
-                  <FieldBlock label="Operator">
-                    <input
-                      type="text"
-                      value="gt"
-                      disabled
-                      className={disabledInputCls}
-                    />
-                  </FieldBlock>
-                </div>
-              </div>
-
-              {/* Event Trigger Params */}
-              <div>
-                <SectionTitle
-                  label="Event Trigger Parameters"
-                  tooltip={"• **Rule Logic**: Combination logic rule (fixed to '0&1').\n• **Alert Value Threshold (%)**: Percentage of the window violating threshold (default: 50).\n• **Operator**: Comparison logic (fixed to 'gt').\n• **Time Period**: Duration of evaluation window (default: 24).\n• **Unit**: Unit of the time period (default: 'h')."}
-                />
-                <div className="grid grid-cols-2 gap-4">
-                  <FieldBlock label="Rule Logic">
-                    <input
-                      type="text"
-                      value="0&1"
-                      disabled
-                      className={disabledInputCls}
-                    />
-                  </FieldBlock>
-
-                  <FieldBlock label="Alert Value Threshold (%)">
-                    <input
-                      type="number"
-                      value={eventValueSurge}
-                      onChange={e => {
-                        const val = parseFloat(e.target.value);
-                        const arr = [...(s.event_trigger_params || [{ time_totalization: {} }])];
-                        arr[0] = {
-                          ...arr[0],
-                          time_totalization: {
-                            ...arr[0]?.time_totalization,
-                            value: isNaN(val) ? 0 : val,
-                            rule: '0&1',
-                            operator: 'gt',
-                            time_period: arr[0]?.time_totalization?.time_period ?? 24,
-                            time_period_unit: arr[0]?.time_totalization?.time_period_unit ?? 'h',
-                            tags_to_apply: arr[0]?.time_totalization?.tags_to_apply ?? ["all"]
-                          }
-                        };
-                        setS({ ...s, event_trigger_params: arr });
-                      }}
-                      className={inputCls}
-                    />
-                  </FieldBlock>
-
-                  <FieldBlock label="Operator">
-                    <input
-                      type="text"
-                      value="gt"
-                      disabled
-                      className={disabledInputCls}
-                    />
-                  </FieldBlock>
-
-                  <div className="grid grid-cols-2 gap-2">
-                    <FieldBlock label="Time Period">
-                      <input
-                        type="number"
-                        value={timePeriod}
-                        onChange={e => {
-                          const val = parseFloat(e.target.value);
-                          const arr = [...(s.event_trigger_params || [{ time_totalization: {} }])];
-                          arr[0] = {
-                            ...arr[0],
-                            time_totalization: {
-                              ...arr[0]?.time_totalization,
-                              time_period: isNaN(val) ? 0 : val,
-                              rule: '0&1',
-                              operator: 'gt',
-                              value: arr[0]?.time_totalization?.value ?? 50,
-                              time_period_unit: arr[0]?.time_totalization?.time_period_unit ?? 'h',
-                              tags_to_apply: arr[0]?.time_totalization?.tags_to_apply ?? ["all"]
-                            }
-                          };
-                          setS({ ...s, event_trigger_params: arr });
-                        }}
-                        className={inputCls}
-                      />
-                    </FieldBlock>
-
-                    <FieldBlock label="Unit">
-                      <input
-                        type="text"
-                        value={timePeriodUnit}
-                        onChange={e => {
-                          const arr = [...(s.event_trigger_params || [{ time_totalization: {} }])];
-                          arr[0] = {
-                            ...arr[0],
-                            time_totalization: {
-                              ...arr[0]?.time_totalization,
-                              time_period_unit: e.target.value,
-                              rule: '0&1',
-                              operator: 'gt',
-                              value: arr[0]?.time_totalization?.value ?? 50,
-                              time_period: arr[0]?.time_totalization?.time_period ?? 24,
-                              tags_to_apply: arr[0]?.time_totalization?.tags_to_apply ?? ["all"]
-                            }
-                          };
-                          setS({ ...s, event_trigger_params: arr });
-                        }}
-                        className={inputCls}
-                      />
-                    </FieldBlock>
-                  </div>
                 </div>
               </div>
             </div>
@@ -346,7 +307,7 @@ export default function EditRuleModal({
               <div>
                 <SectionTitle
                   label="Rule Trigger Parameters"
-                  tooltip={"• **Height**: Absolute minimum signal value to accept a peak (keep empty if unknown).\n• **Threshold**: Required vertical jump versus nearby points.\n• **Distance**: Minimum spacing between spikes (in samples) (default: 60).\n• **Prominence**: Minimum height peak stands out from baseline (default: 1.0).\n• **Timedelta**: Time in minutes to ignore startup/shutdown noise (default: 480).\n• **Status Check Value**: Minimal running state threshold value (default: 1)."}
+                  tooltip={"• **Height**: Absolute minimum signal value to accept a peak (keep empty if unknown).\n• **Threshold**: Required vertical jump versus nearby points.\n• **Distance**: Minimum spacing between spikes (in samples) (default: 60).\n• **Prominence**: Minimum height peak stands out from baseline (default: 1.0)."}
                 />
                 <div className="grid grid-cols-2 gap-4">
                   <FieldBlock label="Height">
@@ -449,49 +410,6 @@ export default function EditRuleModal({
                       className={inputCls}
                     />
                   </FieldBlock>
-
-                  <FieldBlock label="Timedelta (minutes)">
-                    <input
-                      type="number"
-                      value={timedeltaMinutes}
-                      onChange={e => {
-                        const val = parseFloat(e.target.value);
-                        const arr = [...(s.rule_trigger_params || [{ spike_detection: {}, filter_spikes_near_filter_false: {}, status_check: {} }])];
-                        arr[0] = {
-                          ...arr[0],
-                          filter_spikes_near_filter_false: {
-                            ...arr[0]?.filter_spikes_near_filter_false,
-                            timedelta_minutes: isNaN(val) ? 0 : val,
-                            filter_tag: arr[0]?.filter_spikes_near_filter_false?.filter_tag ?? ["RUN"],
-                            spike_results_key: arr[0]?.filter_spikes_near_filter_false?.spike_results_key ?? "spike_results"
-                          }
-                        };
-                        setS({ ...s, rule_trigger_params: arr });
-                      }}
-                      className={inputCls}
-                    />
-                  </FieldBlock>
-
-                  <FieldBlock label="Status Check Value">
-                    <input
-                      type="number"
-                      value={statusCheckValueSpike}
-                      onChange={e => {
-                        const val = parseFloat(e.target.value);
-                        const arr = [...(s.rule_trigger_params || [{ spike_detection: {}, filter_spikes_near_filter_false: {}, status_check: {} }])];
-                        arr[0] = {
-                          ...arr[0],
-                          status_check: {
-                            ...arr[0]?.status_check,
-                            value: isNaN(val) ? 0 : val,
-                            tags_to_apply: arr[0]?.status_check?.tags_to_apply ?? ["RUN"]
-                          }
-                        };
-                        setS({ ...s, rule_trigger_params: arr });
-                      }}
-                      className={inputCls}
-                    />
-                  </FieldBlock>
                 </div>
               </div>
 
@@ -501,6 +419,7 @@ export default function EditRuleModal({
                   label="Recommendations"
                   tooltip={"Use these as a first iteration, then tune with real data.\n\n• **Sensitive** (find more spikes; more false positives risk)\n  - height: null\n  - threshold: 0.2\n  - distance: 20\n  - prominence: 0.1\n\n• **Balanced** (recommended starting point)\n  - height: null\n  - threshold: 0.5\n  - distance: 60\n  - prominence: 0.3\n\n• **Conservative** (alerts only for strong events)\n  - height: 0.6\n  - threshold: 0.9\n  - distance: 120\n  - prominence: 0.8"}
                   tooltipDirection="up"
+                  tooltipAlign="left"
                 />
                 <p className="text-xs text-text-muted mt-1.5 leading-relaxed">
                   Hover over the tooltip icon above to view suggested preset values for Sensitive, Balanced, and Conservative configurations.
