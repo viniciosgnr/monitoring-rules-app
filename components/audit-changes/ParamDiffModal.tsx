@@ -171,16 +171,7 @@ export default function ParamDiffModal({ open, onClose, entry }: Props) {
   const newStatusCheckSpike  = after.rule_trigger_params?.[0]?.status_check?.value ?? 1;
   const statusCheckSpikeModified = prevStatusCheckSpike !== newStatusCheckSpike;
 
-  const prevEventValueSpike = before.event_trigger_params?.[0]?.spike_detection_trigger?.value ?? 0;
-  const newEventValueSpike  = after.event_trigger_params?.[0]?.spike_detection_trigger?.value ?? 0;
-  const eventValueSpikeModified = prevEventValueSpike !== newEventValueSpike;
-
-  const prevEventOperatorSpike = before.event_trigger_params?.[0]?.spike_detection_trigger?.operator ?? 'gt';
-  const newEventOperatorSpike  = after.event_trigger_params?.[0]?.spike_detection_trigger?.operator ?? 'gt';
-  const eventOperatorSpikeModified = prevEventOperatorSpike !== newEventOperatorSpike;
-
   const spikeRuleTriggerModified = heightSpikeModified || thresholdSpikeModified || distanceSpikeModified || prominenceSpikeModified || timedeltaSpikeModified || statusCheckSpikeModified;
-  const spikeEventTriggerModified = eventValueSpikeModified || eventOperatorSpikeModified;
 
   let totalChanged = 0;
   if (isStatusChange) {
@@ -188,7 +179,7 @@ export default function ParamDiffModal({ open, onClose, entry }: Props) {
   } else if (category === 'surge') {
     totalChanged = (surgeRuleTriggerModified ? 1 : 0) + (surgeEventTriggerModified ? 1 : 0);
   } else if (category === 'spike') {
-    totalChanged = (spikeRuleTriggerModified ? 1 : 0) + (spikeEventTriggerModified ? 1 : 0);
+    totalChanged = (spikeRuleTriggerModified ? 1 : 0);
   } else {
     totalChanged = (absValueModified ? 1 : 0) + (dropMissingModified ? 1 : 0) + (joinTimeseriesModified ? 1 : 0) + (roundTimestampModified ? 1 : 0);
   }
@@ -532,60 +523,7 @@ export default function ParamDiffModal({ open, onClose, entry }: Props) {
                     </table>
                   </div>
 
-                  {/* ── Spike Event Trigger Parameters ── */}
-                  <div className="bg-bg-highlight border border-border-panel rounded-card p-4">
-                    <div className="border-b border-border-panel pb-2 mb-3 flex items-center justify-between">
-                      <div className="flex items-center">
-                        <span className="text-sm font-bold text-text-primary">Event Trigger Parameters</span>
-                        <ParamTooltip text={"• **Value**: Number of spike events required to trigger an alert (default: 0).\n• **Operator**: Comparison logic (fixed to 'gt')."} />
-                        {spikeEventTriggerModified && (
-                          <span className="text-[10px] font-semibold text-accent-blue bg-accent-blue/10 px-1.5 py-0.5 rounded ml-2">
-                            modified
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr>
-                          <th className="text-left pb-2 text-xs font-medium text-text-muted w-[34%]"></th>
-                          <th className="text-left pb-2 text-xs font-medium text-text-muted w-[22%]">Default</th>
-                          <th className="text-left pb-2 text-xs font-medium text-text-muted w-[22%]">Previous</th>
-                          <th className="text-left pb-2 text-xs font-medium text-text-muted w-[22%]">New</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-border-panel">
-                        <tr className={eventValueSpikeModified ? 'bg-bg-base/30' : ''}>
-                          <td className="py-2.5 pr-4">
-                            <span className="text-xs font-semibold text-text-primary">Value</span>
-                          </td>
-                          <td className="py-2.5 pr-4">
-                            <span className="font-mono text-xs text-text-muted">0</span>
-                          </td>
-                          <td className="py-2.5 pr-4">
-                            {renderPrevVal(eventValueSpikeModified, prevEventValueSpike)}
-                          </td>
-                          <td className="py-2.5">
-                            {renderNewVal(eventValueSpikeModified, newEventValueSpike)}
-                          </td>
-                        </tr>
-                        <tr className={eventOperatorSpikeModified ? 'bg-bg-base/30' : ''}>
-                          <td className="py-2.5 pr-4">
-                            <span className="text-xs font-semibold text-text-primary">Operator</span>
-                          </td>
-                          <td className="py-2.5 pr-4">
-                            <span className="font-mono text-xs text-text-muted">gt</span>
-                          </td>
-                          <td className="py-2.5 pr-4">
-                            {renderPrevVal(eventOperatorSpikeModified, prevEventOperatorSpike)}
-                          </td>
-                          <td className="py-2.5">
-                            {renderNewVal(eventOperatorSpikeModified, newEventOperatorSpike)}
-                          </td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
+
                 </>
               )}
 

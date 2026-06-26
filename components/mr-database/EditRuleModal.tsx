@@ -148,7 +148,6 @@ export default function EditRuleModal({
   const prominenceSpike = s.rule_trigger_params?.[0]?.spike_detection?.prominence ?? 1.0;
   const timedeltaMinutes = s.rule_trigger_params?.[0]?.filter_spikes_near_filter_false?.timedelta_minutes ?? 480;
   const statusCheckValueSpike = s.rule_trigger_params?.[0]?.status_check?.value ?? 1;
-  const eventValueSpike = s.event_trigger_params?.[0]?.spike_detection_trigger?.value ?? 0;
 
   return (
     <Dialog.Root open={open} onOpenChange={v => !v && onClose()}>
@@ -490,44 +489,15 @@ export default function EditRuleModal({
                 </div>
               </div>
 
-              {/* Event Trigger Params */}
+              {/* Recommendations */}
               <div>
                 <SectionTitle
-                  label="Event Trigger Parameters"
-                  tooltip={"• **Value**: Number of spike events required to trigger an alert (default: 0).\n• **Operator**: Comparison logic (fixed to 'gt')."}
+                  label="Recommendations"
+                  tooltip={"Use these as a first iteration, then tune with real data.\n\n• **Sensitive** (find more spikes; more false positives risk)\n  - height: null\n  - threshold: 0.2\n  - distance: 20\n  - prominence: 0.1\n\n• **Balanced** (recommended starting point)\n  - height: null\n  - threshold: 0.5\n  - distance: 60\n  - prominence: 0.3\n\n• **Conservative** (alerts only for strong events)\n  - height: 0.6\n  - threshold: 0.9\n  - distance: 120\n  - prominence: 0.8"}
                 />
-                <div className="grid grid-cols-2 gap-4">
-                  <FieldBlock label="Value">
-                    <input
-                      type="number"
-                      value={eventValueSpike}
-                      onChange={e => {
-                        const val = parseFloat(e.target.value);
-                        const arr = [...(s.event_trigger_params || [{ spike_detection_trigger: {} }])];
-                        arr[0] = {
-                          ...arr[0],
-                          spike_detection_trigger: {
-                            ...arr[0]?.spike_detection_trigger,
-                            value: isNaN(val) ? 0 : val,
-                            operator: 'gt',
-                            spike_results_key: arr[0]?.spike_detection_trigger?.spike_results_key ?? 'spike_results'
-                          }
-                        };
-                        setS({ ...s, event_trigger_params: arr });
-                      }}
-                      className={inputCls}
-                    />
-                  </FieldBlock>
-
-                  <FieldBlock label="Operator">
-                    <input
-                      type="text"
-                      value="gt"
-                      disabled
-                      className={disabledInputCls}
-                    />
-                  </FieldBlock>
-                </div>
+                <p className="text-xs text-text-muted mt-1.5 leading-relaxed">
+                  Hover over the tooltip icon above to view suggested preset values for Sensitive, Balanced, and Conservative configurations.
+                </p>
               </div>
             </div>
           )}
