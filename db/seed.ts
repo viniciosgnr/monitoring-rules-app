@@ -25,12 +25,21 @@ async function seed() {
 
   // Equipment
   const equipList = await db.insert(equipment).values([
-    { fpsoId: uny.id, code: 'UNY-775-COCE-0220', name: 'Compressor COCE 0220' },
-    { fpsoId: uny.id, code: 'MMA-100-PUM-0420',  name: 'Pump 0420' },
-    { fpsoId: uny.id, code: 'PIO-310-HX-0145',   name: 'Heat Exchanger 0145' },
-    { fpsoId: uny.id, code: 'UNY-775-COCE-0221', name: 'Compressor COCE 0221' },
-    { fpsoId: uny.id, code: 'PIO-220-TRB-0312',  name: 'Turbine 0312' },
+    { fpsoId: uny.id, code: 'UNY-775-COCE-0220', name: 'Compressor COCE 0220' }, // 0
+    { fpsoId: uny.id, code: 'MMA-100-PUM-0420',  name: 'Pump 0420' },              // 1
+    { fpsoId: uny.id, code: 'PIO-310-HX-0145',   name: 'Heat Exchanger 0145' },    // 2
+    { fpsoId: uny.id, code: 'UNY-775-COCE-0221', name: 'Compressor COCE 0221' }, // 3
+    { fpsoId: uny.id, code: 'PIO-220-TRB-0312',  name: 'Turbine 0312' },           // 4
+    { fpsoId: uny.id, code: 'UNY-775-COCE-0222', name: 'Compressor COCE 0222' }, // 5
+    { fpsoId: uny.id, code: 'UNY-775-COCE-0223', name: 'Compressor COCE 0223' }, // 6
+    { fpsoId: uny.id, code: 'UNY-775-COCE-0224', name: 'Compressor COCE 0224' }, // 7
+    { fpsoId: uny.id, code: 'MMA-100-PUM-0421',  name: 'Pump 0421' },              // 8
+    { fpsoId: uny.id, code: 'MMA-100-PUM-0422',  name: 'Pump 0422' },              // 9
+    { fpsoId: uny.id, code: 'MMA-100-PUM-0423',  name: 'Pump 0423' },              // 10
+    { fpsoId: uny.id, code: 'PIO-310-HX-0146',   name: 'Heat Exchanger 0146' },    // 11
+    { fpsoId: uny.id, code: 'PIO-220-TRB-0313',  name: 'Turbine 0313' },           // 12
   ]).returning();
+
 
   const processingSteps = {
     abs_value:       { tags_to_apply: 'RUN' },
@@ -54,12 +63,31 @@ async function seed() {
   const nextRun = new Date('2026-02-24T12:47:04');
 
   const instancesData = [
-    { equipmentId: equipList[0].id, ruleId: rules[0].id }, // Compressor -> COCE_GEN_SPK_01 (Spike)
-    { equipmentId: equipList[4].id, ruleId: rules[1].id }, // Turbine -> TURB_TEMP_TRND_03 (Trend)
-    { equipmentId: equipList[1].id, ruleId: rules[2].id }, // Pump -> PUMP_VIB_THR_02 (Surge/Threshold)
-    { equipmentId: equipList[3].id, ruleId: rules[3].id }, // Compressor -> COCE_SURG_MGN_06 (Surge/Threshold)
-    { equipmentId: equipList[2].id, ruleId: rules[4].id }, // Heat Exchanger -> HTEX_NORM_DP_04 (dP)
-    { equipmentId: equipList[4].id, ruleId: rules[5].id }, // Turbine -> TURB_OIL_DRFT_05 (Drift)
+    // Original 6 instances (0-5)
+    { equipmentId: equipList[0].id, ruleId: rules[0].id }, // COCE-0220 -> Spike (COCE_GEN_SPK_01)
+    { equipmentId: equipList[4].id, ruleId: rules[1].id }, // TRB-0312 -> Trend (TURB_TEMP_TRND_03)
+    { equipmentId: equipList[1].id, ruleId: rules[2].id }, // PUM-0420 -> Surge (PUMP_VIB_THR_02)
+    { equipmentId: equipList[3].id, ruleId: rules[3].id }, // COCE-0221 -> Surge (COCE_SURG_MGN_06)
+    { equipmentId: equipList[2].id, ruleId: rules[4].id }, // HX-0145 -> dP (HTEX_NORM_DP_04)
+    { equipmentId: equipList[4].id, ruleId: rules[5].id }, // TRB-0312 -> Drift (TURB_OIL_DRFT_05)
+
+    // Additional Spike instances (6-10)
+    { equipmentId: equipList[3].id, ruleId: rules[0].id },  // COCE-0221 -> Spike
+    { equipmentId: equipList[5].id, ruleId: rules[0].id },  // COCE-0222 -> Spike
+    { equipmentId: equipList[6].id, ruleId: rules[0].id },  // COCE-0223 -> Spike
+    { equipmentId: equipList[7].id, ruleId: rules[0].id },  // COCE-0224 -> Spike
+    { equipmentId: equipList[12].id, ruleId: rules[0].id }, // TRB-0313 -> Spike
+
+    // Additional Surge instances (11-16)
+    { equipmentId: equipList[8].id, ruleId: rules[2].id },  // PUM-0421 -> Surge
+    { equipmentId: equipList[9].id, ruleId: rules[2].id },  // PUM-0422 -> Surge
+    { equipmentId: equipList[10].id, ruleId: rules[2].id }, // PUM-0423 -> Surge
+    { equipmentId: equipList[0].id, ruleId: rules[3].id },  // COCE-0220 -> Surge
+    { equipmentId: equipList[5].id, ruleId: rules[3].id },  // COCE-0222 -> Surge
+    { equipmentId: equipList[6].id, ruleId: rules[3].id },  // COCE-0223 -> Surge
+
+    // Additional other types (17)
+    { equipmentId: equipList[11].id, ruleId: rules[4].id }, // HX-0146 -> dP
   ];
 
   const instances = await db.insert(ruleInstances).values(
@@ -121,7 +149,7 @@ async function seed() {
 
   // Round-robin distribution across 6 instances so every page of the table shows
   // a variety of equipment/rule combinations (i % 6 → inst 0,1,2,3,4,5,0,1,2,3,4,5...)
-  const equipmentDistribution = Array.from({ length: 42 }, (_, i) => i % 6);
+  const equipmentDistribution = Array.from({ length: 42 }, (_, i) => i % 17);
 
   // Distribute users: Top Editor Share -> icaro.zelioli@sbmoffshore.com must have exactly 17 changes (40% of 42)
   const userEmails = [
@@ -137,8 +165,8 @@ async function seed() {
     let desc = changeTypesList[i];
     const email = userEmails[i];
 
-    const isSpike = instIdx === 0;
-    const isSurge = instIdx === 2 || instIdx === 3;
+    const isSpike = instIdx === 0 || (instIdx >= 6 && instIdx <= 10);
+    const isSurge = instIdx === 2 || instIdx === 3 || (instIdx >= 11 && instIdx <= 16);
 
     let before: any;
     let after: any;
