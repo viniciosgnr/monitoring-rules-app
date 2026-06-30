@@ -15,6 +15,7 @@ interface InstanceRow {
   equipmentCode: string;
   timeseries: string;
   system: string;
+  subsystem: string;
   ruleName: string;
   ruleId: number;
   schedule: string;
@@ -151,7 +152,7 @@ export default function RuleInstanceTable({ rows }: { rows: InstanceRow[] }) {
   }
 
   function downloadExcel() {
-    const headers = ['FPSO', 'Equipment', 'Timeseries', 'System', 'Rule', 'Schedule', 'Last Run At', 'Next Run At', 'Disabled Until', 'Enabled'];
+    const headers = ['FPSO', 'Equipment', 'Timeseries', 'System', 'Subsystem', 'Rule', 'Schedule', 'Last Run At', 'Next Run At', 'Disabled Until', 'Enabled'];
     const csvRows = [headers.join(',')];
 
     for (const row of filtered) {
@@ -171,6 +172,7 @@ export default function RuleInstanceTable({ rows }: { rows: InstanceRow[] }) {
         row.equipmentCode,
         row.timeseries,
         row.system,
+        row.subsystem,
         row.ruleName,
         row.schedule,
         row.lastRunAt,
@@ -209,6 +211,7 @@ export default function RuleInstanceTable({ rows }: { rows: InstanceRow[] }) {
     ['equipmentCode', 'Equipment'],
     ['timeseries', 'Timeseries'],
     ['system', 'System'],
+    ['subsystem', 'Subsystem'],
     ['ruleName', 'Rule'],
     ['schedule', 'Schedule'],
     ['lastRunAt', 'Last Run At'],
@@ -304,6 +307,7 @@ export default function RuleInstanceTable({ rows }: { rows: InstanceRow[] }) {
                       </td>
                       <td className="px-4 py-3 text-text-muted font-mono text-xs">{row.timeseries}</td>
                       <td className="px-4 py-3 text-text-muted text-sm">{row.system}</td>
+                      <td className="px-4 py-3 text-text-muted text-sm">{row.subsystem}</td>
                       <td className="px-4 py-3 text-text-primary font-mono text-xs">{row.ruleName}</td>
                       <td className="px-4 py-3 text-text-muted text-sm">{row.schedule}</td>
                       <td className="px-4 py-3 text-text-muted text-xs">{row.lastRunAt}</td>
