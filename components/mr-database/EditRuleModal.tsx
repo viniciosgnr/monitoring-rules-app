@@ -186,6 +186,38 @@ function getRuleCategory(ruleName: string): 'surge' | 'spike' | 'generic' {
   return 'generic';
 }
 
+interface ProcessingStepsConfig {
+  rule_trigger_params?: {
+    threshold_comparison?: {
+      value?: number;
+      operator?: string;
+      tags_to_apply?: string[];
+    };
+    spike_detection?: {
+      height?: number | null;
+      threshold?: number | null;
+      distance?: number;
+      prominence?: number;
+      tags_to_apply?: string[];
+      exclude_tags?: string[];
+    };
+  }[];
+  event_trigger_params?: unknown;
+  round_timestamp?: {
+    period?: string;
+    tags_to_apply?: string;
+  };
+}
+
+interface AuditLogEntry {
+  id: number;
+  userEmail: string;
+  description: string;
+  beforeState: unknown;
+  afterState: unknown;
+  createdAt: Date;
+}
+
 export default function EditRuleModal({
   open,
   onClose,
@@ -201,21 +233,23 @@ export default function EditRuleModal({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [s, setS]           = useState<any>(steps || {});
   const [saving, setSaving] = useState(false);
-  const [history, setHistory] = useState<any[]>([]);
-  const [initialSteps]      = useState<any>(steps || {});
+  const [history, setHistory] = useState<AuditLogEntry[]>([]);
+  const [initialSteps]      = useState<ProcessingStepsConfig>(steps || {});
 
   useEffect(() => {
     if (open && instanceId) {
       import('@/app/actions/ruleInstances').then(({ getAuditLogsForInstance }) => {
         getAuditLogsForInstance(instanceId).then(logs => {
-          setHistory(logs.filter((l: any) => l.description === 'Updated rule parameters'));
+          setHistory((logs as unknown as AuditLogEntry[]).filter(l => l.description === 'Updated rule parameters'));
         });
       });
     }
   }, [open, instanceId]);
 
-  function getDiffElements(before: any, after: any, ruleCategory: string) {
+  function getDiffElements(beforeState: unknown, afterState: unknown, ruleCategory: string) {
     const diffs: React.ReactNode[] = [];
+    const before = (beforeState as { processingSteps?: ProcessingStepsConfig }) || {};
+    const after = (afterState as { processingSteps?: ProcessingStepsConfig }) || {};
     if (ruleCategory === 'surge') {
       const vBefore = before.processingSteps?.rule_trigger_params?.[0]?.threshold_comparison?.value ?? 10;
       const vAfter = after.processingSteps?.rule_trigger_params?.[0]?.threshold_comparison?.value ?? 10;
