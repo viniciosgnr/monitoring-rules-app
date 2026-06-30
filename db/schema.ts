@@ -33,6 +33,7 @@ export const ruleInstances = pgTable('rule_instances', {
   enabled:     boolean('enabled').notNull().default(true),
   lastRunAt:   timestamp('last_run_at'),
   nextRunAt:   timestamp('next_run_at'),
+  deactivatedUntil: timestamp('deactivated_until'),
 });
 
 export const alerts = pgTable('alerts', {

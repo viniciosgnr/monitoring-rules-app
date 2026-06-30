@@ -63,15 +63,25 @@ async function seed() {
   ];
 
   const instances = await db.insert(ruleInstances).values(
-    instancesData.map((data, i) => ({
-      ruleId:      data.ruleId,
-      equipmentId: data.equipmentId,
-      timeseries:  `UNY:FPSO:771-VI-181${i + 1}_X`,
-      schedule:    'Hourly',
-      enabled:     i !== 0,
-      lastRunAt:   lastRun,
-      nextRunAt:   nextRun,
-    }))
+    instancesData.map((data, i) => {
+      const enabled = i !== 0 && i !== 2;
+      let deactivatedUntil: Date | null = null;
+      if (i === 0) {
+        deactivatedUntil = new Date('2026-01-15T00:00:00');
+      } else if (i === 2) {
+        deactivatedUntil = new Date('2026-09-15T00:00:00');
+      }
+      return {
+        ruleId:      data.ruleId,
+        equipmentId: data.equipmentId,
+        timeseries:  `UNY:FPSO:771-VI-181${i + 1}_X`,
+        schedule:    'Hourly',
+        enabled,
+        lastRunAt:   lastRun,
+        nextRunAt:   nextRun,
+        deactivatedUntil,
+      };
+    })
   ).returning();
 
   // Alerts — 12 records covering all 5 new status values and all monitoring rules
