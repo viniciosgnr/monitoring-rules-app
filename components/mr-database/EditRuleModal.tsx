@@ -14,6 +14,7 @@ interface Props {
   equipmentCode: string;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   steps: any;
+  instanceId?: number;
 }
 
 const inputCls =
@@ -186,7 +187,13 @@ function getRuleCategory(ruleName: string): 'surge' | 'spike' | 'generic' {
 }
 
 export default function EditRuleModal({
-  open, onClose, ruleId, ruleName, equipmentCode, steps,
+  open,
+  onClose,
+  ruleId,
+  ruleName,
+  equipmentCode,
+  steps,
+  instanceId,
 }: Props) {
   const { role } = useUserRole();
   const isViewer = role === 'viewer';
