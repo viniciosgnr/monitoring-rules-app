@@ -1,7 +1,7 @@
 'use client';
 import * as Dialog from '@radix-ui/react-dialog';
 import { X, Info } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { updateProcessingSteps } from '@/app/actions/ruleInstances';
 import { useUserRole } from '@/components/context/UserRoleContext';
@@ -201,6 +201,45 @@ export default function EditRuleModal({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [s, setS]           = useState<any>(steps || {});
   const [saving, setSaving] = useState(false);
+  const [history, setHistory] = useState<any[]>([]);
+  const [initialSteps]      = useState<any>(steps || {});
+
+  useEffect(() => {
+    if (open && instanceId) {
+      import('@/app/actions/ruleInstances').then(({ getAuditLogsForInstance }) => {
+        getAuditLogsForInstance(instanceId).then(logs => {
+          setHistory(logs.filter((l: any) => l.description === 'Updated rule parameters'));
+        });
+      });
+    }
+  }, [open, instanceId]);
+
+  function getDiffElements(before: any, after: any, ruleCategory: string) {
+    const diffs: React.ReactNode[] = [];
+    if (ruleCategory === 'surge') {
+      const vBefore = before.processingSteps?.rule_trigger_params?.[0]?.threshold_comparison?.value ?? 10;
+      const vAfter = after.processingSteps?.rule_trigger_params?.[0]?.threshold_comparison?.value ?? 10;
+      if (vBefore !== vAfter) {
+        diffs.push(<div key="thresh"><strong>Threshold Value</strong>: {vBefore} → {vAfter}</div>);
+      }
+    } else if (ruleCategory === 'spike') {
+      const sdBefore = before.processingSteps?.rule_trigger_params?.[0]?.spike_detection || {};
+      const sdAfter = after.processingSteps?.rule_trigger_params?.[0]?.spike_detection || {};
+      if (sdBefore.height !== sdAfter.height) {
+        diffs.push(<div key="h"><strong>Height</strong>: {sdBefore.height ?? 'null'} → {sdAfter.height ?? 'null'}</div>);
+      }
+      if (sdBefore.threshold !== sdAfter.threshold) {
+        diffs.push(<div key="t"><strong>Threshold</strong>: {sdBefore.threshold ?? 'null'} → {sdAfter.threshold ?? 'null'}</div>);
+      }
+      if (sdBefore.distance !== sdAfter.distance) {
+        diffs.push(<div key="d"><strong>Distance</strong>: {sdBefore.distance ?? '—'} → {sdAfter.distance ?? '—'}</div>);
+      }
+      if (sdBefore.prominence !== sdAfter.prominence) {
+        diffs.push(<div key="p"><strong>Prominence</strong>: {sdBefore.prominence ?? '—'} → {sdAfter.prominence ?? '—'}</div>);
+      }
+    }
+    return diffs;
+  }
 
   const category = getRuleCategory(ruleName);
 
@@ -221,13 +260,26 @@ export default function EditRuleModal({
         }];
       }
     }
-    await updateProcessingSteps(ruleId, finalS);
+    await updateProcessingSteps(ruleId, finalS, instanceId);
     setSaving(false);
     onClose();
   }
 
+  // Surge initial
+  const initialThresholdValue = initialSteps.rule_trigger_params?.[0]?.threshold_comparison?.value ?? 10;
+
   // Surge values helper extraction
   const thresholdValue = s.rule_trigger_params?.[0]?.threshold_comparison?.value ?? 10;
+
+  // Spike initial
+  const initialHeightSpike = initialSteps.rule_trigger_params?.[0]?.spike_detection?.hasOwnProperty('height')
+    ? initialSteps.rule_trigger_params[0].spike_detection.height
+    : '';
+  const initialThresholdSpike = initialSteps.rule_trigger_params?.[0]?.spike_detection?.hasOwnProperty('threshold')
+    ? initialSteps.rule_trigger_params[0].spike_detection.threshold
+    : '';
+  const initialDistanceSpike = initialSteps.rule_trigger_params?.[0]?.spike_detection?.distance ?? 60;
+  const initialProminenceSpike = initialSteps.rule_trigger_params?.[0]?.spike_detection?.prominence ?? 1.0;
 
   // Spike values helper extraction
   const heightSpike = s.rule_trigger_params?.[0]?.spike_detection?.hasOwnProperty('height')
@@ -313,6 +365,11 @@ export default function EditRuleModal({
                       }}
                       className={inputCls}
                     />
+                    {initialThresholdValue !== thresholdValue && (
+                      <span className="text-xs text-text-muted mt-1 block">
+                        Previous value: <span className="font-semibold text-text-primary">{initialThresholdValue}</span>
+                      </span>
+                    )}
                   </FieldBlock>
                 </div>
               </div>
@@ -356,6 +413,11 @@ export default function EditRuleModal({
                       placeholder="null"
                       className={inputCls}
                     />
+                    {initialHeightSpike !== (heightSpike ?? '') && (
+                      <span className="text-xs text-text-muted mt-1 block">
+                        Previous value: <span className="font-semibold text-text-primary">{initialHeightSpike === '' ? 'null' : initialHeightSpike}</span>
+                      </span>
+                    )}
                   </FieldBlock>
 
                   <FieldBlock label="Threshold">
@@ -382,6 +444,11 @@ export default function EditRuleModal({
                       placeholder="null"
                       className={inputCls}
                     />
+                    {initialThresholdSpike !== (thresholdSpike ?? '') && (
+                      <span className="text-xs text-text-muted mt-1 block">
+                        Previous value: <span className="font-semibold text-text-primary">{initialThresholdSpike === '' ? 'null' : initialThresholdSpike}</span>
+                      </span>
+                    )}
                   </FieldBlock>
 
                   <FieldBlock label="Distance">
@@ -408,6 +475,11 @@ export default function EditRuleModal({
                       }}
                       className={inputCls}
                     />
+                    {initialDistanceSpike !== distanceSpike && (
+                      <span className="text-xs text-text-muted mt-1 block">
+                        Previous value: <span className="font-semibold text-text-primary">{initialDistanceSpike}</span>
+                      </span>
+                    )}
                   </FieldBlock>
 
                   <FieldBlock label="Prominence">
@@ -435,6 +507,11 @@ export default function EditRuleModal({
                       }}
                       className={inputCls}
                     />
+                    {initialProminenceSpike !== prominenceSpike && (
+                      <span className="text-xs text-text-muted mt-1 block">
+                        Previous value: <span className="font-semibold text-text-primary">{initialProminenceSpike}</span>
+                      </span>
+                    )}
                   </FieldBlock>
                 </div>
               </div>
@@ -540,6 +617,31 @@ export default function EditRuleModal({
               </div>
             </div>
           )}
+
+          {/* Parameter Change History */}
+          <div className="border-t border-border-panel mt-6 pt-5">
+            <h3 className="text-xs font-semibold text-text-primary mb-3">Parameter Change History</h3>
+            {history.length === 0 ? (
+              <div className="text-xs text-text-muted italic">No past parameter updates recorded for this instance.</div>
+            ) : (
+              <div className="space-y-4 max-h-48 overflow-y-auto pr-2">
+                {history.map(log => {
+                  const diffs = getDiffElements(log.beforeState, log.afterState, category);
+                  if (diffs.length === 0) return null;
+                  return (
+                    <div key={log.id} className="border-l-2 border-border-panel pl-3 text-xs py-0.5">
+                      <div className="text-text-muted font-medium mb-1">
+                        {new Date(log.createdAt).toLocaleString('pt-BR')} by <span className="text-text-primary">{log.userEmail}</span>
+                      </div>
+                      <div className="text-text-muted space-y-1 pl-1.5 border-l border-border-panel/40">
+                        {diffs}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
 
           {/* ── Actions ── */}
           <div className="flex justify-end gap-3 border-t border-border-panel pt-4 mt-6">
