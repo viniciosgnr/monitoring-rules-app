@@ -14,7 +14,7 @@ export async function toggleInstance(id: number, enabled: boolean, reason?: stri
 
   if (!current) return;
 
-  const updateValues: Record<string, any> = { enabled };
+  const updateValues: { enabled: boolean; deactivatedUntil?: Date | null } = { enabled };
   if (enabled) {
     updateValues.deactivatedUntil = null;
   } else if (deactivatedUntil !== undefined) {
@@ -53,7 +53,7 @@ export async function toggleInstancesBulk(ids: number[], enabled: boolean, reaso
 
     if (!current) continue;
 
-    const updateValues: Record<string, any> = { enabled };
+    const updateValues: { enabled: boolean; deactivatedUntil?: Date | null } = { enabled };
     if (enabled) {
       updateValues.deactivatedUntil = null;
     } else if (deactivatedUntil !== undefined) {
