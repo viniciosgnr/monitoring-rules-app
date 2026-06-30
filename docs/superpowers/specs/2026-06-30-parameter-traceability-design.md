@@ -1,10 +1,10 @@
-# Design Spec: Parameter Change Traceability in Edit Modal (Simplified for SLB Optisite)
+# Design Spec: Parameter Change Traceability in Edit Modal (Static Labels for SLB Optisite)
 
-This spec details the simplified implementation of traceability controls in the Edit Modal (`EditRuleModal`) to align with SLB Optisite limitations, allowing users to compare pending edits with previous values directly in the inputs while logging changes in the database.
+This spec details the static implementation of traceability controls in the Edit Modal (`EditRuleModal`) to align with SLB Optisite limitations, displaying previous saved values permanently below input fields and logging modifications to the database.
 
-## 1. Dynamic "Previous Value" Display
-- When editing a parameter value, the UI will compare the current input value with the value originally loaded from the database (initial state).
-- If the value is modified, a small label `"Previous value: X"` will appear below the input field.
+## 1. Static "Previous Value" Display
+- Every parameter input field will permanently display its database-saved value below the input, formatted as `"Previous value: X"` (or `"Previous value: null"` if empty).
+- This label remains static and visible at all times (even if the user modifies the input) to provide a clear reference baseline.
 
 ## 2. Server-side Audit Logging for Parameters
 Modify the `updateProcessingSteps` action in `app/actions/ruleInstances.ts` to accept an optional `instanceId`. If provided:
