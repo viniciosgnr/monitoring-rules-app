@@ -1,41 +1,123 @@
-# Parameter Traceability Implementation Plan (Simplified)
+# Parameter Traceability Implementation Plan (Static Labels)
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Simplify the parameter change traceability feature by removing the "Parameter Change History" timeline from the UI while preserving the backend database logging and the client-side "Previous value: X" inputs comparison indicators.
+**Goal:** Modify the parameter inputs in `EditRuleModal.tsx` to display their originally loaded database values permanently underneath as static text reference indicators.
 
-**Architecture:** Remove history timeline rendering markup, queries, states, and hooks from the modal component. Keep parameter logging in `updateProcessingSteps`.
+**Architecture:** Remove the comparison checks (e.g. `initialThreshold !== thresholdValue`) before rendering the label block, so the indicator renders unconditionally.
 
-**Tech Stack:** React, Next.js, Drizzle ORM.
+**Tech Stack:** React.
 
 ---
 
-### Task 1: Clean Up Unused UI Timeline and Logs Fetching in EditRuleModal.tsx
+### Task 1: Render Previous Value Labels Statically in EditRuleModal.tsx
 
 **Files:**
 - Modify: `components/mr-database/EditRuleModal.tsx`
 
-- [ ] **Step 1: Remove timeline queries, states, and helpers**
-  Open [EditRuleModal.tsx](file:///home/marcosgnr/Monitoring%20Rules%20Management/monitoring-rules-app/components/mr-database/EditRuleModal.tsx).
-  - Remove `history` state: `const [history, setHistory] = useState<AuditLogEntry[]>([]);`.
-  - Remove `useEffect` that fetches audit logs on mount.
-  - Remove `getDiffElements` helper function.
-  - Remove `AuditLogEntry` type interface if it is no longer used.
-
-- [ ] **Step 2: Remove Parameter Change History timeline markup**
-  Remove the timeline rendering block (around lines 533-560) right before `/* ── Actions ── */`:
+- [ ] **Step 1: Make Surge Threshold Value label static**
+  Update the Surge parameter rendering block (around lines 350-380) to render the label unconditionally:
   ```tsx
-            {/* Parameter Change History */}
-            <div className="border-t border-border-panel mt-6 pt-5">
-              ...
-            </div>
+                  <FieldBlock label="Threshold Value">
+                    <input
+                      type="number"
+                      value={thresholdValue}
+                      disabled={isViewer}
+                      onChange={e => {
+                        ...
+                      }}
+                      className={inputCls}
+                    />
+                    <span className="text-xs text-text-muted mt-1 block">
+                      Previous value: <span className="font-semibold text-text-primary">{initialThresholdValue}</span>
+                    </span>
+                  </FieldBlock>
   ```
 
-- [ ] **Step 3: Commit**
+- [ ] **Step 2: Make Spike Height label static**
+  Update the Spike Height parameter block (around lines 390-410) to render the label unconditionally:
+  ```tsx
+                  <FieldBlock label="Height">
+                    <input
+                      type="number"
+                      value={heightSpike ?? ''}
+                      disabled={isViewer}
+                      onChange={e => {
+                        ...
+                      }}
+                      placeholder="null"
+                      className={inputCls}
+                    />
+                    <span className="text-xs text-text-muted mt-1 block">
+                      Previous value: <span className="font-semibold text-text-primary">{initialHeightSpike === '' ? 'null' : initialHeightSpike}</span>
+                    </span>
+                  </FieldBlock>
+  ```
+
+- [ ] **Step 3: Make Spike Threshold label static**
+  Update the Spike Threshold parameter block (around lines 415-435) to render the label unconditionally:
+  ```tsx
+                  <FieldBlock label="Threshold">
+                    <input
+                      type="number"
+                      value={thresholdSpike ?? ''}
+                      disabled={isViewer}
+                      onChange={e => {
+                        ...
+                      }}
+                      placeholder="null"
+                      className={inputCls}
+                    />
+                    <span className="text-xs text-text-muted mt-1 block">
+                      Previous value: <span className="font-semibold text-text-primary">{initialThresholdSpike === '' ? 'null' : initialThresholdSpike}</span>
+                    </span>
+                  </FieldBlock>
+  ```
+
+- [ ] **Step 4: Make Spike Distance label static**
+  Update the Spike Distance parameter block (around lines 440-460) to render the label unconditionally:
+  ```tsx
+                  <FieldBlock label="Distance">
+                    <input
+                      type="number"
+                      value={distanceSpike}
+                      disabled={isViewer}
+                      onChange={e => {
+                        ...
+                      }}
+                      className={inputCls}
+                    />
+                    <span className="text-xs text-text-muted mt-1 block">
+                      Previous value: <span className="font-semibold text-text-primary">{initialDistanceSpike}</span>
+                    </span>
+                  </FieldBlock>
+  ```
+
+- [ ] **Step 5: Make Spike Prominence label static**
+  Update the Spike Prominence parameter block (around lines 465-485) to render the label unconditionally:
+  ```tsx
+                  <FieldBlock label="Prominence">
+                    <input
+                      type="number"
+                      step="0.1"
+                      value={prominenceSpike}
+                      disabled={isViewer}
+                      onChange={e => {
+                        ...
+                      }}
+                      className={inputCls}
+                    />
+                    <span className="text-xs text-text-muted mt-1 block">
+                      Previous value: <span className="font-semibold text-text-primary">{initialProminenceSpike}</span>
+                    </span>
+                  </FieldBlock>
+  ```
+
+- [ ] **Step 6: Commit**
   Run:
   ```bash
   git add components/mr-database/EditRuleModal.tsx
-  git commit -m "feat: simplify EditRuleModal UI by removing parameter change history timeline"
+  git commit -m "feat: render previous values labels statically under input fields"
   ```
 
 ---
@@ -50,6 +132,5 @@
 
 - [ ] **Step 3: Manual Testing**
   - Open a rule instance Edit modal.
-  - Modify a parameter (e.g. Height/Threshold value) and verify that "Previous value: X" appears dynamically underneath.
-  - Revert the change and verify the label disappears.
-  - Verify that no parameter change history list is visible at the bottom of the modal, ensuring layout simplicity.
+  - Verify that the "Previous value: X" label is visible directly below each parameter field on open.
+  - Modify parameters and check that the label remains static and visible, acting as a permanent visual reference.
