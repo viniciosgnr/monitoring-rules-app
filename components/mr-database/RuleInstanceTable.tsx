@@ -22,6 +22,7 @@ interface InstanceRow {
   nextRunAt: string;
   enabled: boolean;
   processingSteps: object;
+  deactivatedUntil: string | null;
   [key: string]: unknown;
 }
 
@@ -51,6 +52,13 @@ export default function RuleInstanceTable({ rows }: { rows: InstanceRow[] }) {
   const [disableGroupData, setDisableGroupData] = useState<{ friendlyName: string; rows: InstanceRow[] } | null>(null);
   const [disableReason, setDisableReason] = useState('Process Shutdown / Maintenance');
   const [customReason, setCustomReason] = useState('');
+  const [dueDate, setDueDate] = useState('');
+
+  function applyPresetDays(days: number) {
+    const d = new Date();
+    d.setDate(d.getDate() + days);
+    setDueDate(d.toISOString().split('T')[0]);
+  }
 
   // Export Confirmation Modal State
   const [showExportModal, setShowExportModal] = useState(false);
@@ -88,9 +96,9 @@ export default function RuleInstanceTable({ rows }: { rows: InstanceRow[] }) {
     return Array.from(map.entries());
   }, [filtered]);
 
-  async function handleToggle(id: number, enabled: boolean, reason?: string) {
-    setData(d => d.map(r => r.id === id ? { ...r, enabled } : r));
-    await toggleInstance(id, enabled, reason);
+  async function handleToggle(id: number, enabled: boolean, reason?: string, deactivatedUntil?: Date | null) {
+    setData(d => d.map(r => r.id === id ? { ...r, enabled, deactivatedUntil: deactivatedUntil ? deactivatedUntil.toISOString() : null } : r));
+    await toggleInstance(id, enabled, reason, deactivatedUntil);
   }
 
   function handleSwitchChange(row: InstanceRow, checked: boolean) {
@@ -99,6 +107,7 @@ export default function RuleInstanceTable({ rows }: { rows: InstanceRow[] }) {
       setDisableRow(row);
       setDisableReason('Process Shutdown / Maintenance');
       setCustomReason('');
+      setDueDate('');
     } else {
       // Enabling -> Trigger immediately
       handleToggle(row.id, true);
@@ -108,13 +117,14 @@ export default function RuleInstanceTable({ rows }: { rows: InstanceRow[] }) {
   function confirmDisable() {
     if (!disableRow) return;
     const reason = disableReason === 'Other' ? customReason : disableReason;
-    handleToggle(disableRow.id, false, reason);
+    const d = dueDate ? new Date(dueDate) : null;
+    handleToggle(disableRow.id, false, reason, d);
     setDisableRow(null);
   }
 
-  async function handleGroupToggle(ids: number[], enabled: boolean, reason?: string) {
-    setData(d => d.map(r => ids.includes(r.id) ? { ...r, enabled } : r));
-    await toggleInstancesBulk(ids, enabled, reason);
+  async function handleGroupToggle(ids: number[], enabled: boolean, reason?: string, deactivatedUntil?: Date | null) {
+    setData(d => d.map(r => ids.includes(r.id) ? { ...r, enabled, deactivatedUntil: deactivatedUntil ? deactivatedUntil.toISOString() : null } : r));
+    await toggleInstancesBulk(ids, enabled, reason, deactivatedUntil);
   }
 
   function handleGroupSwitchChange(friendlyName: string, groupRows: InstanceRow[], checked: boolean) {
@@ -123,6 +133,7 @@ export default function RuleInstanceTable({ rows }: { rows: InstanceRow[] }) {
       setDisableGroupData({ friendlyName, rows: groupRows });
       setDisableReason('Process Shutdown / Maintenance');
       setCustomReason('');
+      setDueDate('');
     } else {
       // Enabling all -> Trigger immediately
       const ids = groupRows.map(r => r.id);
@@ -133,16 +144,28 @@ export default function RuleInstanceTable({ rows }: { rows: InstanceRow[] }) {
   function confirmGroupDisable() {
     if (!disableGroupData) return;
     const reason = disableReason === 'Other' ? customReason : disableReason;
+    const d = dueDate ? new Date(dueDate) : null;
     const ids = disableGroupData.rows.map(r => r.id);
-    handleGroupToggle(ids, false, reason);
+    handleGroupToggle(ids, false, reason, d);
     setDisableGroupData(null);
   }
 
   function downloadExcel() {
-    const headers = ['FPSO', 'Equipment', 'Timeseries', 'System', 'Rule', 'Schedule', 'Last Run At', 'Next Run At', 'Enabled'];
+    const headers = ['FPSO', 'Equipment', 'Timeseries', 'System', 'Rule', 'Schedule', 'Last Run At', 'Next Run At', 'Disabled Until', 'Enabled'];
     const csvRows = [headers.join(',')];
 
     for (const row of filtered) {
+      let disabledUntilStr = '—';
+      if (!row.enabled) {
+        if (!row.deactivatedUntil) {
+          disabledUntilStr = 'Indefinite';
+        } else {
+          const limit = new Date(row.deactivatedUntil);
+          const dateStr = limit.toLocaleDateString('pt-BR');
+          disabledUntilStr = new Date() > limit ? `Expired (${dateStr})` : dateStr;
+        }
+      }
+
       const values = [
         row.fpso,
         row.equipmentCode,
@@ -152,6 +175,7 @@ export default function RuleInstanceTable({ rows }: { rows: InstanceRow[] }) {
         row.schedule,
         row.lastRunAt,
         row.nextRunAt,
+        disabledUntilStr,
         row.enabled ? 'Yes' : 'No'
       ].map(val => `"${String(val).replace(/"/g, '""')}"`);
       csvRows.push(values.join(','));
@@ -189,6 +213,7 @@ export default function RuleInstanceTable({ rows }: { rows: InstanceRow[] }) {
     ['schedule', 'Schedule'],
     ['lastRunAt', 'Last Run At'],
     ['nextRunAt', 'Next Run At'],
+    ['deactivatedUntil', 'Disabled Until'],
   ];
 
   return (
@@ -283,6 +308,28 @@ export default function RuleInstanceTable({ rows }: { rows: InstanceRow[] }) {
                       <td className="px-4 py-3 text-text-muted text-sm">{row.schedule}</td>
                       <td className="px-4 py-3 text-text-muted text-xs">{row.lastRunAt}</td>
                       <td className="px-4 py-3 text-text-muted text-xs">{row.nextRunAt}</td>
+                      <td className="px-4 py-3 text-sm">
+                        {!row.enabled ? (
+                          !row.deactivatedUntil ? (
+                            <span className="text-text-muted">Indefinite</span>
+                          ) : (() => {
+                            const limit = new Date(row.deactivatedUntil);
+                            const now = new Date();
+                            const dateStr = limit.toLocaleDateString('pt-BR');
+                            if (now > limit) {
+                              return (
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-500/10 text-red-500 border border-red-500/20">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                                  Expired ({dateStr})
+                                </span>
+                              );
+                            }
+                            return <span className="text-text-primary font-medium">{dateStr}</span>;
+                          })()
+                        ) : (
+                          <span className="text-text-muted">—</span>
+                        )}
+                      </td>
                       <td className="px-4 py-3">
                         <Switch.Root
                           checked={row.enabled}
@@ -380,6 +427,39 @@ export default function RuleInstanceTable({ rows }: { rows: InstanceRow[] }) {
                   />
                 </div>
               )}
+
+              <div>
+                <label className="text-xs text-text-muted font-medium">Deactivation Due Date (Optional)</label>
+                <div className="flex gap-2 mt-1.5 flex-wrap">
+                  <input
+                    type="date"
+                    value={dueDate}
+                    onChange={e => setDueDate(e.target.value)}
+                    className="bg-bg-input border border-border-panel rounded px-3 py-1.5 text-sm text-text-primary outline-none focus:border-accent-blue transition-colors min-w-[140px] flex-1"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => applyPresetDays(7)}
+                    className="px-2.5 py-1.5 text-xs font-semibold rounded bg-bg-panel border border-border-panel text-text-primary hover:border-accent-blue hover:text-accent-blue transition-colors cursor-pointer"
+                  >
+                    +7 Days
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => applyPresetDays(30)}
+                    className="px-2.5 py-1.5 text-xs font-semibold rounded bg-bg-panel border border-border-panel text-text-primary hover:border-accent-blue hover:text-accent-blue transition-colors cursor-pointer"
+                  >
+                    +30 Days
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => applyPresetDays(90)}
+                    className="px-2.5 py-1.5 text-xs font-semibold rounded bg-bg-panel border border-border-panel text-text-primary hover:border-accent-blue hover:text-accent-blue transition-colors cursor-pointer"
+                  >
+                    +90 Days
+                  </button>
+                </div>
+              </div>
             </div>
 
             <div className="flex justify-end gap-3 mt-6 border-t border-border-panel pt-4">
@@ -446,6 +526,39 @@ export default function RuleInstanceTable({ rows }: { rows: InstanceRow[] }) {
                   />
                 </div>
               )}
+
+              <div>
+                <label className="text-xs text-text-muted font-medium">Deactivation Due Date (Optional)</label>
+                <div className="flex gap-2 mt-1.5 flex-wrap">
+                  <input
+                    type="date"
+                    value={dueDate}
+                    onChange={e => setDueDate(e.target.value)}
+                    className="bg-bg-input border border-border-panel rounded px-3 py-1.5 text-sm text-text-primary outline-none focus:border-accent-blue transition-colors min-w-[140px] flex-1"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => applyPresetDays(7)}
+                    className="px-2.5 py-1.5 text-xs font-semibold rounded bg-bg-panel border border-border-panel text-text-primary hover:border-accent-blue hover:text-accent-blue transition-colors cursor-pointer"
+                  >
+                    +7 Days
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => applyPresetDays(30)}
+                    className="px-2.5 py-1.5 text-xs font-semibold rounded bg-bg-panel border border-border-panel text-text-primary hover:border-accent-blue hover:text-accent-blue transition-colors cursor-pointer"
+                  >
+                    +30 Days
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => applyPresetDays(90)}
+                    className="px-2.5 py-1.5 text-xs font-semibold rounded bg-bg-panel border border-border-panel text-text-primary hover:border-accent-blue hover:text-accent-blue transition-colors cursor-pointer"
+                  >
+                    +90 Days
+                  </button>
+                </div>
+              </div>
             </div>
 
             <div className="flex justify-end gap-3 mt-6 border-t border-border-panel pt-4">
