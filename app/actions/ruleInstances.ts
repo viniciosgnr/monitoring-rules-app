@@ -1,7 +1,7 @@
 'use server';
 import { db } from '@/db';
 import { ruleInstances, monitoringRules, auditLog } from '@/db/schema';
-import { eq } from 'drizzle-orm';
+import { eq, desc } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 
 export async function toggleInstance(id: number, enabled: boolean, reason?: string, deactivatedUntil?: Date | null) {
@@ -82,9 +82,47 @@ export async function toggleInstancesBulk(ids: number[], enabled: boolean, reaso
   revalidatePath('/');
 }
 
-export async function updateProcessingSteps(ruleId: number, steps: object) {
+export async function updateProcessingSteps(ruleId: number, steps: object, instanceId?: number) {
+  const [currentRule] = await db
+    .select({
+      processingSteps: monitoringRules.processingSteps,
+    })
+    .from(monitoringRules)
+    .where(eq(monitoringRules.id, ruleId));
+
+  if (!currentRule) return;
+
   await db.update(monitoringRules)
     .set({ processingSteps: steps })
     .where(eq(monitoringRules.id, ruleId));
+
+  if (instanceId) {
+    const beforeState = { processingSteps: currentRule.processingSteps };
+    const afterState = { processingSteps: steps };
+
+    await db.insert(auditLog).values({
+      instanceId,
+      userEmail: 'operator@sbmoffshore.com',
+      description: 'Updated rule parameters',
+      beforeState,
+      afterState,
+    });
+  }
+
   revalidatePath('/');
+}
+
+export async function getAuditLogsForInstance(instanceId: number) {
+  return await db
+    .select({
+      id: auditLog.id,
+      userEmail: auditLog.userEmail,
+      description: auditLog.description,
+      beforeState: auditLog.beforeState,
+      afterState: auditLog.afterState,
+      createdAt: auditLog.createdAt,
+    })
+    .from(auditLog)
+    .where(eq(auditLog.instanceId, instanceId))
+    .orderBy(desc(auditLog.createdAt));
 }
