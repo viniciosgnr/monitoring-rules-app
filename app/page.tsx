@@ -30,6 +30,7 @@ export default async function MRDatabasePage() {
       nextRunAt:       ruleInstances.nextRunAt,
       enabled:         ruleInstances.enabled,
       processingSteps: monitoringRules.processingSteps,
+      deactivatedUntil: ruleInstances.deactivatedUntil,
     })
     .from(ruleInstances)
     .innerJoin(equipment,       eq(ruleInstances.equipmentId, equipment.id))
@@ -46,6 +47,7 @@ export default async function MRDatabasePage() {
     lastRunAt:       r.lastRunAt?.toLocaleString('pt-BR') ?? '—',
     nextRunAt:       r.nextRunAt?.toLocaleString('pt-BR') ?? '—',
     processingSteps: (r.processingSteps as object) ?? {},
+    deactivatedUntil: r.deactivatedUntil ? r.deactivatedUntil.toISOString() : null,
   }));
 
   return (
