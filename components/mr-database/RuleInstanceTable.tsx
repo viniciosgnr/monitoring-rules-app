@@ -86,16 +86,21 @@ export default function RuleInstanceTable({ rows }: { rows: InstanceRow[] }) {
     )
   );
 
+  const paginatedInstances = useMemo(() => {
+    const startIndex = (page - 1) * pageSize;
+    return filtered.slice(startIndex, startIndex + pageSize);
+  }, [filtered, page, pageSize]);
+
   const groups = useMemo(() => {
     const map = new Map<string, InstanceRow[]>();
-    for (const row of filtered) {
+    for (const row of paginatedInstances) {
       const friendly = getFriendlyRuleName(row.ruleName);
       const arr = map.get(friendly) ?? [];
       arr.push(row);
       map.set(friendly, arr);
     }
     return Array.from(map.entries());
-  }, [filtered]);
+  }, [paginatedInstances]);
 
   async function handleToggle(id: number, enabled: boolean, reason?: string, deactivatedUntil?: Date | null) {
     setData(d => d.map(r => r.id === id ? { ...r, enabled, deactivatedUntil: deactivatedUntil ? deactivatedUntil.toISOString() : null } : r));
