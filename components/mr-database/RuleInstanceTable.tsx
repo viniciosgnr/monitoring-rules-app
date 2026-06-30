@@ -266,7 +266,7 @@ export default function RuleInstanceTable({ rows }: { rows: InstanceRow[] }) {
                         <ChevronRight size={14} className="text-text-muted" />
                       )}
                     </td>
-                    <td colSpan={8} className="px-1 py-2.5">
+                    <td colSpan={cols.length} className="px-1 py-2.5">
                       <div className="flex items-center gap-3">
                         <span className="text-xs font-semibold text-text-primary">{friendlyName}</span>
                         <span className="text-[11px] text-text-muted">
