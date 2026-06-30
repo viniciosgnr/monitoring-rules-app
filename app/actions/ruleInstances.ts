@@ -4,7 +4,7 @@ import { ruleInstances, monitoringRules, auditLog } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 
-export async function toggleInstance(id: number, enabled: boolean, reason?: string) {
+export async function toggleInstance(id: number, enabled: boolean, reason?: string, deactivatedUntil?: Date | null) {
   const [current] = await db
     .select({
       enabled: ruleInstances.enabled,
@@ -14,11 +14,22 @@ export async function toggleInstance(id: number, enabled: boolean, reason?: stri
 
   if (!current) return;
 
-  await db.update(ruleInstances).set({ enabled }).where(eq(ruleInstances.id, id));
+  const updateValues: Record<string, any> = { enabled };
+  if (enabled) {
+    updateValues.deactivatedUntil = null;
+  } else if (deactivatedUntil !== undefined) {
+    updateValues.deactivatedUntil = deactivatedUntil;
+  }
+
+  await db.update(ruleInstances).set(updateValues).where(eq(ruleInstances.id, id));
 
   const description = enabled ? 'Enabled rule instance' : 'Disabled rule instance';
   const beforeState = { enabled: current.enabled };
-  const afterState = { enabled, reason: reason ?? null };
+  const afterState = { 
+    enabled, 
+    reason: reason ?? null, 
+    deactivatedUntil: enabled ? null : (deactivatedUntil ?? null)
+  };
 
   await db.insert(auditLog).values({
     instanceId: id,
@@ -31,7 +42,7 @@ export async function toggleInstance(id: number, enabled: boolean, reason?: stri
   revalidatePath('/');
 }
 
-export async function toggleInstancesBulk(ids: number[], enabled: boolean, reason?: string) {
+export async function toggleInstancesBulk(ids: number[], enabled: boolean, reason?: string, deactivatedUntil?: Date | null) {
   for (const id of ids) {
     const [current] = await db
       .select({
@@ -42,11 +53,22 @@ export async function toggleInstancesBulk(ids: number[], enabled: boolean, reaso
 
     if (!current) continue;
 
-    await db.update(ruleInstances).set({ enabled }).where(eq(ruleInstances.id, id));
+    const updateValues: Record<string, any> = { enabled };
+    if (enabled) {
+      updateValues.deactivatedUntil = null;
+    } else if (deactivatedUntil !== undefined) {
+      updateValues.deactivatedUntil = deactivatedUntil;
+    }
+
+    await db.update(ruleInstances).set(updateValues).where(eq(ruleInstances.id, id));
 
     const description = enabled ? 'Enabled rule instance (Bulk)' : 'Disabled rule instance (Bulk)';
     const beforeState = { enabled: current.enabled };
-    const afterState = { enabled, reason: reason ?? null };
+    const afterState = { 
+      enabled, 
+      reason: reason ?? null,
+      deactivatedUntil: enabled ? null : (deactivatedUntil ?? null)
+    };
 
     await db.insert(auditLog).values({
       instanceId: id,
