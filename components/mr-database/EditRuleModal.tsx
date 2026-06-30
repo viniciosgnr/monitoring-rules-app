@@ -350,11 +350,9 @@ export default function EditRuleModal({
                       }}
                       className={inputCls}
                     />
-                    {initialThresholdValue !== thresholdValue && (
-                      <span className="text-xs text-text-muted mt-1 block">
-                        Previous value: <span className="font-semibold text-text-primary">{initialThresholdValue}</span>
-                      </span>
-                    )}
+                    <span className="text-xs text-text-muted mt-1 block">
+                      Previous value: <span className="font-semibold text-text-primary">{initialThresholdValue}</span>
+                    </span>
                   </FieldBlock>
                 </div>
               </div>
@@ -398,11 +396,9 @@ export default function EditRuleModal({
                       placeholder="null"
                       className={inputCls}
                     />
-                    {initialHeightSpike !== (heightSpike ?? '') && (
-                      <span className="text-xs text-text-muted mt-1 block">
-                        Previous value: <span className="font-semibold text-text-primary">{initialHeightSpike === '' ? 'null' : initialHeightSpike}</span>
-                      </span>
-                    )}
+                    <span className="text-xs text-text-muted mt-1 block">
+                      Previous value: <span className="font-semibold text-text-primary">{initialHeightSpike === '' ? 'null' : initialHeightSpike}</span>
+                    </span>
                   </FieldBlock>
 
                   <FieldBlock label="Threshold">
@@ -429,11 +425,9 @@ export default function EditRuleModal({
                       placeholder="null"
                       className={inputCls}
                     />
-                    {initialThresholdSpike !== (thresholdSpike ?? '') && (
-                      <span className="text-xs text-text-muted mt-1 block">
-                        Previous value: <span className="font-semibold text-text-primary">{initialThresholdSpike === '' ? 'null' : initialThresholdSpike}</span>
-                      </span>
-                    )}
+                    <span className="text-xs text-text-muted mt-1 block">
+                      Previous value: <span className="font-semibold text-text-primary">{initialThresholdSpike === '' ? 'null' : initialThresholdSpike}</span>
+                    </span>
                   </FieldBlock>
 
                   <FieldBlock label="Distance">
@@ -460,11 +454,9 @@ export default function EditRuleModal({
                       }}
                       className={inputCls}
                     />
-                    {initialDistanceSpike !== distanceSpike && (
-                      <span className="text-xs text-text-muted mt-1 block">
-                        Previous value: <span className="font-semibold text-text-primary">{initialDistanceSpike}</span>
-                      </span>
-                    )}
+                    <span className="text-xs text-text-muted mt-1 block">
+                      Previous value: <span className="font-semibold text-text-primary">{initialDistanceSpike}</span>
+                    </span>
                   </FieldBlock>
 
                   <FieldBlock label="Prominence">
@@ -492,11 +484,9 @@ export default function EditRuleModal({
                       }}
                       className={inputCls}
                     />
-                    {initialProminenceSpike !== prominenceSpike && (
-                      <span className="text-xs text-text-muted mt-1 block">
-                        Previous value: <span className="font-semibold text-text-primary">{initialProminenceSpike}</span>
-                      </span>
-                    )}
+                    <span className="text-xs text-text-muted mt-1 block">
+                      Previous value: <span className="font-semibold text-text-primary">{initialProminenceSpike}</span>
+                    </span>
                   </FieldBlock>
                 </div>
               </div>
