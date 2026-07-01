@@ -244,12 +244,15 @@ async function seed() {
       }
     }
 
+    const finalBefore = desc === 'Updated rule parameters' ? { processingSteps: before } : before;
+    const finalAfter  = desc === 'Updated rule parameters' ? { processingSteps: after } : after;
+
     auditLogsToInsert.push({
       instanceId:  instances[instIdx].id,
       userEmail:   email,
       description: desc,
-      beforeState: before,
-      afterState:  after,
+      beforeState: finalBefore,
+      afterState:  finalAfter,
       createdAt:   new Date(`2026-02-23T17:49:${String(i).padStart(2, '0')}`),
     });
   }
