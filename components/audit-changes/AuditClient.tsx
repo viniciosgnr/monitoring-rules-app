@@ -6,6 +6,8 @@ interface AuditEntry {
   timestamp: string;
   userEmail: string;
   equipmentCode: string;
+  system: string;
+  subsystem: string;
   ruleName: string;
   description: string;
   beforeState: object;
