@@ -178,8 +178,8 @@ async function seed() {
       before = { enabled: false };
       after  = { enabled: true };
     } else if (isSpike) {
+      desc = 'Updated rule parameters';
       if (Math.floor(i / 6) % 2 === 0) {
-        desc = 'Adjusted Spike height & prominence';
         before = {
           rule_trigger_params: [{ spike_detection: { height: null, threshold: null, distance: 60, prominence: 1.0 }, filter_spikes_near_filter_false: { timedelta_minutes: 480 }, status_check: { value: 1 } }],
           event_trigger_params: [{ spike_detection_trigger: { value: 0 } }]
@@ -189,7 +189,6 @@ async function seed() {
           event_trigger_params: [{ spike_detection_trigger: { value: 0 } }]
         };
       } else {
-        desc = 'Modified Spike timedelta filter';
         before = {
           rule_trigger_params: [{ spike_detection: { height: null, threshold: null, distance: 60, prominence: 1.0 }, filter_spikes_near_filter_false: { timedelta_minutes: 480 }, status_check: { value: 1 } }],
           event_trigger_params: [{ spike_detection_trigger: { value: 0 } }]
@@ -200,8 +199,8 @@ async function seed() {
         };
       }
     } else if (isSurge) {
+      desc = 'Updated rule parameters';
       if (Math.floor(i / 6) % 2 === 0) {
-        desc = 'Adjusted Surge margin threshold';
         before = {
           rule_trigger_params: [{ threshold_comparison: { value: 10, operator: 'gt', tags_to_apply: ['Surge Margin Actual'] } }],
           event_trigger_params: [{ time_totalization: { value: 50, rule: '0&1', operator: 'gt', time_period: 24, time_period_unit: 'h' } }]
@@ -211,7 +210,6 @@ async function seed() {
           event_trigger_params: [{ time_totalization: { value: 50, rule: '0&1', operator: 'gt', time_period: 24, time_period_unit: 'h' } }]
         };
       } else {
-        desc = 'Modified Surge evaluation window';
         before = {
           rule_trigger_params: [{ threshold_comparison: { value: 10, operator: 'gt', tags_to_apply: ['Surge Margin Actual'] } }],
           event_trigger_params: [{ time_totalization: { value: 50, rule: '0&1', operator: 'gt', time_period: 24, time_period_unit: 'h' } }]
