@@ -12,6 +12,8 @@ interface AuditEntry {
   timestampRaw?: string;
   userEmail: string;
   equipmentCode: string;
+  system: string;
+  subsystem: string;
   ruleName: string;
   description: string;
   beforeState: object;
@@ -54,7 +56,7 @@ export default function AuditHistoryTable({ rows }: { rows: AuditEntry[] }) {
   }
 
   function downloadExcel() {
-    const headers = ['Timestamp', 'User', 'Equipment', 'RuleName', 'Description'];
+    const headers = ['Timestamp', 'User', 'Equipment', 'System', 'Subsystem', 'RuleName', 'Description'];
     const csvRows = [headers.join(',')];
 
     for (const row of filtered) {
@@ -62,6 +64,8 @@ export default function AuditHistoryTable({ rows }: { rows: AuditEntry[] }) {
         row.timestamp,
         row.userEmail,
         row.equipmentCode,
+        row.system,
+        row.subsystem,
         row.ruleName,
         row.description
       ].map(val => `"${String(val).replace(/"/g, '""')}"`);
@@ -120,6 +124,16 @@ export default function AuditHistoryTable({ rows }: { rows: AuditEntry[] }) {
     );
   }
 
+  const cols = [
+    ['timestamp', 'Timestamp'],
+    ['userEmail', 'User'],
+    ['equipmentCode', 'Equipment'],
+    ['system', 'System'],
+    ['subsystem', 'Subsystem'],
+    ['ruleName', 'Rule'],
+    ['description', 'Description'],
+  ];
+
   return (
     <>
       <div className="bg-bg-card border border-border-panel rounded-card overflow-hidden">
@@ -152,13 +166,7 @@ export default function AuditHistoryTable({ rows }: { rows: AuditEntry[] }) {
               <tr className="border-b border-border-panel bg-bg-panel/40">
                 {/* Chevron expand/collapse header */}
                 <th className="w-8 px-3 py-3" />
-                {[
-                  ['timestamp', 'Timestamp'],
-                  ['userEmail', 'User'],
-                  ['equipmentCode', 'Equipment'],
-                  ['ruleName', 'Rule'],
-                  ['description', 'Description'],
-                ].map(([f, l]) => (
+                {cols.map(([f, l]) => (
                   <th key={f} className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary whitespace-nowrap">
                     {l}
                     <FilterInput field={f} />
@@ -186,7 +194,7 @@ export default function AuditHistoryTable({ rows }: { rows: AuditEntry[] }) {
                           <ChevronRight size={14} className="text-text-muted" />
                         )}
                       </td>
-                      <td colSpan={6} className="px-1 py-2.5">
+                      <td colSpan={cols.length} className="px-1 py-2.5">
                         <div className="flex items-center gap-3">
                           <span className="text-xs font-semibold text-text-primary">{friendlyName}</span>
                           <span className="text-[11px] text-text-muted">
@@ -206,6 +214,8 @@ export default function AuditHistoryTable({ rows }: { rows: AuditEntry[] }) {
                         <td className="px-4 py-3 text-text-muted text-xs whitespace-nowrap">{row.timestamp}</td>
                         <td className="px-4 py-3 text-text-muted text-xs">{row.userEmail}</td>
                         <td className="px-4 py-3"><EquipmentBadge code={row.equipmentCode} /></td>
+                        <td className="px-4 py-3 text-text-muted text-xs whitespace-nowrap">{row.system}</td>
+                        <td className="px-4 py-3 text-text-muted text-xs whitespace-nowrap">{row.subsystem}</td>
                         <td className="px-4 py-3 text-text-primary font-mono text-xs">{row.ruleName}</td>
                         <td className="px-4 py-3 text-text-muted text-xs">{row.description}</td>
                         <td className="px-4 py-3">
@@ -224,7 +234,7 @@ export default function AuditHistoryTable({ rows }: { rows: AuditEntry[] }) {
 
               {groups.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-text-muted text-sm">No results found</td>
+                  <td colSpan={cols.length + 2} className="px-4 py-8 text-center text-text-muted text-sm">No results found</td>
                 </tr>
               )}
             </tbody>
