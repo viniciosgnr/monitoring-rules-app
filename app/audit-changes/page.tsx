@@ -41,6 +41,44 @@ function getSubsystem(timeseries: string, equipmentCode: string): string {
   return 'General Process';
 }
 
+function getRuleCategory(ruleName: string): 'surge' | 'spike' | 'generic' {
+  const name = ruleName.toUpperCase();
+  if (name.includes('SPK') || name.includes('SPIKE')) return 'spike';
+  if (name.includes('SURG') || name.includes('THR') || name.includes('TME_NRS')) return 'surge';
+  return 'generic';
+}
+
+function getDiffText(beforeState: unknown, afterState: unknown, ruleName: string): string {
+  const ruleCategory = getRuleCategory(ruleName);
+  const diffs: string[] = [];
+  const before = (beforeState as { processingSteps?: any }) || {};
+  const after = (afterState as { processingSteps?: any }) || {};
+
+  if (ruleCategory === 'surge') {
+    const vBefore = before.processingSteps?.rule_trigger_params?.[0]?.threshold_comparison?.value ?? 10;
+    const vAfter = after.processingSteps?.rule_trigger_params?.[0]?.threshold_comparison?.value ?? 10;
+    if (vBefore !== vAfter) {
+      diffs.push(`Threshold Value: ${vBefore} → ${vAfter}`);
+    }
+  } else if (ruleCategory === 'spike') {
+    const sdBefore = before.processingSteps?.rule_trigger_params?.[0]?.spike_detection || {};
+    const sdAfter = after.processingSteps?.rule_trigger_params?.[0]?.spike_detection || {};
+    if (sdBefore.height !== sdAfter.height) {
+      diffs.push(`Height: ${sdBefore.height ?? 'null'} → ${sdAfter.height ?? 'null'}`);
+    }
+    if (sdBefore.threshold !== sdAfter.threshold) {
+      diffs.push(`Threshold: ${sdBefore.threshold ?? 'null'} → ${sdAfter.threshold ?? 'null'}`);
+    }
+    if (sdBefore.distance !== sdAfter.distance) {
+      diffs.push(`Distance: ${sdBefore.distance ?? '—'} → ${sdAfter.distance ?? '—'}`);
+    }
+    if (sdBefore.prominence !== sdAfter.prominence) {
+      diffs.push(`Prominence: ${sdBefore.prominence ?? '—'} → ${sdAfter.prominence ?? '—'}`);
+    }
+  }
+  return diffs.length > 0 ? diffs.join(', ') : '—';
+}
+
 export default async function AuditChangesPage() {
   const rows = await db
     .select({
@@ -65,6 +103,7 @@ export default async function AuditChangesPage() {
     ...r,
     system:       getSystemFromTimeseries(r.timeseries),
     subsystem:    getSubsystem(r.timeseries, r.equipmentCode),
+    paramChanges: getDiffText(r.beforeState, r.afterState, r.ruleName),
     timestamp:    r.timestamp.toLocaleString('pt-BR'),
     timestampRaw: r.timestamp.toISOString(),
     beforeState:  (r.beforeState as object) ?? {},
