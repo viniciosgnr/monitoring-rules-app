@@ -2,7 +2,6 @@
 import React, { useState, useMemo } from 'react';
 import EquipmentBadge from '@/components/ui/EquipmentBadge';
 import Pagination from '@/components/ui/Pagination';
-import ParamDiffModal from './ParamDiffModal';
 import * as Dialog from '@radix-ui/react-dialog';
 import { SlidersHorizontal, ChevronDown, ChevronRight, Download, X } from 'lucide-react';
 
@@ -14,6 +13,7 @@ interface AuditEntry {
   equipmentCode: string;
   system: string;
   subsystem: string;
+  paramChanges: string;
   ruleName: string;
   description: string;
   beforeState: object;
@@ -36,7 +36,6 @@ export default function AuditHistoryTable({ rows }: { rows: AuditEntry[] }) {
   const [page, setPage]           = useState(1);
   const [pageSize, setPageSize]   = useState(5);
   const [filters, setFilters]     = useState<Record<string, string>>({});
-  const [diffEntry, setDiffEntry] = useState<AuditEntry | null>(null);
   const [showExportModal, setShowExportModal] = useState(false);
   const [period, setPeriod]       = useState('All Time');
 
@@ -56,7 +55,7 @@ export default function AuditHistoryTable({ rows }: { rows: AuditEntry[] }) {
   }
 
   function downloadExcel() {
-    const headers = ['Timestamp', 'User', 'Equipment', 'System', 'Subsystem', 'RuleName', 'Description'];
+    const headers = ['Timestamp', 'User', 'Equipment', 'System', 'Subsystem', 'RuleName', 'Description', 'Parameter Changes'];
     const csvRows = [headers.join(',')];
 
     for (const row of filtered) {
@@ -67,7 +66,8 @@ export default function AuditHistoryTable({ rows }: { rows: AuditEntry[] }) {
         row.system,
         row.subsystem,
         row.ruleName,
-        row.description
+        row.description,
+        row.paramChanges
       ].map(val => `"${String(val).replace(/"/g, '""')}"`);
       csvRows.push(values.join(','));
     }
@@ -132,6 +132,7 @@ export default function AuditHistoryTable({ rows }: { rows: AuditEntry[] }) {
     ['subsystem', 'Subsystem'],
     ['ruleName', 'Rule'],
     ['description', 'Description'],
+    ['paramChanges', 'Parameter Changes'],
   ];
 
   return (
@@ -172,7 +173,6 @@ export default function AuditHistoryTable({ rows }: { rows: AuditEntry[] }) {
                     <FilterInput field={f} />
                   </th>
                 ))}
-                <th className="px-4 py-3 w-24" />
               </tr>
             </thead>
             <tbody>
@@ -218,14 +218,7 @@ export default function AuditHistoryTable({ rows }: { rows: AuditEntry[] }) {
                         <td className="px-4 py-3 text-text-muted text-xs whitespace-nowrap">{row.subsystem}</td>
                         <td className="px-4 py-3 text-text-primary font-mono text-xs">{row.ruleName}</td>
                         <td className="px-4 py-3 text-text-muted text-xs">{row.description}</td>
-                        <td className="px-4 py-3">
-                          <button
-                            onClick={() => setDiffEntry(row)}
-                            className="px-3 py-1.5 text-xs rounded border border-border-panel text-text-primary hover:border-accent-blue hover:text-accent-blue transition-colors whitespace-nowrap font-medium"
-                          >
-                            Details
-                          </button>
-                        </td>
+                        <td className="px-4 py-3 text-text-primary font-semibold font-mono text-xs">{row.paramChanges}</td>
                       </tr>
                     ))}
                   </React.Fragment>
@@ -234,7 +227,7 @@ export default function AuditHistoryTable({ rows }: { rows: AuditEntry[] }) {
 
               {groups.length === 0 && (
                 <tr>
-                  <td colSpan={cols.length + 2} className="px-4 py-8 text-center text-text-muted text-sm">No results found</td>
+                  <td colSpan={cols.length + 1} className="px-4 py-8 text-center text-text-muted text-sm">No results found</td>
                 </tr>
               )}
             </tbody>
@@ -248,12 +241,6 @@ export default function AuditHistoryTable({ rows }: { rows: AuditEntry[] }) {
           onPageSizeChange={setPageSize}
         />
       </div>
-
-      <ParamDiffModal
-        open={!!diffEntry}
-        onClose={() => setDiffEntry(null)}
-        entry={diffEntry}
-      />
 
       {/* Export Confirmation modal */}
       <Dialog.Root open={showExportModal} onOpenChange={setShowExportModal}>
