@@ -51,7 +51,9 @@ function getRuleCategory(ruleName: string): 'surge' | 'spike' | 'generic' {
 function getDiffText(beforeState: unknown, afterState: unknown, ruleName: string): string {
   const ruleCategory = getRuleCategory(ruleName);
   const diffs: string[] = [];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const before = (beforeState as { processingSteps?: any }) || {};
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const after = (afterState as { processingSteps?: any }) || {};
 
   if (ruleCategory === 'surge') {
