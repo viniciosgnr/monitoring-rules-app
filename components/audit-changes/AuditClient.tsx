@@ -8,6 +8,7 @@ interface AuditEntry {
   equipmentCode: string;
   system: string;
   subsystem: string;
+  paramChanges: string;
   ruleName: string;
   description: string;
   beforeState: object;
