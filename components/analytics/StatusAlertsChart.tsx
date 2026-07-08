@@ -17,32 +17,31 @@ interface Props {
   rule: string;
 }
 
-const STATUSES = [
-  'To Be Validated',
-  'Validation in Progress',
-  'Validated',
-  'Rejected',
-  'Closed',
-];
+const LABELS: Record<string, string[]> = {
+  'Last Week': ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+  'Last Month': ['W1', 'W2', 'W3', 'W4'],
+  'Last 6 month': ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+};
 
 export default function StatusAlertsChart({ period, fpso, equipment, rule }: Props) {
   const seed = getStringHash(fpso) + getStringHash(equipment) + getStringHash(rule) + getStringHash(period);
+  const labels = LABELS[period] ?? LABELS['Last Week'];
 
-  const data = STATUSES.map(s => {
-    const statusSeed = seed + getStringHash(s);
-    const drift = 8 + (statusSeed % 15);
-    const spike = 12 + ((statusSeed * 3) % 20);
-    const normalizedDp = 6 + ((statusSeed * 7) % 18);
-    const surge = 15 + ((statusSeed * 11) % 25);
-    const trend = 10 + ((statusSeed * 13) % 22);
+  const data = labels.map((label, index) => {
+    const timeSeed = seed + index;
+    const toBeValidated = 10 + (timeSeed % 25);
+    const validationInProgress = 5 + ((timeSeed * 3) % 15);
+    const validated = 25 + ((timeSeed * 7) % 45);
+    const rejected = 2 + ((timeSeed * 11) % 10);
+    const closed = 4 + ((timeSeed * 13) % 12);
 
     return {
-      status: s,
-      'Drift': drift,
-      'Spike': spike,
-      'Normalized dP': normalizedDp,
-      'Surge': surge,
-      'Trend': trend,
+      label,
+      'To Be Validated': toBeValidated,
+      'Validation in Progress': validationInProgress,
+      'Validated': validated,
+      'Rejected': rejected,
+      'Closed': closed,
     };
   });
 
@@ -50,17 +49,17 @@ export default function StatusAlertsChart({ period, fpso, equipment, rule }: Pro
     <ResponsiveContainer width="100%" height={220}>
       <BarChart data={data} margin={{ top: 10, right: 10, left: -10, bottom: 20 }}>
         <CartesianGrid strokeDasharray="3 3" stroke="#1e2a3a" />
-        <XAxis dataKey="status" tick={{ fill: '#64748b', fontSize: 9 }} axisLine={false} tickLine={false} />
+        <XAxis dataKey="label" tick={{ fill: '#64748b', fontSize: 10 }} axisLine={false} tickLine={false} />
         <YAxis tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false} />
         <Tooltip
           contentStyle={{ background: '#111827', border: '1px solid #1e2a3a', borderRadius: 4, color: '#e2e8f0' }}
         />
         <Legend verticalAlign="top" height={36} wrapperStyle={{ fontSize: 9, color: '#94a3b8' }} />
-        <Bar dataKey="Drift" stackId="a" fill="#a855f7" />
-        <Bar dataKey="Spike" stackId="a" fill="#ec4899" />
-        <Bar dataKey="Normalized dP" stackId="a" fill="#8b5cf6" />
-        <Bar dataKey="Surge" stackId="a" fill="#0ea5e9" />
-        <Bar dataKey="Trend" stackId="a" fill="#1d4ed8" />
+        <Bar dataKey="To Be Validated" stackId="a" fill="#f59e0b" />
+        <Bar dataKey="Validation in Progress" stackId="a" fill="#3b82f6" />
+        <Bar dataKey="Validated" stackId="a" fill="#10b981" />
+        <Bar dataKey="Rejected" stackId="a" fill="#ef4444" />
+        <Bar dataKey="Closed" stackId="a" fill="#4b5563" />
       </BarChart>
     </ResponsiveContainer>
   );
