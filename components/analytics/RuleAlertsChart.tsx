@@ -17,29 +17,27 @@ interface Props {
   rule: string;
 }
 
-const RULES = [
-  'COCE_SURG_MGN',
-  'PUMP_VIB_THR',
-  'COCE_SPK_DET',
-  'PUMP_THR_MGN',
-  'HTEX_FOUL_IDX',
-  'TRB_LO_DRFT',
-  'TRB_TEMP_DEV',
+const CATEGORIES = [
+  'Drift',
+  'Spike',
+  'Normalized dP',
+  'Surge',
+  'Trend',
 ];
 
 export default function RuleAlertsChart({ period, fpso, equipment, rule }: Props) {
   const seed = getStringHash(fpso) + getStringHash(equipment) + getStringHash(rule) + getStringHash(period);
 
-  const data = RULES.map(r => {
-    const ruleSeed = seed + getStringHash(r);
-    const toBeValidated = 10 + (ruleSeed % 25);
-    const validationInProgress = 5 + ((ruleSeed * 3) % 15);
-    const validated = 25 + ((ruleSeed * 7) % 45);
-    const rejected = 2 + ((ruleSeed * 11) % 10);
-    const closed = 4 + ((ruleSeed * 13) % 12);
+  const data = CATEGORIES.map(c => {
+    const catSeed = seed + getStringHash(c);
+    const toBeValidated = 10 + (catSeed % 25);
+    const validationInProgress = 5 + ((catSeed * 3) % 15);
+    const validated = 25 + ((catSeed * 7) % 45);
+    const rejected = 2 + ((catSeed * 11) % 10);
+    const closed = 4 + ((catSeed * 13) % 12);
 
     return {
-      rule: r,
+      category: c,
       'To Be Validated': toBeValidated,
       'Validation in Progress': validationInProgress,
       'Validated': validated,
@@ -52,7 +50,7 @@ export default function RuleAlertsChart({ period, fpso, equipment, rule }: Props
     <ResponsiveContainer width="100%" height={220}>
       <BarChart data={data} margin={{ top: 10, right: 10, left: -10, bottom: 20 }}>
         <CartesianGrid strokeDasharray="3 3" stroke="#1e2a3a" />
-        <XAxis dataKey="rule" tick={{ fill: '#64748b', fontSize: 9 }} axisLine={false} tickLine={false} />
+        <XAxis dataKey="category" tick={{ fill: '#64748b', fontSize: 10 }} axisLine={false} tickLine={false} />
         <YAxis tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false} />
         <Tooltip
           contentStyle={{ background: '#111827', border: '1px solid #1e2a3a', borderRadius: 4, color: '#e2e8f0' }}
