@@ -51,6 +51,8 @@ export default function AnalyticsClient({ fpsos, rules, equipments, ruleInstance
   const [rule, setRule] = useState('All Rules');
   const [top10Tab, setTop10Tab] = useState<'lowest_accuracy' | 'highest_fp' | 'highest_alerts'>('lowest_accuracy');
 
+  const dbAlertsCount = alertsList?.length || 0;
+
   // Process rules instances deterministically to calculate stats
   const processedInstances = ruleInstances.map(inst => {
     const id = inst.id;
@@ -95,7 +97,7 @@ export default function AnalyticsClient({ fpsos, rules, equipments, ruleInstance
           title="False Positive"
           value={28}
           subtitle="Last month"
-          tooltip="Alerts triggered by the rule that did not correspond to a real anomaly. A high count indicates the rule may be too sensitive."
+          tooltip={`Alerts triggered by the rule that did not correspond to a real anomaly. Total db alerts: ${dbAlertsCount}.`}
         />
         <KpiCard
           title="Coverage"
