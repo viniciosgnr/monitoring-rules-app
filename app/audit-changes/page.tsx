@@ -96,8 +96,11 @@ function getFriendlyDescription(description: string, afterState: unknown): strin
     return 'Update rule parameters';
   }
   if (description.includes('Disabled') || description.includes('disabled')) {
+    if (description.startsWith('Disabled rule for ')) {
+      return description;
+    }
     const reason = (afterState as { reason?: string })?.reason;
-    return reason || description;
+    return `Disabled rule for ${reason || 'Unknown Reason'}`;
   }
   return description;
 }

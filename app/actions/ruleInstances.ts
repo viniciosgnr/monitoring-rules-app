@@ -23,7 +23,7 @@ export async function toggleInstance(id: number, enabled: boolean, reason?: stri
 
   await db.update(ruleInstances).set(updateValues).where(eq(ruleInstances.id, id));
 
-  const description = enabled ? 'Enabled Rule' : (reason || 'Disabled Rule');
+  const description = enabled ? 'Enabled Rule' : `Disabled rule for ${reason || 'Unknown Reason'}`;
   const beforeState = { enabled: current.enabled };
   const afterState = { 
     enabled, 
@@ -62,7 +62,7 @@ export async function toggleInstancesBulk(ids: number[], enabled: boolean, reaso
 
     await db.update(ruleInstances).set(updateValues).where(eq(ruleInstances.id, id));
 
-    const description = enabled ? 'Enabled Rule' : (reason || 'Disabled Rule');
+    const description = enabled ? 'Enabled Rule' : `Disabled rule for ${reason || 'Unknown Reason'}`;
     const beforeState = { enabled: current.enabled };
     const afterState = { 
       enabled, 
