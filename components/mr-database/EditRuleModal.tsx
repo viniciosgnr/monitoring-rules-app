@@ -240,7 +240,10 @@ export default function EditRuleModal({
     if (open && instanceId) {
       import('@/app/actions/ruleInstances').then(({ getAuditLogsForInstance }) => {
         getAuditLogsForInstance(instanceId).then(logs => {
-          setHistory((logs as unknown as AuditLogEntry[]).filter(l => l.description === 'Updated rule parameters'));
+          setHistory((logs as unknown as AuditLogEntry[]).filter(l => 
+            l.description === 'Update rule parameters' || 
+            l.description === 'Updated rule parameters'
+          ));
         });
       });
     }
