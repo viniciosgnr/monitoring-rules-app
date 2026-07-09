@@ -130,21 +130,16 @@ async function seed() {
   ]);
 
   // Distribution of change types/descriptions to match mockup (Change Types):
-  // Updated Abs Value tags: 19
-  // Adjusted Round Timestamp period: 19
-  // Modified Drop Missing tags: 2
-  // Enabled rule after maintenance window: 1
-  // Updated Join Timeseries tags: 1
   const changeTypesList: string[] = [
-    'Updated Abs Value tags',                // i = 0 (Spike) -> overwritten with parameter changes
-    'Disabled rule instance (Bulk)',         // i = 1 (Trend) -> Trend disabled log
-    'Updated Abs Value tags',                // i = 2 (Surge) -> overwritten with parameter changes
-    'Updated Abs Value tags',                // i = 3 (Surge) -> overwritten with parameter changes
-    'Enabled rule after maintenance window', // i = 4 (dP) -> dP enabled log
-    ...Array(14).fill('Updated Abs Value tags'),
-    ...Array(18).fill('Adjusted Round Timestamp period'),
-    ...Array(2).fill('Modified Drop Missing tags'),
-    ...Array(3).fill('Updated Join Timeseries tags'),
+    'Update rule parameters',                // i = 0 (Spike) -> overwritten with parameter changes
+    'Sensor Calibration',                    // i = 1 (Trend) -> Trend disabled log
+    'Update rule parameters',                // i = 2 (Surge) -> overwritten with parameter changes
+    'Update rule parameters',                // i = 3 (Surge) -> overwritten with parameter changes
+    'Enabled Rule',                          // i = 4 (dP) -> dP enabled log
+    ...Array(14).fill('Update rule parameters'),
+    ...Array(18).fill('Update rule parameters'),
+    ...Array(2).fill('Update rule parameters'),
+    ...Array(3).fill('Update rule parameters'),
   ];
 
   // Round-robin distribution across 6 instances so every page of the table shows
@@ -171,10 +166,10 @@ async function seed() {
     let before: any;
     let after: any;
 
-    if (desc === 'Disabled rule instance (Bulk)') {
+    if (desc === 'Sensor Calibration') {
       before = { enabled: true };
-      after  = { enabled: false, reason: 'Sensor calibration in progress' };
-    } else if (desc === 'Enabled rule after maintenance window') {
+      after  = { enabled: false, reason: 'Sensor Calibration' };
+    } else if (desc === 'Enabled Rule') {
       before = { enabled: false };
       after  = { enabled: true };
     } else if (isSpike) {
@@ -244,8 +239,8 @@ async function seed() {
       }
     }
 
-    const finalBefore = desc === 'Updated rule parameters' ? { processingSteps: before } : before;
-    const finalAfter  = desc === 'Updated rule parameters' ? { processingSteps: after } : after;
+    const finalBefore = desc === 'Update rule parameters' ? { processingSteps: before } : before;
+    const finalAfter  = desc === 'Update rule parameters' ? { processingSteps: after } : after;
 
     auditLogsToInsert.push({
       instanceId:  instances[instIdx].id,

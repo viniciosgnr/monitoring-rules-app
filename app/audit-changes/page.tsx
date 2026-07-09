@@ -81,6 +81,27 @@ function getDiffText(beforeState: unknown, afterState: unknown, ruleName: string
   return diffs.length > 0 ? diffs.join(', ') : '—';
 }
 
+function getFriendlyDescription(description: string, afterState: unknown): string {
+  if (description.includes('Enabled') || description.includes('enabled')) {
+    return 'Enabled Rule';
+  }
+  if (
+    description.includes('Updated rule parameters') ||
+    description.includes('Updated Abs Value') ||
+    description.includes('Adjusted Round') ||
+    description.includes('Modified Drop') ||
+    description.includes('Updated Join') ||
+    description.includes('Update rule parameters')
+  ) {
+    return 'Update rule parameters';
+  }
+  if (description.includes('Disabled') || description.includes('disabled')) {
+    const reason = (afterState as { reason?: string })?.reason;
+    return reason || description;
+  }
+  return description;
+}
+
 export default async function AuditChangesPage() {
   const rows = await db
     .select({
@@ -105,6 +126,7 @@ export default async function AuditChangesPage() {
     ...r,
     system:       getSystemFromTimeseries(r.timeseries),
     subsystem:    getSubsystem(r.timeseries, r.equipmentCode),
+    description:  getFriendlyDescription(r.description, r.afterState),
     paramChanges: getDiffText(r.beforeState, r.afterState, r.ruleName),
     timestamp:    r.timestamp.toLocaleString('pt-BR'),
     timestampRaw: r.timestamp.toISOString(),

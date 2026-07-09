@@ -23,7 +23,7 @@ export async function toggleInstance(id: number, enabled: boolean, reason?: stri
 
   await db.update(ruleInstances).set(updateValues).where(eq(ruleInstances.id, id));
 
-  const description = enabled ? 'Enabled rule instance' : 'Disabled rule instance';
+  const description = enabled ? 'Enabled Rule' : (reason || 'Disabled Rule');
   const beforeState = { enabled: current.enabled };
   const afterState = { 
     enabled, 
@@ -62,7 +62,7 @@ export async function toggleInstancesBulk(ids: number[], enabled: boolean, reaso
 
     await db.update(ruleInstances).set(updateValues).where(eq(ruleInstances.id, id));
 
-    const description = enabled ? 'Enabled rule instance (Bulk)' : 'Disabled rule instance (Bulk)';
+    const description = enabled ? 'Enabled Rule' : (reason || 'Disabled Rule');
     const beforeState = { enabled: current.enabled };
     const afterState = { 
       enabled, 
@@ -103,7 +103,7 @@ export async function updateProcessingSteps(ruleId: number, steps: object, insta
     await db.insert(auditLog).values({
       instanceId,
       userEmail: 'operator@sbmoffshore.com',
-      description: 'Updated rule parameters',
+      description: 'Update rule parameters',
       beforeState,
       afterState,
     });
