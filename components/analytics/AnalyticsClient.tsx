@@ -45,6 +45,7 @@ function Sel({ value, onChange, options }: { value: string; onChange: (v: string
 }
 
 export default function AnalyticsClient({ fpsos, rules, equipments, ruleInstances, alertsList }: Props) {
+  const [activeTab, setActiveTab] = useState<'overview' | 'bad_actors'>('overview');
   const [period, setPeriod] = useState('Last Week');
   const [fpso, setFpso] = useState('All FPSOs');
   const [selectedEquipment, setSelectedEquipment] = useState('All Equipment');
@@ -83,182 +84,213 @@ export default function AnalyticsClient({ fpsos, rules, equipments, ruleInstance
 
   return (
     <>
-      {/* Global Filters */}
-      <div className="flex gap-3 justify-end mb-5">
-        <Sel value={period} onChange={setPeriod} options={PERIODS} />
-        <Sel value={fpso} onChange={setFpso} options={['All FPSOs', ...fpsos]} />
-        <Sel value={selectedEquipment} onChange={setSelectedEquipment} options={['All Equipment', ...equipments]} />
-        <Sel value={rule} onChange={setRule} options={['All Rules', ...rules]} />
+      {/* Sub-tabs Navigation */}
+      <div className="flex border-b border-border-panel mb-6 text-sm">
+        <button
+          onClick={() => setActiveTab('overview')}
+          className={`px-6 py-3 font-semibold border-b-2 transition-all cursor-pointer ${
+            activeTab === 'overview'
+              ? 'border-accent-blue text-accent-blue bg-bg-panel/10'
+              : 'border-transparent text-text-muted hover:text-text-primary'
+          }`}
+        >
+          Overview & Trends
+        </button>
+        <button
+          onClick={() => setActiveTab('bad_actors')}
+          className={`px-6 py-3 font-semibold border-b-2 transition-all cursor-pointer ${
+            activeTab === 'bad_actors'
+              ? 'border-accent-blue text-accent-blue bg-bg-panel/10'
+              : 'border-transparent text-text-muted hover:text-text-primary'
+          }`}
+        >
+          Bad Actors & Rule Audit
+        </button>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
-        <KpiCard
-          title="False Positive"
-          value={28}
-          subtitle="Last month"
-          tooltip={`Alerts triggered by the rule that did not correspond to a real anomaly. Total db alerts: ${dbAlertsCount}.`}
-        />
-        <KpiCard
-          title="Coverage"
-          value={22}
-          subtitle="Last month"
-          tooltip="Number of equipment instances covered by at least one active monitoring rule in the selected period."
-        />
-        <KpiCard
-          title="Accuracy"
-          value="21.4%"
-          subtitle="Last month"
-          tooltip="Ratio of correctly classified alerts (true positives + true negatives) over total alerts. Calculated as: (TP + TN) / Total."
-        />
-      </div>
+      {activeTab === 'overview' && (
+        <>
+          {/* Global Filters */}
+          <div className="flex gap-3 justify-end mb-5">
+            <Sel value={period} onChange={setPeriod} options={PERIODS} />
+            <Sel value={fpso} onChange={setFpso} options={['All FPSOs', ...fpsos]} />
+            <Sel value={selectedEquipment} onChange={setSelectedEquipment} options={['All Equipment', ...equipments]} />
+            <Sel value={rule} onChange={setRule} options={['All Rules', ...rules]} />
+          </div>
 
-      {/* Charts Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Accuracy Over Time */}
-        <div className="bg-bg-card border border-border-panel rounded-card p-4">
-          <div className="flex justify-between items-center mb-3">
-            <h3 className="text-sm font-semibold text-text-primary">Accuracy Over Time</h3>
-            <div className="flex items-center gap-2">
-              <SlidersHorizontal size={14} className="text-text-muted cursor-pointer hover:text-text-primary transition-colors" />
-              <Maximize2 size={14} className="text-text-muted cursor-pointer hover:text-text-primary transition-colors" />
+          {/* KPI Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
+            <KpiCard
+              title="False Positive"
+              value={28}
+              subtitle="Last month"
+              tooltip={`Alerts triggered by the rule that did not correspond to a real anomaly. Total db alerts: ${dbAlertsCount}.`}
+            />
+            <KpiCard
+              title="Coverage"
+              value={22}
+              subtitle="Last month"
+              tooltip="Number of equipment instances covered by at least one active monitoring rule in the selected period."
+            />
+            <KpiCard
+              title="Accuracy"
+              value="21.4%"
+              subtitle="Last month"
+              tooltip="Ratio of correctly classified alerts (true positives + true negatives) over total alerts. Calculated as: (TP + TN) / Total."
+            />
+          </div>
+
+          {/* Charts Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Accuracy Over Time */}
+            <div className="bg-bg-card border border-border-panel rounded-card p-4">
+              <div className="flex justify-between items-center mb-3">
+                <h3 className="text-sm font-semibold text-text-primary">Accuracy Over Time</h3>
+                <div className="flex items-center gap-2">
+                  <SlidersHorizontal size={14} className="text-text-muted cursor-pointer hover:text-text-primary transition-colors" />
+                  <Maximize2 size={14} className="text-text-muted cursor-pointer hover:text-text-primary transition-colors" />
+                </div>
+              </div>
+              <AccuracyChart period={period} fpso={fpso} equipment={selectedEquipment} rule={rule} />
+            </div>
+
+            {/* False Positive Over Time */}
+            <div className="bg-bg-card border border-border-panel rounded-card p-4">
+              <div className="flex justify-between items-center mb-3">
+                <h3 className="text-sm font-semibold text-text-primary">False Positive Over Time</h3>
+                <div className="flex items-center gap-2">
+                  <SlidersHorizontal size={14} className="text-text-muted cursor-pointer hover:text-text-primary transition-colors" />
+                  <Maximize2 size={14} className="text-text-muted cursor-pointer hover:text-text-primary transition-colors" />
+                </div>
+              </div>
+              <FalsePositiveChart period={period} fpso={fpso} equipment={selectedEquipment} rule={rule} />
+            </div>
+
+            {/* Alerts Treated by Monitoring Rule */}
+            <div className="bg-bg-card border border-border-panel rounded-card p-4">
+              <div className="flex justify-between items-center mb-3">
+                <h3 className="text-sm font-semibold text-text-primary">Alerts Treated by Monitoring Rule</h3>
+                <div className="flex items-center gap-2">
+                  <SlidersHorizontal size={14} className="text-text-muted cursor-pointer hover:text-text-primary transition-colors" />
+                  <Maximize2 size={14} className="text-text-muted cursor-pointer hover:text-text-primary transition-colors" />
+                </div>
+              </div>
+              <RuleAlertsChart period={period} fpso={fpso} equipment={selectedEquipment} rule={rule} />
+            </div>
+
+            {/* Alerts Treated [%] */}
+            <div className="bg-bg-card border border-border-panel rounded-card p-4">
+              <div className="flex justify-between items-center mb-3">
+                <h3 className="text-sm font-semibold text-text-primary">Alerts Treated [%]</h3>
+                <div className="flex items-center gap-2">
+                  <SlidersHorizontal size={14} className="text-text-muted cursor-pointer hover:text-text-primary transition-colors" />
+                  <Maximize2 size={14} className="text-text-muted cursor-pointer hover:text-text-primary transition-colors" />
+                </div>
+              </div>
+              <StatusAlertsChart period={period} fpso={fpso} equipment={selectedEquipment} rule={rule} />
             </div>
           </div>
-          <AccuracyChart period={period} fpso={fpso} equipment={selectedEquipment} rule={rule} />
-        </div>
+        </>
+      )}
 
-        {/* False Positive Over Time */}
-        <div className="bg-bg-card border border-border-panel rounded-card p-4">
-          <div className="flex justify-between items-center mb-3">
-            <h3 className="text-sm font-semibold text-text-primary">False Positive Over Time</h3>
-            <div className="flex items-center gap-2">
-              <SlidersHorizontal size={14} className="text-text-muted cursor-pointer hover:text-text-primary transition-colors" />
-              <Maximize2 size={14} className="text-text-muted cursor-pointer hover:text-text-primary transition-colors" />
+      {activeTab === 'bad_actors' && (
+        /* Top 10 Rule Instances Card */
+        <div className="bg-bg-card border border-border-panel rounded-card overflow-hidden mt-2">
+          <div className="px-4 py-3 border-b border-border-panel flex flex-col md:flex-row md:items-center justify-between gap-4 bg-bg-panel/20">
+            <div>
+              <h3 className="text-sm font-bold text-text-primary">Top 10 Monitoring Rule Instances</h3>
+              <p className="text-[10px] text-text-muted mt-0.5">Global rankings of rule configurations across all FPSOs (unaffected by filters)</p>
+            </div>
+            {/* Tab buttons */}
+            <div className="flex bg-bg-panel/60 p-0.5 rounded border border-border-panel/50 text-xs">
+              <button
+                onClick={() => setTop10Tab('lowest_accuracy')}
+                className={`px-3 py-1.5 rounded font-semibold transition-all cursor-pointer ${
+                  top10Tab === 'lowest_accuracy'
+                    ? 'bg-accent-blue text-[#090d16] font-bold shadow'
+                    : 'text-text-muted hover:text-text-primary'
+                }`}
+              >
+                Lowest Accuracy
+              </button>
+              <button
+                onClick={() => setTop10Tab('highest_fp')}
+                className={`px-3 py-1.5 rounded font-semibold transition-all cursor-pointer ${
+                  top10Tab === 'highest_fp'
+                    ? 'bg-accent-blue text-[#090d16] font-bold shadow'
+                    : 'text-text-muted hover:text-text-primary'
+                }`}
+              >
+                Highest False Positives
+              </button>
+              <button
+                onClick={() => setTop10Tab('highest_alerts')}
+                className={`px-3 py-1.5 rounded font-semibold transition-all cursor-pointer ${
+                  top10Tab === 'highest_alerts'
+                    ? 'bg-accent-blue text-[#090d16] font-bold shadow'
+                    : 'text-text-muted hover:text-text-primary'
+                }`}
+              >
+                Highest Alerts
+              </button>
             </div>
           </div>
-          <FalsePositiveChart period={period} fpso={fpso} equipment={selectedEquipment} rule={rule} />
-        </div>
 
-        {/* Alerts Treated by Monitoring Rule */}
-        <div className="bg-bg-card border border-border-panel rounded-card p-4">
-          <div className="flex justify-between items-center mb-3">
-            <h3 className="text-sm font-semibold text-text-primary">Alerts Treated by Monitoring Rule</h3>
-            <div className="flex items-center gap-2">
-              <SlidersHorizontal size={14} className="text-text-muted cursor-pointer hover:text-text-primary transition-colors" />
-              <Maximize2 size={14} className="text-text-muted cursor-pointer hover:text-text-primary transition-colors" />
-            </div>
-          </div>
-          <RuleAlertsChart period={period} fpso={fpso} equipment={selectedEquipment} rule={rule} />
-        </div>
+          {/* Table representation */}
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr className="border-b border-border-panel text-text-muted text-[10px] font-bold uppercase tracking-wider bg-bg-panel/40 select-none">
+                  <th className="px-4 py-3 w-16">Rank</th>
+                  <th className="px-4 py-3">Monitoring Rule</th>
+                  <th className="px-4 py-3">Equipment</th>
+                  <th className="px-4 py-3">FPSO</th>
+                  <th className="px-4 py-3 text-right">
+                    {top10Tab === 'lowest_accuracy' && 'Accuracy'}
+                    {top10Tab === 'highest_fp' && 'False Positives'}
+                    {top10Tab === 'highest_alerts' && 'Total Alerts'}
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {top10Tab === 'lowest_accuracy' &&
+                  lowestAccuracyList.map((item, index) => (
+                    <tr key={item.id} className="border-b border-border-panel hover:bg-bg-panel/40 transition-colors">
+                      <td className="px-4 py-3 font-semibold text-text-muted">#{index + 1}</td>
+                      <td className="px-4 py-3 font-medium text-text-primary">{item.ruleName}</td>
+                      <td className="px-4 py-3 text-text-muted">{item.equipmentCode}</td>
+                      <td className="px-4 py-3 text-text-muted">{item.fpsoCode}</td>
+                      <td className="px-4 py-3 text-right font-bold text-accent-blue">{item.accuracy}%</td>
+                    </tr>
+                  ))}
 
-        {/* Alerts Treated [%] */}
-        <div className="bg-bg-card border border-border-panel rounded-card p-4">
-          <div className="flex justify-between items-center mb-3">
-            <h3 className="text-sm font-semibold text-text-primary">Alerts Treated [%]</h3>
-            <div className="flex items-center gap-2">
-              <SlidersHorizontal size={14} className="text-text-muted cursor-pointer hover:text-text-primary transition-colors" />
-              <Maximize2 size={14} className="text-text-muted cursor-pointer hover:text-text-primary transition-colors" />
-            </div>
-          </div>
-          <StatusAlertsChart period={period} fpso={fpso} equipment={selectedEquipment} rule={rule} />
-        </div>
-      </div>
+                {top10Tab === 'highest_fp' &&
+                  highestFpList.map((item, index) => (
+                    <tr key={item.id} className="border-b border-border-panel hover:bg-bg-panel/40 transition-colors">
+                      <td className="px-4 py-3 font-semibold text-text-muted">#{index + 1}</td>
+                      <td className="px-4 py-3 font-medium text-text-primary">{item.ruleName}</td>
+                      <td className="px-4 py-3 text-text-muted">{item.equipmentCode}</td>
+                      <td className="px-4 py-3 text-text-muted">{item.fpsoCode}</td>
+                      <td className="px-4 py-3 text-right font-bold text-status-warn">{item.falsePositives}</td>
+                    </tr>
+                  ))}
 
-      {/* Top 10 Rule Instances Card */}
-      <div className="bg-bg-card border border-border-panel rounded-card overflow-hidden mt-6">
-        <div className="px-4 py-3 border-b border-border-panel flex flex-col md:flex-row md:items-center justify-between gap-4 bg-bg-panel/20">
-          <div>
-            <h3 className="text-sm font-bold text-text-primary">Top 10 Monitoring Rule Instances</h3>
-            <p className="text-[10px] text-text-muted mt-0.5">Global rankings of rule configurations across all FPSOs (unaffected by filters)</p>
-          </div>
-          {/* Tab buttons */}
-          <div className="flex bg-bg-panel/60 p-0.5 rounded border border-border-panel/50 text-xs">
-            <button
-              onClick={() => setTop10Tab('lowest_accuracy')}
-              className={`px-3 py-1.5 rounded font-semibold transition-all cursor-pointer ${
-                top10Tab === 'lowest_accuracy'
-                  ? 'bg-accent-blue text-[#090d16] font-bold shadow'
-                  : 'text-text-muted hover:text-text-primary'
-              }`}
-            >
-              Lowest Accuracy
-            </button>
-            <button
-              onClick={() => setTop10Tab('highest_fp')}
-              className={`px-3 py-1.5 rounded font-semibold transition-all cursor-pointer ${
-                top10Tab === 'highest_fp'
-                  ? 'bg-accent-blue text-[#090d16] font-bold shadow'
-                  : 'text-text-muted hover:text-text-primary'
-              }`}
-            >
-              Highest False Positives
-            </button>
-            <button
-              onClick={() => setTop10Tab('highest_alerts')}
-              className={`px-3 py-1.5 rounded font-semibold transition-all cursor-pointer ${
-                top10Tab === 'highest_alerts'
-                  ? 'bg-accent-blue text-[#090d16] font-bold shadow'
-                  : 'text-text-muted hover:text-text-primary'
-              }`}
-            >
-              Highest Alerts
-            </button>
+                {top10Tab === 'highest_alerts' &&
+                  highestAlertsList.map((item, index) => (
+                    <tr key={item.id} className="border-b border-border-panel hover:bg-bg-panel/40 transition-colors">
+                      <td className="px-4 py-3 font-semibold text-text-muted">#{index + 1}</td>
+                      <td className="px-4 py-3 font-medium text-text-primary">{item.ruleName}</td>
+                      <td className="px-4 py-3 text-text-muted">{item.equipmentCode}</td>
+                      <td className="px-4 py-3 text-text-muted">{item.fpsoCode}</td>
+                      <td className="px-4 py-3 text-right font-bold text-status-ok">{item.alertsCount}</td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
           </div>
         </div>
-
-        {/* Table representation */}
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse text-xs">
-            <thead>
-              <tr className="border-b border-border-panel text-text-muted text-[10px] font-bold uppercase tracking-wider bg-bg-panel/40 select-none">
-                <th className="px-4 py-3 w-16">Rank</th>
-                <th className="px-4 py-3">Monitoring Rule</th>
-                <th className="px-4 py-3">Equipment</th>
-                <th className="px-4 py-3">FPSO</th>
-                <th className="px-4 py-3 text-right">
-                  {top10Tab === 'lowest_accuracy' && 'Accuracy'}
-                  {top10Tab === 'highest_fp' && 'False Positives'}
-                  {top10Tab === 'highest_alerts' && 'Total Alerts'}
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {top10Tab === 'lowest_accuracy' &&
-                lowestAccuracyList.map((item, index) => (
-                  <tr key={item.id} className="border-b border-border-panel hover:bg-bg-panel/40 transition-colors">
-                    <td className="px-4 py-3 font-semibold text-text-muted">#{index + 1}</td>
-                    <td className="px-4 py-3 font-medium text-text-primary">{item.ruleName}</td>
-                    <td className="px-4 py-3 text-text-muted">{item.equipmentCode}</td>
-                    <td className="px-4 py-3 text-text-muted">{item.fpsoCode}</td>
-                    <td className="px-4 py-3 text-right font-bold text-accent-blue">{item.accuracy}%</td>
-                  </tr>
-                ))}
-
-              {top10Tab === 'highest_fp' &&
-                highestFpList.map((item, index) => (
-                  <tr key={item.id} className="border-b border-border-panel hover:bg-bg-panel/40 transition-colors">
-                    <td className="px-4 py-3 font-semibold text-text-muted">#{index + 1}</td>
-                    <td className="px-4 py-3 font-medium text-text-primary">{item.ruleName}</td>
-                    <td className="px-4 py-3 text-text-muted">{item.equipmentCode}</td>
-                    <td className="px-4 py-3 text-text-muted">{item.fpsoCode}</td>
-                    <td className="px-4 py-3 text-right font-bold text-status-warn">{item.falsePositives}</td>
-                  </tr>
-                ))}
-
-              {top10Tab === 'highest_alerts' &&
-                highestAlertsList.map((item, index) => (
-                  <tr key={item.id} className="border-b border-border-panel hover:bg-bg-panel/40 transition-colors">
-                    <td className="px-4 py-3 font-semibold text-text-muted">#{index + 1}</td>
-                    <td className="px-4 py-3 font-medium text-text-primary">{item.ruleName}</td>
-                    <td className="px-4 py-3 text-text-muted">{item.equipmentCode}</td>
-                    <td className="px-4 py-3 text-text-muted">{item.fpsoCode}</td>
-                    <td className="px-4 py-3 text-right font-bold text-status-ok">{item.alertsCount}</td>
-                  </tr>
-                ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      )}
     </>
   );
 }
+
