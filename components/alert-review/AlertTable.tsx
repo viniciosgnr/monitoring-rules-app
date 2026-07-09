@@ -268,18 +268,6 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
                 Time Open
                 <FilterInput field="timeOpen" />
               </th>
-              <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary whitespace-nowrap">
-                End Date
-                <FilterInput field="endDate" />
-              </th>
-              <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary whitespace-nowrap">
-                Reviewed At
-                <FilterInput field="reviewedAt" />
-              </th>
-              <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary whitespace-nowrap">
-                Reviewed by
-                <FilterInput field="reviewedBy" />
-              </th>
               <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary">
                 Status
                 <FilterInput field="status" />
@@ -305,7 +293,7 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
                         : <ChevronRight size={14} className="text-text-muted" />
                       }
                     </td>
-                    <td colSpan={10} className="px-1 py-2.5">
+                    <td colSpan={7} className="px-1 py-2.5">
                       <div className="flex items-center gap-3">
                         <span className="text-xs font-semibold text-text-primary">{ruleName}</span>
                         <span className="text-[11px] text-text-muted">
@@ -345,9 +333,6 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
                       <td className="px-4 py-3 text-text-muted text-xs whitespace-nowrap">
                         {mounted ? row.timeOpen : '—'}
                       </td>
-                      <td className="px-4 py-3 text-text-muted text-xs whitespace-nowrap">—</td>
-                      <td className="px-4 py-3 text-text-muted text-xs whitespace-nowrap">{row.reviewedAt || '—'}</td>
-                      <td className="px-4 py-3 text-text-muted">{row.reviewedBy || '—'}</td>
                       <td className="px-4 py-3">
                         <DropdownMenu.Root>
                           <DropdownMenu.Trigger asChild>
@@ -381,7 +366,7 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
 
             {groups.length === 0 && (
               <tr>
-                <td colSpan={11} className="px-4 py-8 text-center text-text-muted text-sm">
+                <td colSpan={8} className="px-4 py-8 text-center text-text-muted text-sm">
                   No results found
                 </td>
               </tr>

@@ -1,6 +1,6 @@
 import { db } from '@/db';
 import { alerts, ruleInstances, equipment, monitoringRules, fpsos } from '@/db/schema';
-import { eq } from 'drizzle-orm';
+import { eq, or } from 'drizzle-orm';
 import Topbar from '@/components/layout/Topbar';
 import NavTabs from '@/components/layout/NavTabs';
 import KpiCard from '@/components/ui/KpiCard';
@@ -27,7 +27,11 @@ export default async function AlertReviewPage() {
     .innerJoin(ruleInstances,   eq(alerts.instanceId,      ruleInstances.id))
     .innerJoin(equipment,       eq(ruleInstances.equipmentId, equipment.id))
     .innerJoin(monitoringRules, eq(ruleInstances.ruleId,    monitoringRules.id))
-    .innerJoin(fpsos,           eq(equipment.fpsoId,        fpsos.id));
+    .innerJoin(fpsos,           eq(equipment.fpsoId,        fpsos.id))
+    .where(or(
+      eq(alerts.status, 'to_be_validated'),
+      eq(alerts.status, 'validation_in_progress')
+    ));
 
   // KPI counts — ordered: To Be Validated | Validation in Progress | Total
   const toBeValidated    = rows.filter(r => r.status === 'to_be_validated').length;
@@ -64,10 +68,10 @@ export default async function AlertReviewPage() {
             tooltip="Alerts currently being reviewed by an operator. An investigation or corrective action may be in progress."
           />
           <KpiCard
-            title="Total Alerts"
+            title="Total Pending"
             value={total}
-            subtitle="All statuses"
-            tooltip="Total number of alerts across all monitoring rules and equipment for the selected period."
+            subtitle="Awaiting action"
+            tooltip="Total number of active alerts currently awaiting response or validation."
           />
         </div>
         <AlertTable rows={serialized} />
