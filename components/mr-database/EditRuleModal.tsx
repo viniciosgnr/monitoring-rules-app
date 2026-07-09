@@ -261,11 +261,6 @@ export default function EditRuleModal({
       if (vBefore !== vAfter) {
         diffs.push(`Threshold Value: ${vBefore} → ${vAfter}`);
       }
-      const tpBefore = before.processingSteps?.event_trigger_params?.[0]?.time_totalization?.time_period;
-      const tpAfter = after.processingSteps?.event_trigger_params?.[0]?.time_totalization?.time_period;
-      if (tpBefore !== tpAfter && tpBefore !== undefined && tpAfter !== undefined) {
-        diffs.push(`Time Period: ${tpBefore}h → ${tpAfter}h`);
-      }
     } else if (ruleCategory === 'spike') {
       const sdBefore = before.processingSteps?.rule_trigger_params?.[0]?.spike_detection || {};
       const sdAfter = after.processingSteps?.rule_trigger_params?.[0]?.spike_detection || {};
@@ -280,11 +275,6 @@ export default function EditRuleModal({
       }
       if (sdBefore.prominence !== sdAfter.prominence) {
         diffs.push(`Prominence: ${sdBefore.prominence ?? '—'} → ${sdAfter.prominence ?? '—'}`);
-      }
-      const tdBefore = before.processingSteps?.rule_trigger_params?.[0]?.filter_spikes_near_filter_false?.timedelta_minutes;
-      const tdAfter = after.processingSteps?.rule_trigger_params?.[0]?.filter_spikes_near_filter_false?.timedelta_minutes;
-      if (tdBefore !== tdAfter && tdBefore !== undefined && tdAfter !== undefined) {
-        diffs.push(`Spikes window: ${tdBefore}m → ${tdAfter}m`);
       }
     } else {
       const absBefore = before.processingSteps?.abs_value?.tags_to_apply;

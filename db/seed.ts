@@ -194,7 +194,7 @@ async function seed() {
           event_trigger_params: [{ spike_detection_trigger: { value: 0 } }]
         };
         after = {
-          rule_trigger_params: [{ spike_detection: { height: null, threshold: null, distance: 60, prominence: 1.0 }, filter_spikes_near_filter_false: { timedelta_minutes: 360 }, status_check: { value: 1 } }],
+          rule_trigger_params: [{ spike_detection: { height: null, threshold: null, distance: 60, prominence: 0.8 }, filter_spikes_near_filter_false: { timedelta_minutes: 480 }, status_check: { value: 1 } }],
           event_trigger_params: [{ spike_detection_trigger: { value: 0 } }]
         };
       }
@@ -215,8 +215,8 @@ async function seed() {
           event_trigger_params: [{ time_totalization: { value: 50, rule: '0&1', operator: 'gt', time_period: 24, time_period_unit: 'h' } }]
         };
         after = {
-          rule_trigger_params: [{ threshold_comparison: { value: 10, operator: 'gt', tags_to_apply: ['Surge Margin Actual'] } }],
-          event_trigger_params: [{ time_totalization: { value: 50, rule: '0&1', operator: 'gt', time_period: 48, time_period_unit: 'h' } }]
+          rule_trigger_params: [{ threshold_comparison: { value: 15.0, operator: 'gt', tags_to_apply: ['Surge Margin Actual'] } }],
+          event_trigger_params: [{ time_totalization: { value: 50, rule: '0&1', operator: 'gt', time_period: 24, time_period_unit: 'h' } }]
         };
       }
     } else {
