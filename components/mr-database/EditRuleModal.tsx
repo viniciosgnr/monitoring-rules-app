@@ -251,13 +251,20 @@ export default function EditRuleModal({
 
   function getDiffElements(beforeState: unknown, afterState: unknown, ruleCategory: string) {
     const diffs: string[] = [];
-    const before = (beforeState as { processingSteps?: ProcessingStepsConfig }) || {};
-    const after = (afterState as { processingSteps?: ProcessingStepsConfig }) || {};
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const before = (beforeState as { processingSteps?: any }) || {};
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const after = (afterState as { processingSteps?: any }) || {};
     if (ruleCategory === 'surge') {
       const vBefore = before.processingSteps?.rule_trigger_params?.[0]?.threshold_comparison?.value ?? 10;
       const vAfter = after.processingSteps?.rule_trigger_params?.[0]?.threshold_comparison?.value ?? 10;
       if (vBefore !== vAfter) {
         diffs.push(`Threshold Value: ${vBefore} → ${vAfter}`);
+      }
+      const tpBefore = before.processingSteps?.event_trigger_params?.[0]?.time_totalization?.time_period;
+      const tpAfter = after.processingSteps?.event_trigger_params?.[0]?.time_totalization?.time_period;
+      if (tpBefore !== tpAfter && tpBefore !== undefined && tpAfter !== undefined) {
+        diffs.push(`Time Period: ${tpBefore}h → ${tpAfter}h`);
       }
     } else if (ruleCategory === 'spike') {
       const sdBefore = before.processingSteps?.rule_trigger_params?.[0]?.spike_detection || {};
@@ -273,6 +280,32 @@ export default function EditRuleModal({
       }
       if (sdBefore.prominence !== sdAfter.prominence) {
         diffs.push(`Prominence: ${sdBefore.prominence ?? '—'} → ${sdAfter.prominence ?? '—'}`);
+      }
+      const tdBefore = before.processingSteps?.rule_trigger_params?.[0]?.filter_spikes_near_filter_false?.timedelta_minutes;
+      const tdAfter = after.processingSteps?.rule_trigger_params?.[0]?.filter_spikes_near_filter_false?.timedelta_minutes;
+      if (tdBefore !== tdAfter && tdBefore !== undefined && tdAfter !== undefined) {
+        diffs.push(`Spikes window: ${tdBefore}m → ${tdAfter}m`);
+      }
+    } else {
+      const absBefore = before.processingSteps?.abs_value?.tags_to_apply;
+      const absAfter = after.processingSteps?.abs_value?.tags_to_apply;
+      if (absBefore !== absAfter && absBefore !== undefined && absAfter !== undefined) {
+        diffs.push(`Abs Value Tags: ${absBefore} → ${absAfter}`);
+      }
+      const rtBefore = before.processingSteps?.round_timestamp?.period;
+      const rtAfter = after.processingSteps?.round_timestamp?.period;
+      if (rtBefore !== rtAfter && rtBefore !== undefined && rtAfter !== undefined) {
+        diffs.push(`Round period: ${rtBefore} → ${rtAfter}`);
+      }
+      const dmBefore = before.processingSteps?.drop_missing?.tags_to_apply;
+      const dmAfter = after.processingSteps?.drop_missing?.tags_to_apply;
+      if (dmBefore !== dmAfter && dmBefore !== undefined && dmAfter !== undefined) {
+        diffs.push(`Drop Missing Tags: ${dmBefore} → ${dmAfter}`);
+      }
+      const jtBefore = before.processingSteps?.join_timeseries?.tags_to_apply;
+      const jtAfter = after.processingSteps?.join_timeseries?.tags_to_apply;
+      if (jtBefore !== jtAfter && jtBefore !== undefined && jtAfter !== undefined) {
+        diffs.push(`Join Tags: ${jtBefore} → ${jtAfter}`);
       }
     }
     return diffs;
