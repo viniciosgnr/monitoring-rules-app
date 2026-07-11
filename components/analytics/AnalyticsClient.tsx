@@ -8,6 +8,7 @@ import StatusAlertsChart from './StatusAlertsChart';
 import { SlidersHorizontal, Maximize2 } from 'lucide-react';
 
 const PERIODS = ['Last Week', 'Last Month', 'Last 6 month'];
+const CATEGORIES = ['All Categories', 'Drift', 'Spike', 'Surge', 'Trend', 'Normalized dP'];
 
 interface RuleInstanceRow {
   id: number;
@@ -32,6 +33,13 @@ interface Props {
   alertsList: AlertRow[];
 }
 
+function getRuleCategory(ruleName: string): 'surge' | 'spike' | 'generic' {
+  const name = ruleName.toUpperCase();
+  if (name.includes('SPK') || name.includes('SPIKE')) return 'spike';
+  if (name.includes('SURG') || name.includes('THR') || name.includes('TME_NRS')) return 'surge';
+  return 'generic';
+}
+
 function Sel({ value, onChange, options }: { value: string; onChange: (v: string) => void; options: string[] }) {
   return (
     <select
@@ -44,22 +52,38 @@ function Sel({ value, onChange, options }: { value: string; onChange: (v: string
   );
 }
 
-export default function AnalyticsClient({ fpsos, rules, equipments, ruleInstances, alertsList }: Props) {
+export default function AnalyticsClient({ fpsos, equipments, ruleInstances, alertsList }: Props) {
   const [activeTab, setActiveTab] = useState<'overview' | 'bad_actors'>('overview');
   const [period, setPeriod] = useState('Last Week');
   const [fpso, setFpso] = useState('All FPSOs');
   const [selectedEquipment, setSelectedEquipment] = useState('All Equipment');
-  const [rule, setRule] = useState('All Rules');
+  const [rule, setRule] = useState('All Categories');
   const [top10Tab, setTop10Tab] = useState<'lowest_accuracy' | 'highest_fp' | 'highest_alerts'>('lowest_accuracy');
 
   const dbAlertsCount = alertsList?.length || 0;
 
-  // Process rules instances deterministically to calculate stats
+  // Process rules instances deterministically to calculate stats based on period
   const processedInstances = ruleInstances.map(inst => {
     const id = inst.id;
-    const alertsCount = 12 + ((id * 37) % 89);
-    const falsePositives = Math.min(alertsCount - 5, 2 + ((id * 17) % 25));
-    const accuracy = parseFloat((80 + ((id * 23) % 19.5)).toFixed(1));
+    let alertsCount = 12 + ((id * 37) % 89);
+    let falsePositives = Math.min(alertsCount - 5, 2 + ((id * 17) % 25));
+
+    // Scale stats by period
+    if (period === 'Last Week') {
+      alertsCount = Math.max(1, Math.round(alertsCount / 10));
+      falsePositives = Math.min(alertsCount, Math.max(0, Math.round(falsePositives / 10)));
+    } else if (period === 'Last Month') {
+      alertsCount = Math.max(2, Math.round(alertsCount / 3));
+      falsePositives = Math.min(alertsCount, Math.max(0, Math.round(falsePositives / 3)));
+    }
+
+    // Introduce slight accuracy variation based on period
+    let accuracy = parseFloat((80 + ((id * 23) % 19.5)).toFixed(1));
+    if (period === 'Last Week') {
+      accuracy = parseFloat(Math.min(100, Math.max(50, accuracy + ((id % 5) - 2))).toFixed(1));
+    } else if (period === 'Last Month') {
+      accuracy = parseFloat(Math.min(100, Math.max(50, accuracy + ((id % 7) - 3))).toFixed(1));
+    }
 
     return {
       ...inst,
@@ -69,21 +93,65 @@ export default function AnalyticsClient({ fpsos, rules, equipments, ruleInstance
     };
   });
 
+  const filteredInstances = processedInstances.filter(inst => {
+    // 1. Filter by FPSO
+    if (fpso !== 'All FPSOs' && inst.fpsoCode !== fpso) return false;
+
+    // 2. Filter by Equipment
+    if (selectedEquipment !== 'All Equipment' && inst.equipmentCode !== selectedEquipment) return false;
+
+    // 3. Filter by Rule Category
+    if (rule !== 'All Categories') {
+      const cat = getRuleCategory(inst.ruleName);
+      let friendlyCat = '';
+      if (cat === 'spike') {
+        friendlyCat = 'Spike';
+      } else if (cat === 'surge') {
+        friendlyCat = 'Surge';
+      } else {
+        const name = inst.ruleName.toUpperCase();
+        if (name.includes('TRND') || name.includes('TREND') || name.includes('DEV') || name.includes('TEMP_DEV')) {
+          friendlyCat = 'Trend';
+        } else if (name.includes('FOUL') || name.includes('DP') || name.includes('HTEX')) {
+          friendlyCat = 'Normalized dP';
+        } else if (name.includes('DRFT') || name.includes('DRIFT')) {
+          friendlyCat = 'Drift';
+        }
+      }
+      if (friendlyCat !== rule) return false;
+    }
+
+    return true;
+  });
+
   // Calculate Top 10 lists
-  const lowestAccuracyList = [...processedInstances]
+  const lowestAccuracyList = [...filteredInstances]
     .sort((a, b) => a.accuracy - b.accuracy)
     .slice(0, 10);
 
-  const highestFpList = [...processedInstances]
+  const highestFpList = [...filteredInstances]
     .sort((a, b) => b.falsePositives - a.falsePositives)
     .slice(0, 10);
 
-  const highestAlertsList = [...processedInstances]
+  const highestAlertsList = [...filteredInstances]
     .sort((a, b) => b.alertsCount - a.alertsCount)
     .slice(0, 10);
 
   return (
     <>
+      {/* Global Filters Control Bar */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 border-b border-border-panel/30 pb-4">
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-semibold text-text-muted uppercase tracking-wider">Analysis Filters</span>
+        </div>
+        <div className="flex flex-wrap gap-3">
+          <Sel value={period} onChange={setPeriod} options={PERIODS} />
+          <Sel value={fpso} onChange={setFpso} options={['All FPSOs', ...fpsos]} />
+          <Sel value={selectedEquipment} onChange={setSelectedEquipment} options={['All Equipment', ...equipments]} />
+          <Sel value={rule} onChange={setRule} options={CATEGORIES} />
+        </div>
+      </div>
+
       {/* Sub-tabs Navigation */}
       <div className="flex border-b border-border-panel mb-6 text-sm">
         <button
@@ -110,14 +178,6 @@ export default function AnalyticsClient({ fpsos, rules, equipments, ruleInstance
 
       {activeTab === 'overview' && (
         <>
-          {/* Global Filters */}
-          <div className="flex gap-3 justify-end mb-5">
-            <Sel value={period} onChange={setPeriod} options={PERIODS} />
-            <Sel value={fpso} onChange={setFpso} options={['All FPSOs', ...fpsos]} />
-            <Sel value={selectedEquipment} onChange={setSelectedEquipment} options={['All Equipment', ...equipments]} />
-            <Sel value={rule} onChange={setRule} options={['All Rules', ...rules]} />
-          </div>
-
           {/* KPI Cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
             <KpiCard
@@ -165,7 +225,14 @@ export default function AnalyticsClient({ fpsos, rules, equipments, ruleInstance
               </div>
               <FalsePositiveChart period={period} fpso={fpso} equipment={selectedEquipment} rule={rule} />
             </div>
+          </div>
+        </>
+      )}
 
+      {activeTab === 'bad_actors' && (
+        <div className="space-y-6">
+          {/* Column Charts Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Alerts Treated by Monitoring Rule */}
             <div className="bg-bg-card border border-border-panel rounded-card p-4">
               <div className="flex justify-between items-center mb-3">
@@ -190,103 +257,109 @@ export default function AnalyticsClient({ fpsos, rules, equipments, ruleInstance
               <StatusAlertsChart period={period} fpso={fpso} equipment={selectedEquipment} rule={rule} />
             </div>
           </div>
-        </>
-      )}
 
-      {activeTab === 'bad_actors' && (
-        /* Top 10 Rule Instances Card */
-        <div className="bg-bg-card border border-border-panel rounded-card overflow-hidden mt-2">
-          <div className="px-4 py-3 border-b border-border-panel flex flex-col md:flex-row md:items-center justify-between gap-4 bg-bg-panel/20">
-            <div>
-              <h3 className="text-sm font-bold text-text-primary">Top 10 Monitoring Rule Instances</h3>
-              <p className="text-[10px] text-text-muted mt-0.5">Global rankings of rule configurations across all FPSOs (unaffected by filters)</p>
+          {/* Top 10 Rule Instances Card */}
+          <div className="bg-bg-card border border-border-panel rounded-card overflow-hidden mt-2">
+            <div className="px-4 py-3 border-b border-border-panel flex flex-col md:flex-row md:items-center justify-between gap-4 bg-bg-panel/20">
+              <div>
+                <h3 className="text-sm font-bold text-text-primary">Top 10 Monitoring Rule Instances</h3>
+                <p className="text-[10px] text-text-muted mt-0.5">Rankings based on active filters and time period</p>
+              </div>
+              {/* Tab buttons */}
+              <div className="flex bg-bg-panel/60 p-0.5 rounded border border-border-panel/50 text-xs">
+                <button
+                  onClick={() => setTop10Tab('lowest_accuracy')}
+                  className={`px-3 py-1.5 rounded font-semibold transition-all cursor-pointer ${
+                    top10Tab === 'lowest_accuracy'
+                      ? 'bg-accent-blue text-[#090d16] font-bold shadow'
+                      : 'text-text-muted hover:text-text-primary'
+                  }`}
+                >
+                  Lowest Accuracy
+                </button>
+                <button
+                  onClick={() => setTop10Tab('highest_fp')}
+                  className={`px-3 py-1.5 rounded font-semibold transition-all cursor-pointer ${
+                    top10Tab === 'highest_fp'
+                      ? 'bg-accent-blue text-[#090d16] font-bold shadow'
+                      : 'text-text-muted hover:text-text-primary'
+                  }`}
+                >
+                  Highest False Positives
+                </button>
+                <button
+                  onClick={() => setTop10Tab('highest_alerts')}
+                  className={`px-3 py-1.5 rounded font-semibold transition-all cursor-pointer ${
+                    top10Tab === 'highest_alerts'
+                      ? 'bg-accent-blue text-[#090d16] font-bold shadow'
+                      : 'text-text-muted hover:text-text-primary'
+                  }`}
+                >
+                  Highest Alerts
+                </button>
+              </div>
             </div>
-            {/* Tab buttons */}
-            <div className="flex bg-bg-panel/60 p-0.5 rounded border border-border-panel/50 text-xs">
-              <button
-                onClick={() => setTop10Tab('lowest_accuracy')}
-                className={`px-3 py-1.5 rounded font-semibold transition-all cursor-pointer ${
-                  top10Tab === 'lowest_accuracy'
-                    ? 'bg-accent-blue text-[#090d16] font-bold shadow'
-                    : 'text-text-muted hover:text-text-primary'
-                }`}
-              >
-                Lowest Accuracy
-              </button>
-              <button
-                onClick={() => setTop10Tab('highest_fp')}
-                className={`px-3 py-1.5 rounded font-semibold transition-all cursor-pointer ${
-                  top10Tab === 'highest_fp'
-                    ? 'bg-accent-blue text-[#090d16] font-bold shadow'
-                    : 'text-text-muted hover:text-text-primary'
-                }`}
-              >
-                Highest False Positives
-              </button>
-              <button
-                onClick={() => setTop10Tab('highest_alerts')}
-                className={`px-3 py-1.5 rounded font-semibold transition-all cursor-pointer ${
-                  top10Tab === 'highest_alerts'
-                    ? 'bg-accent-blue text-[#090d16] font-bold shadow'
-                    : 'text-text-muted hover:text-text-primary'
-                }`}
-              >
-                Highest Alerts
-              </button>
+
+            {/* Table representation */}
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr className="border-b border-border-panel text-text-muted text-[10px] font-bold uppercase tracking-wider bg-bg-panel/40 select-none">
+                    <th className="px-4 py-3 w-16">Rank</th>
+                    <th className="px-4 py-3">Monitoring Rule</th>
+                    <th className="px-4 py-3">Equipment</th>
+                    <th className="px-4 py-3">FPSO</th>
+                    <th className="px-4 py-3 text-right">
+                      {top10Tab === 'lowest_accuracy' && 'Accuracy'}
+                      {top10Tab === 'highest_fp' && 'False Positives'}
+                      {top10Tab === 'highest_alerts' && 'Total Alerts'}
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {lowestAccuracyList.length === 0 && (
+                    <tr>
+                      <td colSpan={5} className="px-4 py-8 text-center text-text-muted italic">
+                        No rules found matching the active filters.
+                      </td>
+                    </tr>
+                  )}
+
+                  {top10Tab === 'lowest_accuracy' &&
+                    lowestAccuracyList.map((item, index) => (
+                      <tr key={item.id} className="border-b border-border-panel hover:bg-bg-panel/40 transition-colors">
+                        <td className="px-4 py-3 font-semibold text-text-muted">#{index + 1}</td>
+                        <td className="px-4 py-3 font-medium text-text-primary">{item.ruleName}</td>
+                        <td className="px-4 py-3 text-text-muted">{item.equipmentCode}</td>
+                        <td className="px-4 py-3 text-text-muted">{item.fpsoCode}</td>
+                        <td className="px-4 py-3 text-right font-bold text-accent-blue">{item.accuracy}%</td>
+                      </tr>
+                    ))}
+
+                  {top10Tab === 'highest_fp' &&
+                    highestFpList.map((item, index) => (
+                      <tr key={item.id} className="border-b border-border-panel hover:bg-bg-panel/40 transition-colors">
+                        <td className="px-4 py-3 font-semibold text-text-muted">#{index + 1}</td>
+                        <td className="px-4 py-3 font-medium text-text-primary">{item.ruleName}</td>
+                        <td className="px-4 py-3 text-text-muted">{item.equipmentCode}</td>
+                        <td className="px-4 py-3 text-text-muted">{item.fpsoCode}</td>
+                        <td className="px-4 py-3 text-right font-bold text-status-warn">{item.falsePositives}</td>
+                      </tr>
+                    ))}
+
+                  {top10Tab === 'highest_alerts' &&
+                    highestAlertsList.map((item, index) => (
+                      <tr key={item.id} className="border-b border-border-panel hover:bg-bg-panel/40 transition-colors">
+                        <td className="px-4 py-3 font-semibold text-text-muted">#{index + 1}</td>
+                        <td className="px-4 py-3 font-medium text-text-primary">{item.ruleName}</td>
+                        <td className="px-4 py-3 text-text-muted">{item.equipmentCode}</td>
+                        <td className="px-4 py-3 text-text-muted">{item.fpsoCode}</td>
+                        <td className="px-4 py-3 text-right font-bold text-status-ok">{item.alertsCount}</td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
             </div>
-          </div>
-
-          {/* Table representation */}
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse text-xs">
-              <thead>
-                <tr className="border-b border-border-panel text-text-muted text-[10px] font-bold uppercase tracking-wider bg-bg-panel/40 select-none">
-                  <th className="px-4 py-3 w-16">Rank</th>
-                  <th className="px-4 py-3">Monitoring Rule</th>
-                  <th className="px-4 py-3">Equipment</th>
-                  <th className="px-4 py-3">FPSO</th>
-                  <th className="px-4 py-3 text-right">
-                    {top10Tab === 'lowest_accuracy' && 'Accuracy'}
-                    {top10Tab === 'highest_fp' && 'False Positives'}
-                    {top10Tab === 'highest_alerts' && 'Total Alerts'}
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {top10Tab === 'lowest_accuracy' &&
-                  lowestAccuracyList.map((item, index) => (
-                    <tr key={item.id} className="border-b border-border-panel hover:bg-bg-panel/40 transition-colors">
-                      <td className="px-4 py-3 font-semibold text-text-muted">#{index + 1}</td>
-                      <td className="px-4 py-3 font-medium text-text-primary">{item.ruleName}</td>
-                      <td className="px-4 py-3 text-text-muted">{item.equipmentCode}</td>
-                      <td className="px-4 py-3 text-text-muted">{item.fpsoCode}</td>
-                      <td className="px-4 py-3 text-right font-bold text-accent-blue">{item.accuracy}%</td>
-                    </tr>
-                  ))}
-
-                {top10Tab === 'highest_fp' &&
-                  highestFpList.map((item, index) => (
-                    <tr key={item.id} className="border-b border-border-panel hover:bg-bg-panel/40 transition-colors">
-                      <td className="px-4 py-3 font-semibold text-text-muted">#{index + 1}</td>
-                      <td className="px-4 py-3 font-medium text-text-primary">{item.ruleName}</td>
-                      <td className="px-4 py-3 text-text-muted">{item.equipmentCode}</td>
-                      <td className="px-4 py-3 text-text-muted">{item.fpsoCode}</td>
-                      <td className="px-4 py-3 text-right font-bold text-status-warn">{item.falsePositives}</td>
-                    </tr>
-                  ))}
-
-                {top10Tab === 'highest_alerts' &&
-                  highestAlertsList.map((item, index) => (
-                    <tr key={item.id} className="border-b border-border-panel hover:bg-bg-panel/40 transition-colors">
-                      <td className="px-4 py-3 font-semibold text-text-muted">#{index + 1}</td>
-                      <td className="px-4 py-3 font-medium text-text-primary">{item.ruleName}</td>
-                      <td className="px-4 py-3 text-text-muted">{item.equipmentCode}</td>
-                      <td className="px-4 py-3 text-text-muted">{item.fpsoCode}</td>
-                      <td className="px-4 py-3 text-right font-bold text-status-ok">{item.alertsCount}</td>
-                    </tr>
-                  ))}
-              </tbody>
-            </table>
           </div>
         </div>
       )}
