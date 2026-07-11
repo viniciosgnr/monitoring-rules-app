@@ -221,7 +221,7 @@ export default function AnalyticsClient({ fpsos, equipments, ruleInstances, aler
                 <div className="overflow-x-auto max-h-48 overflow-y-auto pr-1">
                   <table className="w-full text-[11px] border-collapse">
                     <thead>
-                      <tr className="border-b border-border-panel">
+                      <tr className="border-b border-[#1e293b]/40 select-none">
                         <th className="text-left px-4 py-2 font-medium text-text-muted whitespace-nowrap">Rule / Instance</th>
                         <th className="text-left px-4 py-2 font-medium text-text-muted whitespace-nowrap">Equipment</th>
                         <th className="text-right px-4 py-2 font-medium text-text-muted whitespace-nowrap">Evaluations</th>
@@ -232,17 +232,17 @@ export default function AnalyticsClient({ fpsos, equipments, ruleInstances, aler
                     <tbody>
                       {filteredInstances.length === 0 ? (
                         <tr>
-                          <td colSpan={5} className="px-4 py-4 text-center text-text-muted italic bg-bg-panel/10">No instances found</td>
+                          <td colSpan={5} className="px-4 py-4 text-center text-text-muted italic bg-bg-panel/5">No instances found</td>
                         </tr>
                       ) : (
                         filteredInstances.map(inst => {
                           const totalEvaluations = 100 + ((inst.id * 41) % 150);
                           const correctActions = Math.round(totalEvaluations * (inst.accuracy / 100));
                           return (
-                            <tr key={inst.id} className="border-b border-border-panel/30 bg-bg-panel/10 hover:bg-bg-panel/20 transition-colors">
-                              <td className="px-4 py-2 font-medium text-text-primary">{inst.ruleName}</td>
-                              <td className="px-4 py-2 text-text-muted">{inst.equipmentCode}</td>
-                              <td className="px-4 py-2 text-right text-text-muted">{totalEvaluations}</td>
+                            <tr key={inst.id} className="border-b border-[#1e293b]/20 hover:bg-bg-panel/10 transition-colors">
+                              <td className="px-4 py-2 font-medium text-slate-300">{inst.ruleName}</td>
+                              <td className="px-4 py-2 text-slate-400">{inst.equipmentCode}</td>
+                              <td className="px-4 py-2 text-right text-slate-400">{totalEvaluations}</td>
                               <td className="px-4 py-2 text-right text-status-ok font-medium">{correctActions}</td>
                               <td className="px-4 py-2 text-right font-semibold text-accent-blue">{inst.accuracy}%</td>
                             </tr>
@@ -274,7 +274,7 @@ export default function AnalyticsClient({ fpsos, equipments, ruleInstances, aler
                 <div className="overflow-x-auto max-h-48 overflow-y-auto pr-1">
                   <table className="w-full text-[11px] border-collapse">
                     <thead>
-                      <tr className="border-b border-border-panel">
+                      <tr className="border-b border-[#1e293b]/40 select-none">
                         <th className="text-left px-4 py-2 font-medium text-text-muted whitespace-nowrap">Rule / Instance</th>
                         <th className="text-left px-4 py-2 font-medium text-text-muted whitespace-nowrap">Equipment</th>
                         <th className="text-right px-4 py-2 font-medium text-text-muted whitespace-nowrap">Alerts</th>
@@ -285,16 +285,16 @@ export default function AnalyticsClient({ fpsos, equipments, ruleInstances, aler
                     <tbody>
                       {filteredInstances.length === 0 ? (
                         <tr>
-                          <td colSpan={5} className="px-4 py-4 text-center text-text-muted italic bg-bg-panel/10">No instances found</td>
+                          <td colSpan={5} className="px-4 py-4 text-center text-text-muted italic bg-bg-panel/5">No instances found</td>
                         </tr>
                       ) : (
                         filteredInstances.map(inst => {
                           const fpRate = parseFloat(((inst.falsePositives / inst.alertsCount) * 100).toFixed(1));
                           return (
-                            <tr key={inst.id} className="border-b border-border-panel/30 bg-bg-panel/10 hover:bg-bg-panel/20 transition-colors">
-                              <td className="px-4 py-2 font-medium text-text-primary">{inst.ruleName}</td>
-                              <td className="px-4 py-2 text-text-muted">{inst.equipmentCode}</td>
-                              <td className="px-4 py-2 text-right text-text-muted">{inst.alertsCount}</td>
+                            <tr key={inst.id} className="border-b border-[#1e293b]/20 hover:bg-bg-panel/10 transition-colors">
+                              <td className="px-4 py-2 font-medium text-slate-300">{inst.ruleName}</td>
+                              <td className="px-4 py-2 text-slate-400">{inst.equipmentCode}</td>
+                              <td className="px-4 py-2 text-right text-slate-400">{inst.alertsCount}</td>
                               <td className="px-4 py-2 text-right text-status-warn font-medium">{inst.falsePositives}</td>
                               <td className="px-4 py-2 text-right font-semibold text-status-warn">{fpRate}%</td>
                             </tr>
