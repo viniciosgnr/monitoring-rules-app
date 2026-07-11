@@ -219,32 +219,32 @@ export default function AnalyticsClient({ fpsos, equipments, ruleInstances, aler
               <div className="mt-4 border-t border-border-panel/40 pt-4">
                 <h4 className="text-xs font-semibold text-text-muted mb-2 uppercase tracking-wider">Accuracy Breakdown by Instance</h4>
                 <div className="overflow-x-auto max-h-48 overflow-y-auto pr-1">
-                  <table className="w-full text-left border-collapse text-[11px]">
+                  <table className="w-full text-[11px] border-collapse">
                     <thead>
-                      <tr className="border-b border-border-panel text-text-muted font-semibold bg-bg-panel/20 select-none">
-                        <th className="px-2 py-1.5">Rule / Instance</th>
-                        <th className="px-2 py-1.5">Equipment</th>
-                        <th className="px-2 py-1.5 text-right">Evaluations</th>
-                        <th className="px-2 py-1.5 text-right">Correct</th>
-                        <th className="px-2 py-1.5 text-right">Accuracy</th>
+                      <tr className="border-b border-border-panel">
+                        <th className="text-left px-4 py-2 font-medium text-text-muted whitespace-nowrap">Rule / Instance</th>
+                        <th className="text-left px-4 py-2 font-medium text-text-muted whitespace-nowrap">Equipment</th>
+                        <th className="text-right px-4 py-2 font-medium text-text-muted whitespace-nowrap">Evaluations</th>
+                        <th className="text-right px-4 py-2 font-medium text-text-muted whitespace-nowrap">Correct</th>
+                        <th className="text-right px-4 py-2 font-medium text-text-muted whitespace-nowrap">Accuracy</th>
                       </tr>
                     </thead>
                     <tbody>
                       {filteredInstances.length === 0 ? (
                         <tr>
-                          <td colSpan={5} className="px-2 py-4 text-center text-text-muted italic">No instances found</td>
+                          <td colSpan={5} className="px-4 py-4 text-center text-text-muted italic bg-bg-panel/10">No instances found</td>
                         </tr>
                       ) : (
                         filteredInstances.map(inst => {
                           const totalEvaluations = 100 + ((inst.id * 41) % 150);
                           const correctActions = Math.round(totalEvaluations * (inst.accuracy / 100));
                           return (
-                            <tr key={inst.id} className="border-b border-border-panel/50 hover:bg-bg-panel/30 transition-colors">
-                              <td className="px-2 py-1.5 font-medium text-text-primary">{inst.ruleName}</td>
-                              <td className="px-2 py-1.5 text-text-muted">{inst.equipmentCode}</td>
-                              <td className="px-2 py-1.5 text-right text-text-muted">{totalEvaluations}</td>
-                              <td className="px-2 py-1.5 text-right text-status-ok">{correctActions}</td>
-                              <td className="px-2 py-1.5 text-right font-bold text-accent-blue">{inst.accuracy}%</td>
+                            <tr key={inst.id} className="border-b border-border-panel/30 bg-bg-panel/10 hover:bg-bg-panel/20 transition-colors">
+                              <td className="px-4 py-2 font-medium text-text-primary">{inst.ruleName}</td>
+                              <td className="px-4 py-2 text-text-muted">{inst.equipmentCode}</td>
+                              <td className="px-4 py-2 text-right text-text-muted">{totalEvaluations}</td>
+                              <td className="px-4 py-2 text-right text-status-ok font-medium">{correctActions}</td>
+                              <td className="px-4 py-2 text-right font-semibold text-accent-blue">{inst.accuracy}%</td>
                             </tr>
                           );
                         })
@@ -272,31 +272,31 @@ export default function AnalyticsClient({ fpsos, equipments, ruleInstances, aler
               <div className="mt-4 border-t border-border-panel/40 pt-4">
                 <h4 className="text-xs font-semibold text-text-muted mb-2 uppercase tracking-wider">False Positive Breakdown by Instance</h4>
                 <div className="overflow-x-auto max-h-48 overflow-y-auto pr-1">
-                  <table className="w-full text-left border-collapse text-[11px]">
+                  <table className="w-full text-[11px] border-collapse">
                     <thead>
-                      <tr className="border-b border-border-panel text-text-muted font-semibold bg-bg-panel/20 select-none">
-                        <th className="px-2 py-1.5">Rule / Instance</th>
-                        <th className="px-2 py-1.5">Equipment</th>
-                        <th className="px-2 py-1.5 text-right">Alerts</th>
-                        <th className="px-2 py-1.5 text-right">False Positives</th>
-                        <th className="px-2 py-1.5 text-right">FP Rate</th>
+                      <tr className="border-b border-border-panel">
+                        <th className="text-left px-4 py-2 font-medium text-text-muted whitespace-nowrap">Rule / Instance</th>
+                        <th className="text-left px-4 py-2 font-medium text-text-muted whitespace-nowrap">Equipment</th>
+                        <th className="text-right px-4 py-2 font-medium text-text-muted whitespace-nowrap">Alerts</th>
+                        <th className="text-right px-4 py-2 font-medium text-text-muted whitespace-nowrap">False Positives</th>
+                        <th className="text-right px-4 py-2 font-medium text-text-muted whitespace-nowrap">FP Rate</th>
                       </tr>
                     </thead>
                     <tbody>
                       {filteredInstances.length === 0 ? (
                         <tr>
-                          <td colSpan={5} className="px-2 py-4 text-center text-text-muted italic">No instances found</td>
+                          <td colSpan={5} className="px-4 py-4 text-center text-text-muted italic bg-bg-panel/10">No instances found</td>
                         </tr>
                       ) : (
                         filteredInstances.map(inst => {
                           const fpRate = parseFloat(((inst.falsePositives / inst.alertsCount) * 100).toFixed(1));
                           return (
-                            <tr key={inst.id} className="border-b border-border-panel/50 hover:bg-bg-panel/30 transition-colors">
-                              <td className="px-2 py-1.5 font-medium text-text-primary">{inst.ruleName}</td>
-                              <td className="px-2 py-1.5 text-text-muted">{inst.equipmentCode}</td>
-                              <td className="px-2 py-1.5 text-right text-text-muted">{inst.alertsCount}</td>
-                              <td className="px-2 py-1.5 text-right text-status-warn">{inst.falsePositives}</td>
-                              <td className="px-2 py-1.5 text-right font-bold text-status-warn">{fpRate}%</td>
+                            <tr key={inst.id} className="border-b border-border-panel/30 bg-bg-panel/10 hover:bg-bg-panel/20 transition-colors">
+                              <td className="px-4 py-2 font-medium text-text-primary">{inst.ruleName}</td>
+                              <td className="px-4 py-2 text-text-muted">{inst.equipmentCode}</td>
+                              <td className="px-4 py-2 text-right text-text-muted">{inst.alertsCount}</td>
+                              <td className="px-4 py-2 text-right text-status-warn font-medium">{inst.falsePositives}</td>
+                              <td className="px-4 py-2 text-right font-semibold text-status-warn">{fpRate}%</td>
                             </tr>
                           );
                         })
