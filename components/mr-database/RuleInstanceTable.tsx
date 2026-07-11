@@ -313,7 +313,7 @@ export default function RuleInstanceTable({ rows }: { rows: InstanceRow[] }) {
                       <td className="px-4 py-3 text-text-muted font-mono text-xs">{row.timeseries}</td>
                       <td className="px-4 py-3 text-text-muted text-sm">{row.system}</td>
                       <td className="px-4 py-3 text-text-muted text-sm">{row.subsystem}</td>
-                      <td className="px-4 py-3 text-text-primary font-mono text-xs">{row.ruleName}</td>
+                      <td className="px-4 py-3 text-text-muted font-mono text-xs">{row.ruleName}</td>
                       <td className="px-4 py-3 text-text-muted text-sm">{row.schedule}</td>
                       <td className="px-4 py-3 text-text-muted text-xs">{row.lastRunAt}</td>
                       <td className="px-4 py-3 text-text-muted text-xs">{row.nextRunAt}</td>
@@ -333,7 +333,7 @@ export default function RuleInstanceTable({ rows }: { rows: InstanceRow[] }) {
                                 </span>
                               );
                             }
-                            return <span className="text-text-primary font-medium">{dateStr}</span>;
+                             return <span className="text-text-muted text-xs">{dateStr}</span>;
                           })()
                         ) : (
                           <span className="text-text-muted">—</span>
