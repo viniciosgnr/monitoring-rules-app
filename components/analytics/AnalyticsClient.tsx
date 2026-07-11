@@ -245,10 +245,10 @@ export default function AnalyticsClient({ fpsos, equipments, ruleInstances, aler
               <RuleAlertsChart period={period} fpso={fpso} equipment={selectedEquipment} rule={rule} />
             </div>
 
-            {/* Alerts Treated [%] */}
+            {/* Alerts Treated by Status */}
             <div className="bg-bg-card border border-border-panel rounded-card p-4">
               <div className="flex justify-between items-center mb-3">
-                <h3 className="text-sm font-semibold text-text-primary">Alerts Treated [%]</h3>
+                <h3 className="text-sm font-semibold text-text-primary">Alerts Treated by Status</h3>
                 <div className="flex items-center gap-2">
                   <SlidersHorizontal size={14} className="text-text-muted cursor-pointer hover:text-text-primary transition-colors" />
                   <Maximize2 size={14} className="text-text-muted cursor-pointer hover:text-text-primary transition-colors" />
