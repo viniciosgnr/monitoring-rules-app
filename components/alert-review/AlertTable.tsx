@@ -102,6 +102,7 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
   const [period, setPeriod] = useState('All Time');
   const [ruleSearch, setRuleSearch]     = useState('');
   const [filters, setFilters]           = useState<Record<string, string>>({});
+  const [statusScope, setStatusScope]   = useState<'pending' | 'reviewed' | 'all'>('pending');
   const [expandedRules, setExpandedRules] = useState<Set<string>>(() => {
     // Default: expand all rules that have to_be_validated alerts
     const s = new Set<string>();
@@ -112,6 +113,10 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
     });
     return s;
   });
+
+  useEffect(() => {
+    setData(rows);
+  }, [rows]);
 
   function toggleRule(ruleName: string) {
     setExpandedRules(prev => {
@@ -135,12 +140,17 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
     }));
   }, [data]);
 
-  // Filter rows (column-level + rule search + period + only show open alerts)
+  // Filter rows (column-level + rule search + period + statusScope filtering)
   const filtered = useMemo(() => {
     return enrichedRows.filter(r => {
-      // Only show open alerts: 'to_be_validated' or 'validation_in_progress'
-      const isOpen = r.status === 'to_be_validated' || r.status === 'validation_in_progress';
-      if (!isOpen) return false;
+      // Filter by statusScope
+      if (statusScope === 'pending') {
+        const isPending = r.status === 'to_be_validated' || r.status === 'validation_in_progress';
+        if (!isPending) return false;
+      } else if (statusScope === 'reviewed') {
+        const isReviewed = r.status === 'validated' || r.status === 'rejected' || r.status === 'closed';
+        if (!isReviewed) return false;
+      }
 
       // Period filtering
       if (period !== 'All Time' && r.triggeredAtRaw) {
@@ -162,7 +172,7 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
         friendly.toLowerCase().includes(ruleSearch.toLowerCase());
       return colMatch && ruleMatch;
     });
-  }, [enrichedRows, filters, ruleSearch, period]);
+  }, [enrichedRows, filters, ruleSearch, period, statusScope]);
 
   // Group by friendlyName, sorted: rules with to_be_validated alerts first
   const groups = useMemo(() => {
@@ -205,10 +215,46 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
 
       {/* ── Table header bar ── */}
       <div className="flex items-center justify-between gap-4 px-4 py-3 border-b border-border-panel flex-wrap">
-        <h2 className="text-sm font-semibold text-text-primary">
-          Alerts
-          <span className="ml-2 text-xs font-normal text-text-muted">{totalRows} records</span>
-        </h2>
+        <div className="flex items-center gap-4 flex-wrap">
+          <h2 className="text-sm font-semibold text-text-primary">
+            Alerts
+            <span className="ml-2 text-xs font-normal text-text-muted">{totalRows} records</span>
+          </h2>
+
+          {/* Status Scope Selector Tabs */}
+          <div className="flex bg-bg-panel border border-border-panel rounded p-0.5 text-[11px]">
+            <button
+              onClick={() => setStatusScope('pending')}
+              className={`px-3 py-1 rounded transition-colors cursor-pointer ${
+                statusScope === 'pending'
+                  ? 'bg-accent-blue text-white font-medium'
+                  : 'text-text-muted hover:text-text-primary'
+              }`}
+            >
+              Pending Action
+            </button>
+            <button
+              onClick={() => setStatusScope('reviewed')}
+              className={`px-3 py-1 rounded transition-colors cursor-pointer ${
+                statusScope === 'reviewed'
+                  ? 'bg-accent-blue text-white font-medium'
+                  : 'text-text-muted hover:text-text-primary'
+              }`}
+            >
+              Reviewed History
+            </button>
+            <button
+              onClick={() => setStatusScope('all')}
+              className={`px-3 py-1 rounded transition-colors cursor-pointer ${
+                statusScope === 'all'
+                  ? 'bg-accent-blue text-white font-medium'
+                  : 'text-text-muted hover:text-text-primary'
+              }`}
+            >
+              All Alerts
+            </button>
+          </div>
+        </div>
 
         <div className="flex items-center gap-3 flex-wrap">
           {/* Rule search */}
@@ -265,12 +311,24 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
                 <FilterInput field="triggeredAt" />
               </th>
               <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary whitespace-nowrap">
+                End Date
+                <FilterInput field="endDate" />
+              </th>
+              <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary whitespace-nowrap">
                 Time Open
                 <FilterInput field="timeOpen" />
               </th>
               <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary">
                 Status
                 <FilterInput field="status" />
+              </th>
+              <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary whitespace-nowrap">
+                Reviewed At
+                <FilterInput field="reviewedAt" />
+              </th>
+              <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary whitespace-nowrap">
+                Reviewed By
+                <FilterInput field="reviewedBy" />
               </th>
             </tr>
           </thead>
@@ -293,7 +351,7 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
                         : <ChevronRight size={14} className="text-text-muted" />
                       }
                     </td>
-                    <td colSpan={7} className="px-1 py-2.5">
+                    <td colSpan={10} className="px-1 py-2.5">
                       <div className="flex items-center gap-3">
                         <span className="text-xs font-semibold text-text-primary">{ruleName}</span>
                         <span className="text-[11px] text-text-muted">
@@ -330,6 +388,7 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
                       <td className="px-4 py-3"><EquipmentBadge code={row.equipmentCode} /></td>
                       <td className="px-4 py-3 text-text-muted">{row.type}</td>
                       <td className="px-4 py-3 text-text-muted text-xs whitespace-nowrap">{row.triggeredAt}</td>
+                      <td className="px-4 py-3 text-text-muted text-xs whitespace-nowrap">{row.endDate || '—'}</td>
                       <td className="px-4 py-3 text-text-muted text-xs whitespace-nowrap">
                         {mounted ? row.timeOpen : '—'}
                       </td>
@@ -358,6 +417,8 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
                           </DropdownMenu.Portal>
                         </DropdownMenu.Root>
                       </td>
+                      <td className="px-4 py-3 text-text-muted text-xs whitespace-nowrap">{row.reviewedAt || '—'}</td>
+                      <td className="px-4 py-3 text-text-muted text-xs">{row.reviewedBy || '—'}</td>
                     </tr>
                   ))}
                 </React.Fragment>
@@ -366,7 +427,7 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
 
             {groups.length === 0 && (
               <tr>
-                <td colSpan={8} className="px-4 py-8 text-center text-text-muted text-sm">
+                <td colSpan={11} className="px-4 py-8 text-center text-text-muted text-sm">
                   No results found
                 </td>
               </tr>

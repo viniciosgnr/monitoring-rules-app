@@ -44,10 +44,6 @@ export default async function AlertReviewPage() {
     status:         r.status as Status,
   }));
 
-  const pendingRows = serialized.filter(
-    r => r.status === 'to_be_validated' || r.status === 'validation_in_progress'
-  );
-
   return (
     <>
       <Topbar breadcrumb="Alert Review" />
@@ -74,7 +70,7 @@ export default async function AlertReviewPage() {
             tooltip="Total number of alerts across all monitoring rules and equipment for the selected period."
           />
         </div>
-        <AlertTable rows={pendingRows} />
+        <AlertTable rows={serialized} />
       </main>
     </>
   );
