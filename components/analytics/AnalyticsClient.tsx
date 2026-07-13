@@ -52,10 +52,9 @@ function Sel({ value, onChange, options }: { value: string; onChange: (v: string
   );
 }
 
-export default function AnalyticsClient({ fpsos, equipments, ruleInstances, alertsList }: Props) {
+export default function AnalyticsClient({ equipments, ruleInstances, alertsList }: Props) {
   const [activeTab, setActiveTab] = useState<'overview' | 'bad_actors'>('overview');
   const [period, setPeriod] = useState('Last Week');
-  const [fpso, setFpso] = useState('All FPSOs');
   const [selectedEquipment, setSelectedEquipment] = useState('All Equipment');
   const [rule, setRule] = useState('All Categories');
   const [top10Tab, setTop10Tab] = useState<'lowest_accuracy' | 'highest_fp' | 'highest_alerts'>('lowest_accuracy');
@@ -94,8 +93,6 @@ export default function AnalyticsClient({ fpsos, equipments, ruleInstances, aler
   });
 
   const filteredInstances = processedInstances.filter(inst => {
-    // 1. Filter by FPSO
-    if (fpso !== 'All FPSOs' && inst.fpsoCode !== fpso) return false;
 
     // 2. Filter by Equipment
     if (selectedEquipment !== 'All Equipment' && inst.equipmentCode !== selectedEquipment) return false;
@@ -146,7 +143,6 @@ export default function AnalyticsClient({ fpsos, equipments, ruleInstances, aler
         </div>
         <div className="flex flex-wrap gap-3">
           <Sel value={period} onChange={setPeriod} options={PERIODS} />
-          <Sel value={fpso} onChange={setFpso} options={['All FPSOs', ...fpsos]} />
           <Sel value={selectedEquipment} onChange={setSelectedEquipment} options={['All Equipment', ...equipments]} />
           <Sel value={rule} onChange={setRule} options={CATEGORIES} />
         </div>
@@ -212,7 +208,7 @@ export default function AnalyticsClient({ fpsos, equipments, ruleInstances, aler
                     <Maximize2 size={14} className="text-text-muted cursor-pointer hover:text-text-primary transition-colors" />
                   </div>
                 </div>
-                <AccuracyChart period={period} fpso={fpso} equipment={selectedEquipment} rule={rule} />
+                <AccuracyChart period={period} fpso="All FPSOs" equipment={selectedEquipment} rule={rule} />
               </div>
 
               {/* Accuracy Raw Data Table */}
@@ -265,7 +261,7 @@ export default function AnalyticsClient({ fpsos, equipments, ruleInstances, aler
                     <Maximize2 size={14} className="text-text-muted cursor-pointer hover:text-text-primary transition-colors" />
                   </div>
                 </div>
-                <FalsePositiveChart period={period} fpso={fpso} equipment={selectedEquipment} rule={rule} />
+                <FalsePositiveChart period={period} fpso="All FPSOs" equipment={selectedEquipment} rule={rule} />
               </div>
 
               {/* False Positive Raw Data Table */}
@@ -323,7 +319,7 @@ export default function AnalyticsClient({ fpsos, equipments, ruleInstances, aler
                   <Maximize2 size={14} className="text-text-muted cursor-pointer hover:text-text-primary transition-colors" />
                 </div>
               </div>
-              <RuleAlertsChart period={period} fpso={fpso} equipment={selectedEquipment} rule={rule} />
+              <RuleAlertsChart period={period} fpso="All FPSOs" equipment={selectedEquipment} rule={rule} />
             </div>
 
             {/* Alerts Treated by Status */}
@@ -335,7 +331,7 @@ export default function AnalyticsClient({ fpsos, equipments, ruleInstances, aler
                   <Maximize2 size={14} className="text-text-muted cursor-pointer hover:text-text-primary transition-colors" />
                 </div>
               </div>
-              <StatusAlertsChart period={period} fpso={fpso} equipment={selectedEquipment} rule={rule} />
+              <StatusAlertsChart period={period} fpso="All FPSOs" equipment={selectedEquipment} rule={rule} />
             </div>
           </div>
 
