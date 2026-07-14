@@ -293,7 +293,7 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
                         const totalEvaluations = 100 + ((inst.id * 41) % 150);
                         const correctActions = Math.round(totalEvaluations * (inst.accuracy / 100));
                         return (
-                          <tr key={inst.id} className="border-b border-border-panel/40 hover:bg-bg-panel/10 transition-colors">
+                          <tr key={inst.id} className="border-b border-border-panel hover:bg-bg-panel/10 transition-colors">
                             <td className="px-4 py-3 font-medium text-slate-300">{inst.ruleName}</td>
                             <td className="px-4 py-3 text-slate-400">{inst.equipmentCode}</td>
                             <td className="px-4 py-3 text-right text-slate-400">{totalEvaluations}</td>
@@ -339,7 +339,7 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
                       filteredFpRows.map(inst => {
                         const fpRate = parseFloat(((inst.falsePositives / inst.alertsCount) * 100).toFixed(1));
                         return (
-                          <tr key={inst.id} className="border-b border-border-panel/40 hover:bg-bg-panel/10 transition-colors">
+                          <tr key={inst.id} className="border-b border-border-panel hover:bg-bg-panel/10 transition-colors">
                             <td className="px-4 py-3 font-medium text-slate-300">{inst.ruleName}</td>
                             <td className="px-4 py-3 text-slate-400">{inst.equipmentCode}</td>
                             <td className="px-4 py-3 text-right text-slate-400">{inst.alertsCount}</td>
