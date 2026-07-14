@@ -52,12 +52,32 @@ function Sel({ value, onChange, options }: { value: string; onChange: (v: string
   );
 }
 
+function TableFilterInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  return (
+    <div className="flex items-center gap-1 mt-1.5 font-normal">
+      <input
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        className="filter-input text-text-primary"
+        placeholder="Filter..."
+      />
+      <SlidersHorizontal size={11} className="text-text-muted flex-shrink-0" />
+    </div>
+  );
+}
+
 export default function AnalyticsClient({ equipments, ruleInstances, alertsList }: Props) {
   const [activeTab, setActiveTab] = useState<'overview' | 'bad_actors'>('overview');
   const [period, setPeriod] = useState('Last Week');
   const [selectedEquipment, setSelectedEquipment] = useState('All Equipment');
   const [rule, setRule] = useState('All Categories');
   const [top10Tab, setTop10Tab] = useState<'lowest_accuracy' | 'highest_fp' | 'highest_alerts'>('lowest_accuracy');
+
+  // Local column filters for Overview breakdown tables
+  const [accuracyRuleFilter, setAccuracyRuleFilter] = useState('');
+  const [accuracyEquipFilter, setAccuracyEquipFilter] = useState('');
+  const [fpRuleFilter, setFpRuleFilter] = useState('');
+  const [fpEquipFilter, setFpEquipFilter] = useState('');
 
   const dbAlertsCount = alertsList?.length || 0;
 
@@ -119,6 +139,18 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
     }
 
     return true;
+  });
+
+  const filteredAccuracyRows = filteredInstances.filter(inst => {
+    const matchesRule = inst.ruleName.toLowerCase().includes(accuracyRuleFilter.toLowerCase());
+    const matchesEquip = inst.equipmentCode.toLowerCase().includes(accuracyEquipFilter.toLowerCase());
+    return matchesRule && matchesEquip;
+  });
+
+  const filteredFpRows = filteredInstances.filter(inst => {
+    const matchesRule = inst.ruleName.toLowerCase().includes(fpRuleFilter.toLowerCase());
+    const matchesEquip = inst.equipmentCode.toLowerCase().includes(fpEquipFilter.toLowerCase());
+    return matchesRule && matchesEquip;
   });
 
   // Calculate Top 10 lists
@@ -210,45 +242,6 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
                 </div>
                 <AccuracyChart period={period} fpso="All FPSOs" equipment={selectedEquipment} rule={rule} />
               </div>
-
-              {/* Accuracy Raw Data Table */}
-              <div className="mt-4 border-t border-border-panel/40 pt-4">
-                <h4 className="text-xs font-semibold text-text-muted mb-2 uppercase tracking-wider">Accuracy Breakdown by Instance</h4>
-                <div className="overflow-x-auto max-h-48 overflow-y-auto pr-1">
-                  <table className="w-full text-[11px] border-collapse">
-                    <thead>
-                      <tr className="border-b border-[#1e293b]/40 select-none">
-                        <th className="text-left px-4 py-2 font-medium text-text-muted whitespace-nowrap">Rule / Instance</th>
-                        <th className="text-left px-4 py-2 font-medium text-text-muted whitespace-nowrap">Equipment</th>
-                        <th className="text-right px-4 py-2 font-medium text-text-muted whitespace-nowrap">Evaluations</th>
-                        <th className="text-right px-4 py-2 font-medium text-text-muted whitespace-nowrap">Correct</th>
-                        <th className="text-right px-4 py-2 font-medium text-text-muted whitespace-nowrap">Accuracy</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredInstances.length === 0 ? (
-                        <tr>
-                          <td colSpan={5} className="px-4 py-4 text-center text-text-muted italic bg-bg-panel/5">No instances found</td>
-                        </tr>
-                      ) : (
-                        filteredInstances.map(inst => {
-                          const totalEvaluations = 100 + ((inst.id * 41) % 150);
-                          const correctActions = Math.round(totalEvaluations * (inst.accuracy / 100));
-                          return (
-                            <tr key={inst.id} className="border-b border-[#1e293b]/20 hover:bg-bg-panel/10 transition-colors">
-                              <td className="px-4 py-2 font-medium text-slate-300">{inst.ruleName}</td>
-                              <td className="px-4 py-2 text-slate-400">{inst.equipmentCode}</td>
-                              <td className="px-4 py-2 text-right text-slate-400">{totalEvaluations}</td>
-                              <td className="px-4 py-2 text-right text-status-ok font-medium">{correctActions}</td>
-                              <td className="px-4 py-2 text-right font-semibold text-accent-blue">{inst.accuracy}%</td>
-                            </tr>
-                          );
-                        })
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
             </div>
 
             {/* False Positive Over Time */}
@@ -263,43 +256,101 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
                 </div>
                 <FalsePositiveChart period={period} fpso="All FPSOs" equipment={selectedEquipment} rule={rule} />
               </div>
+            </div>
+          </div>
 
-              {/* False Positive Raw Data Table */}
-              <div className="mt-4 border-t border-border-panel/40 pt-4">
-                <h4 className="text-xs font-semibold text-text-muted mb-2 uppercase tracking-wider">False Positive Breakdown by Instance</h4>
-                <div className="overflow-x-auto max-h-48 overflow-y-auto pr-1">
-                  <table className="w-full text-[11px] border-collapse">
-                    <thead>
-                      <tr className="border-b border-[#1e293b]/40 select-none">
-                        <th className="text-left px-4 py-2 font-medium text-text-muted whitespace-nowrap">Rule / Instance</th>
-                        <th className="text-left px-4 py-2 font-medium text-text-muted whitespace-nowrap">Equipment</th>
-                        <th className="text-right px-4 py-2 font-medium text-text-muted whitespace-nowrap">Alerts</th>
-                        <th className="text-right px-4 py-2 font-medium text-text-muted whitespace-nowrap">False Positives</th>
-                        <th className="text-right px-4 py-2 font-medium text-text-muted whitespace-nowrap">FP Rate</th>
+          {/* Tables Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+            {/* Accuracy Breakdown Table Card */}
+            <div className="bg-bg-card border border-border-panel rounded-card overflow-hidden">
+              <div className="px-4 py-3 border-b border-border-panel">
+                <h3 className="text-sm font-semibold text-text-primary">Accuracy Breakdown by Instance</h3>
+              </div>
+              <div className="overflow-x-auto max-h-60 overflow-y-auto pr-1">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b border-border-panel bg-bg-panel/40 select-none">
+                      <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary whitespace-nowrap">
+                        Rule / Instance
+                        <TableFilterInput value={accuracyRuleFilter} onChange={setAccuracyRuleFilter} />
+                      </th>
+                      <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary whitespace-nowrap">
+                        Equipment
+                        <TableFilterInput value={accuracyEquipFilter} onChange={setAccuracyEquipFilter} />
+                      </th>
+                      <th className="text-right px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary whitespace-nowrap">Evaluations</th>
+                      <th className="text-right px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary whitespace-nowrap">Correct</th>
+                      <th className="text-right px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary whitespace-nowrap">Accuracy</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredAccuracyRows.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="px-4 py-8 text-center text-text-muted italic bg-bg-panel/5">No instances found</td>
                       </tr>
-                    </thead>
-                    <tbody>
-                      {filteredInstances.length === 0 ? (
-                        <tr>
-                          <td colSpan={5} className="px-4 py-4 text-center text-text-muted italic bg-bg-panel/5">No instances found</td>
-                        </tr>
-                      ) : (
-                        filteredInstances.map(inst => {
-                          const fpRate = parseFloat(((inst.falsePositives / inst.alertsCount) * 100).toFixed(1));
-                          return (
-                            <tr key={inst.id} className="border-b border-[#1e293b]/20 hover:bg-bg-panel/10 transition-colors">
-                              <td className="px-4 py-2 font-medium text-slate-300">{inst.ruleName}</td>
-                              <td className="px-4 py-2 text-slate-400">{inst.equipmentCode}</td>
-                              <td className="px-4 py-2 text-right text-slate-400">{inst.alertsCount}</td>
-                              <td className="px-4 py-2 text-right text-status-warn font-medium">{inst.falsePositives}</td>
-                              <td className="px-4 py-2 text-right font-semibold text-status-warn">{fpRate}%</td>
-                            </tr>
-                          );
-                        })
-                      )}
-                    </tbody>
-                  </table>
-                </div>
+                    ) : (
+                      filteredAccuracyRows.map(inst => {
+                        const totalEvaluations = 100 + ((inst.id * 41) % 150);
+                        const correctActions = Math.round(totalEvaluations * (inst.accuracy / 100));
+                        return (
+                          <tr key={inst.id} className="border-b border-border-panel/40 hover:bg-bg-panel/10 transition-colors">
+                            <td className="px-4 py-3 font-medium text-slate-300">{inst.ruleName}</td>
+                            <td className="px-4 py-3 text-slate-400">{inst.equipmentCode}</td>
+                            <td className="px-4 py-3 text-right text-slate-400">{totalEvaluations}</td>
+                            <td className="px-4 py-3 text-right text-status-ok font-medium">{correctActions}</td>
+                            <td className="px-4 py-3 text-right font-semibold text-accent-blue">{inst.accuracy}%</td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* False Positive Breakdown Table Card */}
+            <div className="bg-bg-card border border-border-panel rounded-card overflow-hidden">
+              <div className="px-4 py-3 border-b border-border-panel">
+                <h3 className="text-sm font-semibold text-text-primary">False Positive Breakdown by Instance</h3>
+              </div>
+              <div className="overflow-x-auto max-h-60 overflow-y-auto pr-1">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b border-border-panel bg-bg-panel/40 select-none">
+                      <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary whitespace-nowrap">
+                        Rule / Instance
+                        <TableFilterInput value={fpRuleFilter} onChange={setFpRuleFilter} />
+                      </th>
+                      <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary whitespace-nowrap">
+                        Equipment
+                        <TableFilterInput value={fpEquipFilter} onChange={setFpEquipFilter} />
+                      </th>
+                      <th className="text-right px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary whitespace-nowrap">Alerts</th>
+                      <th className="text-right px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary whitespace-nowrap">False Positives</th>
+                      <th className="text-right px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary whitespace-nowrap">FP Rate</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredFpRows.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="px-4 py-8 text-center text-text-muted italic bg-bg-panel/5">No instances found</td>
+                      </tr>
+                    ) : (
+                      filteredFpRows.map(inst => {
+                        const fpRate = parseFloat(((inst.falsePositives / inst.alertsCount) * 100).toFixed(1));
+                        return (
+                          <tr key={inst.id} className="border-b border-border-panel/40 hover:bg-bg-panel/10 transition-colors">
+                            <td className="px-4 py-3 font-medium text-slate-300">{inst.ruleName}</td>
+                            <td className="px-4 py-3 text-slate-400">{inst.equipmentCode}</td>
+                            <td className="px-4 py-3 text-right text-slate-400">{inst.alertsCount}</td>
+                            <td className="px-4 py-3 text-right text-status-warn font-medium">{inst.falsePositives}</td>
+                            <td className="px-4 py-3 text-right font-semibold text-status-warn">{fpRate}%</td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>
