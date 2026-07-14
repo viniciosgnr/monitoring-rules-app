@@ -1,6 +1,6 @@
 import { db } from '@/db';
-import { ruleInstances, equipment, monitoringRules, fpsos } from '@/db/schema';
-import { eq } from 'drizzle-orm';
+import { ruleInstances, equipment, monitoringRules, fpsos, auditLog } from '@/db/schema';
+import { eq, inArray } from 'drizzle-orm';
 import Topbar from '@/components/layout/Topbar';
 import NavTabs from '@/components/layout/NavTabs';
 import KpiCard from '@/components/ui/KpiCard';
@@ -62,6 +62,35 @@ export default async function MRDatabasePage() {
     .innerJoin(equipment,       eq(ruleInstances.equipmentId, equipment.id))
     .innerJoin(monitoringRules, eq(ruleInstances.ruleId,      monitoringRules.id))
     .innerJoin(fpsos,           eq(equipment.fpsoId,          fpsos.id));
+
+  const now = new Date();
+  const expiredIds = rows
+    .filter(r => !r.enabled && r.deactivatedUntil && now > r.deactivatedUntil)
+    .map(r => r.id);
+
+  if (expiredIds.length > 0) {
+    await db
+      .update(ruleInstances)
+      .set({ enabled: true, deactivatedUntil: null })
+      .where(inArray(ruleInstances.id, expiredIds));
+
+    for (const id of expiredIds) {
+      await db.insert(auditLog).values({
+        instanceId: id,
+        userEmail: 'system@sbmoffshore.com',
+        description: 'Automatically enabled rule instance (deactivation period expired)',
+        beforeState: { enabled: false },
+        afterState: { enabled: true, deactivatedUntil: null },
+      });
+    }
+
+    rows.forEach(r => {
+      if (expiredIds.includes(r.id)) {
+        r.enabled = true;
+        r.deactivatedUntil = null;
+      }
+    });
+  }
 
   const total    = rows.length;
   const enabled  = rows.filter(r => r.enabled).length;
