@@ -69,7 +69,7 @@ function TableFilterInput({ value, onChange }: { value: string; onChange: (v: st
 export default function AnalyticsClient({ equipments, ruleInstances, alertsList }: Props) {
   const [activeTab, setActiveTab] = useState<'overview' | 'bad_actors'>('overview');
   const [period, setPeriod] = useState('Last Week');
-  const [selectedEquipment, setSelectedEquipment] = useState('All Equipment');
+  const [selectedEquipment, setSelectedEquipment] = useState('All Assets');
   const [rule, setRule] = useState('All Categories');
   const [top10Tab, setTop10Tab] = useState<'lowest_accuracy' | 'highest_fp' | 'highest_alerts'>('lowest_accuracy');
 
@@ -115,7 +115,7 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
   const filteredInstances = processedInstances.filter(inst => {
 
     // 2. Filter by Equipment
-    if (selectedEquipment !== 'All Equipment' && inst.equipmentCode !== selectedEquipment) return false;
+    if (selectedEquipment !== 'All Assets' && inst.equipmentCode !== selectedEquipment) return false;
 
     // 3. Filter by Rule Category
     if (rule !== 'All Categories') {
@@ -175,7 +175,7 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
         </div>
         <div className="flex flex-wrap gap-3">
           <Sel value={period} onChange={setPeriod} options={PERIODS} />
-          <Sel value={selectedEquipment} onChange={setSelectedEquipment} options={['All Equipment', ...equipments]} />
+          <Sel value={selectedEquipment} onChange={setSelectedEquipment} options={['All Assets', ...equipments]} />
           <Sel value={rule} onChange={setRule} options={CATEGORIES} />
         </div>
       </div>
@@ -275,7 +275,7 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
                         <TableFilterInput value={accuracyRuleFilter} onChange={setAccuracyRuleFilter} />
                       </th>
                       <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary whitespace-nowrap">
-                        Equipment
+                        Asset
                         <TableFilterInput value={accuracyEquipFilter} onChange={setAccuracyEquipFilter} />
                       </th>
                       <th className="text-right px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary whitespace-nowrap">Evaluations</th>
@@ -322,7 +322,7 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
                         <TableFilterInput value={fpRuleFilter} onChange={setFpRuleFilter} />
                       </th>
                       <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary whitespace-nowrap">
-                        Equipment
+                        Asset
                         <TableFilterInput value={fpEquipFilter} onChange={setFpEquipFilter} />
                       </th>
                       <th className="text-right px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary whitespace-nowrap">Alerts</th>
@@ -435,7 +435,7 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
                   <tr className="border-b border-border-panel text-text-muted text-[10px] font-bold uppercase tracking-wider bg-bg-panel/40 select-none">
                     <th className="px-4 py-3 w-16">Rank</th>
                     <th className="px-4 py-3">Monitoring Rule</th>
-                    <th className="px-4 py-3">Equipment</th>
+                    <th className="px-4 py-3">Asset</th>
                     <th className="px-4 py-3">FPSO</th>
                     <th className="px-4 py-3 text-right">
                       {top10Tab === 'lowest_accuracy' && 'Accuracy'}

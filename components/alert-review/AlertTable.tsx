@@ -299,7 +299,7 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
                 <FilterInput field="fpso" />
               </th>
               <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary whitespace-nowrap">
-                Equipment
+                Asset
                 <FilterInput field="equipmentCode" />
               </th>
               <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary whitespace-nowrap">

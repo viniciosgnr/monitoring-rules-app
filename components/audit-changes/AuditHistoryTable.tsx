@@ -55,7 +55,7 @@ export default function AuditHistoryTable({ rows }: { rows: AuditEntry[] }) {
   }
 
   function downloadExcel() {
-    const headers = ['Last Updated Time', 'User', 'Equipment', 'System', 'Subsystem', 'RuleName', 'Description', 'Parameter Changes'];
+    const headers = ['Last Updated Time', 'User', 'Asset', 'System', 'Subsystem', 'RuleName', 'Description', 'Parameter Changes'];
     const csvRows = [headers.join(',')];
 
     for (const row of filtered) {
@@ -127,7 +127,7 @@ export default function AuditHistoryTable({ rows }: { rows: AuditEntry[] }) {
   const cols = [
     ['timestamp', 'Last Updated Time'],
     ['userEmail', 'User'],
-    ['equipmentCode', 'Equipment'],
+    ['equipmentCode', 'Asset'],
     ['system', 'System'],
     ['subsystem', 'Subsystem'],
     ['ruleName', 'Rule'],

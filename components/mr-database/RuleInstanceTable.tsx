@@ -157,7 +157,7 @@ export default function RuleInstanceTable({ rows }: { rows: InstanceRow[] }) {
   }
 
   function downloadExcel() {
-    const headers = ['FPSO', 'Equipment', 'Timeseries', 'System', 'Subsystem', 'Rule', 'Schedule', 'Last Run At', 'Next Run At', 'Disabled Until', 'Enabled'];
+    const headers = ['FPSO', 'Asset', 'Timeseries', 'System', 'Subsystem', 'Rule', 'Schedule', 'Last Run At', 'Next Run At', 'Disabled Until', 'Enabled'];
     const csvRows = [headers.join(',')];
 
     for (const row of filtered) {
@@ -213,7 +213,7 @@ export default function RuleInstanceTable({ rows }: { rows: InstanceRow[] }) {
 
   const cols: [string, string][] = [
     ['fpso', 'FPSO'],
-    ['equipmentCode', 'Equipment'],
+    ['equipmentCode', 'Asset'],
     ['timeseries', 'Timeseries'],
     ['system', 'System'],
     ['subsystem', 'Subsystem'],
