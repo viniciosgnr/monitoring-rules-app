@@ -100,7 +100,6 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
 
   const [data, setData]     = useState(rows);
   const [period, setPeriod] = useState('All Time');
-  const [ruleSearch, setRuleSearch]     = useState('');
   const [filters, setFilters]           = useState<Record<string, string>>({});
   const [statusScope, setStatusScope]   = useState<'pending' | 'reviewed' | 'all'>('pending');
   const [expandedRules, setExpandedRules] = useState<Set<string>>(() => {
@@ -166,13 +165,9 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
       const colMatch = Object.entries(filters).every(([k, v]) =>
         !v || String((r as Record<string, unknown>)[k]).toLowerCase().includes(v.toLowerCase())
       );
-      const friendly = getFriendlyRuleName(r.ruleName);
-      const ruleMatch = !ruleSearch || 
-        r.ruleName.toLowerCase().includes(ruleSearch.toLowerCase()) ||
-        friendly.toLowerCase().includes(ruleSearch.toLowerCase());
-      return colMatch && ruleMatch;
+      return colMatch;
     });
-  }, [enrichedRows, filters, ruleSearch, period, statusScope]);
+  }, [enrichedRows, filters, period, statusScope]);
 
   // Group by friendlyName, sorted: rules with to_be_validated alerts first
   const groups = useMemo(() => {
@@ -257,16 +252,6 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
         </div>
 
         <div className="flex items-center gap-3 flex-wrap">
-          {/* Rule search */}
-          <div className="flex items-center gap-1.5">
-            <span className="text-xs text-text-muted">Rule</span>
-            <input
-              value={ruleSearch}
-              onChange={e => setRuleSearch(e.target.value)}
-              placeholder="Search rule…"
-              className="bg-bg-panel border border-border-panel rounded px-2.5 py-1.5 text-xs text-text-primary outline-none focus:border-accent-blue transition-colors w-44"
-            />
-          </div>
 
           {/* Time period filter */}
           <div className="flex items-center gap-1.5">
@@ -301,6 +286,10 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
               <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary whitespace-nowrap">
                 Asset
                 <FilterInput field="equipmentCode" />
+              </th>
+              <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary whitespace-nowrap">
+                Rule
+                <FilterInput field="ruleName" />
               </th>
               <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary whitespace-nowrap">
                 Type
@@ -386,6 +375,7 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
 
                       <td className="px-4 py-3 text-text-muted text-sm">{row.fpso}</td>
                       <td className="px-4 py-3"><EquipmentBadge code={row.equipmentCode} /></td>
+                      <td className="px-4 py-3 text-text-muted font-mono text-xs">{row.ruleName}</td>
                       <td className="px-4 py-3 text-text-muted">{row.type}</td>
                       <td className="px-4 py-3 text-text-muted text-xs whitespace-nowrap">{row.triggeredAt}</td>
                       <td className="px-4 py-3 text-text-muted text-xs whitespace-nowrap">{row.endDate || '—'}</td>
