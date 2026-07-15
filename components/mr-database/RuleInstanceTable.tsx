@@ -157,7 +157,7 @@ export default function RuleInstanceTable({ rows }: { rows: InstanceRow[] }) {
   }
 
   function downloadExcel() {
-    const headers = ['FPSO', 'Asset', 'Timeseries', 'System', 'Subsystem', 'Rule', 'Schedule', 'Last Run At', 'Next Run At', 'Disabled Until', 'Enabled'];
+    const headers = ['Asset', 'Timeseries', 'System', 'Subsystem', 'Rule', 'Schedule', 'Last Run At', 'Next Run At', 'Disabled Until', 'Enabled'];
     const csvRows = [headers.join(',')];
 
     for (const row of filtered) {
@@ -173,7 +173,6 @@ export default function RuleInstanceTable({ rows }: { rows: InstanceRow[] }) {
       }
 
       const values = [
-        row.fpso,
         row.equipmentCode,
         row.timeseries,
         row.system,
@@ -212,7 +211,6 @@ export default function RuleInstanceTable({ rows }: { rows: InstanceRow[] }) {
   }
 
   const cols: [string, string][] = [
-    ['fpso', 'FPSO'],
     ['equipmentCode', 'Asset'],
     ['timeseries', 'Timeseries'],
     ['system', 'System'],
@@ -299,14 +297,12 @@ export default function RuleInstanceTable({ rows }: { rows: InstanceRow[] }) {
                     <td className="px-4 py-2.5" />
                   </tr>
 
-                  {/* Individual rows in group */}
                   {isExpanded && groupRows.map(row => (
                     <tr key={row.id} className="border-b border-border-panel hover:bg-bg-panel/40">
                       {/* Indent line spacer */}
                       <td className="px-3 py-3">
                         <div className="w-px h-4 bg-border-panel mx-auto" />
                       </td>
-                      <td className="px-4 py-3 text-text-muted text-sm">{row.fpso}</td>
                       <td className="px-4 py-3">
                         <EquipmentBadge code={row.equipmentCode} />
                       </td>
@@ -366,7 +362,7 @@ export default function RuleInstanceTable({ rows }: { rows: InstanceRow[] }) {
 
             {groups.length === 0 && (
               <tr>
-                <td colSpan={12} className="px-4 py-8 text-center text-text-muted text-sm">No results found</td>
+                <td colSpan={13} className="px-4 py-8 text-center text-text-muted text-sm">No results found</td>
               </tr>
             )}
           </tbody>

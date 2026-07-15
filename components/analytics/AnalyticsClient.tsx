@@ -436,7 +436,6 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
                     <th className="px-4 py-3 w-16">Rank</th>
                     <th className="px-4 py-3">Monitoring Rule</th>
                     <th className="px-4 py-3">Asset</th>
-                    <th className="px-4 py-3">FPSO</th>
                     <th className="px-4 py-3 text-right">
                       {top10Tab === 'lowest_accuracy' && 'Accuracy'}
                       {top10Tab === 'highest_fp' && 'False Positives'}
@@ -447,7 +446,7 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
                 <tbody>
                   {lowestAccuracyList.length === 0 && (
                     <tr>
-                      <td colSpan={5} className="px-4 py-8 text-center text-text-muted italic">
+                      <td colSpan={4} className="px-4 py-8 text-center text-text-muted italic">
                         No rules found matching the active filters.
                       </td>
                     </tr>
@@ -459,7 +458,6 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
                         <td className="px-4 py-3 font-semibold text-text-muted">#{index + 1}</td>
                         <td className="px-4 py-3 font-medium text-text-primary">{item.ruleName}</td>
                         <td className="px-4 py-3 text-text-muted">{item.equipmentCode}</td>
-                        <td className="px-4 py-3 text-text-muted">{item.fpsoCode}</td>
                         <td className="px-4 py-3 text-right font-bold text-accent-blue">{item.accuracy}%</td>
                       </tr>
                     ))}
@@ -470,7 +468,6 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
                         <td className="px-4 py-3 font-semibold text-text-muted">#{index + 1}</td>
                         <td className="px-4 py-3 font-medium text-text-primary">{item.ruleName}</td>
                         <td className="px-4 py-3 text-text-muted">{item.equipmentCode}</td>
-                        <td className="px-4 py-3 text-text-muted">{item.fpsoCode}</td>
                         <td className="px-4 py-3 text-right font-bold text-status-warn">{item.falsePositives}</td>
                       </tr>
                     ))}
@@ -481,7 +478,6 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
                         <td className="px-4 py-3 font-semibold text-text-muted">#{index + 1}</td>
                         <td className="px-4 py-3 font-medium text-text-primary">{item.ruleName}</td>
                         <td className="px-4 py-3 text-text-muted">{item.equipmentCode}</td>
-                        <td className="px-4 py-3 text-text-muted">{item.fpsoCode}</td>
                         <td className="px-4 py-3 text-right font-bold text-status-ok">{item.alertsCount}</td>
                       </tr>
                     ))}

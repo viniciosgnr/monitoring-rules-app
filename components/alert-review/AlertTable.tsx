@@ -280,10 +280,6 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
                 <FilterInput field="eventId" />
               </th>
               <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary whitespace-nowrap">
-                FPSO
-                <FilterInput field="fpso" />
-              </th>
-              <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary whitespace-nowrap">
                 Asset
                 <FilterInput field="equipmentCode" />
               </th>
@@ -373,7 +369,6 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
                         {row.eventId}
                       </td>
 
-                      <td className="px-4 py-3 text-text-muted text-sm">{row.fpso}</td>
                       <td className="px-4 py-3"><EquipmentBadge code={row.equipmentCode} /></td>
                       <td className="px-4 py-3 text-text-muted font-mono text-xs">{row.ruleName}</td>
                       <td className="px-4 py-3 text-text-muted">{row.type}</td>
