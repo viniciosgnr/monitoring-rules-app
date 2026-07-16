@@ -1,50 +1,19 @@
 'use client';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
-function getStringHash(str: string): number {
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    hash = (hash << 5) - hash + str.charCodeAt(i);
-    hash |= 0;
-  }
-  return Math.abs(hash);
-}
-
 interface Props {
-  period: string;
-  fpso: string;
-  equipment: string;
+  data: {
+    timeKey: string;
+    Drift: number;
+    Spike: number;
+    'Normalized dP': number;
+    Surge: number;
+    Trend: number;
+  }[];
   rule: string;
 }
 
-const LABELS: Record<string, string[]> = {
-  'Last Week': ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-  'Last Month': ['W1', 'W2', 'W3', 'W4'],
-  'Last 6 month': ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
-};
-
-export default function RuleAlertsChart({ period, fpso, equipment, rule }: Props) {
-  const labels = LABELS[period] ?? LABELS['Last Week'];
-  const seed = getStringHash(fpso) + getStringHash(equipment) + getStringHash(rule) + getStringHash(period);
-
-  const data = labels.map((timeKey, index) => {
-    const timeSeed = seed + index;
-    const drift = 5 + (timeSeed % 12);
-    const spike = 8 + ((timeSeed * 3) % 15);
-    const normalizedDp = 4 + ((timeSeed * 7) % 10);
-    const surge = 10 + ((timeSeed * 11) % 20);
-    const trend = 6 + ((timeSeed * 13) % 14);
-
-    return {
-      timeKey,
-      'Drift': drift,
-      'Spike': spike,
-      'Normalized dP': normalizedDp,
-      'Surge': surge,
-      'Trend': trend,
-    };
-  });
-
+export default function RuleAlertsChart({ data, rule }: Props) {
   return (
     <ResponsiveContainer width="100%" height={220}>
       <BarChart data={data} margin={{ top: 10, right: 10, left: -10, bottom: 20 }}>

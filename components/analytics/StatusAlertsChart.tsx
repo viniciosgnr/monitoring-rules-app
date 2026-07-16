@@ -1,53 +1,18 @@
 'use client';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
-function getStringHash(str: string): number {
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    hash = (hash << 5) - hash + str.charCodeAt(i);
-    hash |= 0;
-  }
-  return Math.abs(hash);
-}
-
 interface Props {
-  period: string;
-  fpso: string;
-  equipment: string;
-  rule: string;
+  data: {
+    timeKey: string;
+    'To Be Validated': number;
+    'Validation in Progress': number;
+    Validated: number;
+    Rejected: number;
+    Closed: number;
+  }[];
 }
 
-const LABELS: Record<string, string[]> = {
-  'Last Week': ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-  'Last Month': ['W1', 'W2', 'W3', 'W4'],
-  'Last 6 month': ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
-};
-
-export default function StatusAlertsChart({ period, fpso, equipment, rule }: Props) {
-  const labels = LABELS[period] ?? LABELS['Last Week'];
-  const seed = getStringHash(fpso) + getStringHash(equipment) + getStringHash(rule) + getStringHash(period);
-
-  const isFiltered = rule !== 'All Categories';
-  const scale = isFiltered ? 0.25 : 1.0;
-
-  const data = labels.map((timeKey, index) => {
-    const timeSeed = seed + index;
-    const toBeValidated = Math.round((10 + (timeSeed % 25)) * scale);
-    const validationInProgress = Math.round((5 + ((timeSeed * 3) % 15)) * scale);
-    const validated = Math.round((25 + ((timeSeed * 7) % 45)) * scale);
-    const rejected = Math.round((2 + ((timeSeed * 11) % 10)) * scale);
-    const closed = Math.round((4 + ((timeSeed * 13) % 12)) * scale);
-
-    return {
-      timeKey,
-      'To Be Validated': toBeValidated,
-      'Validation in Progress': validationInProgress,
-      'Validated': validated,
-      'Rejected': rejected,
-      'Closed': closed,
-    };
-  });
-
+export default function StatusAlertsChart({ data }: Props) {
   return (
     <ResponsiveContainer width="100%" height={220}>
       <BarChart data={data} margin={{ top: 10, right: 10, left: -10, bottom: 20 }}>

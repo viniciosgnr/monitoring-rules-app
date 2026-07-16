@@ -42,6 +42,17 @@ function getRuleCategory(ruleName: string): 'surge' | 'spike' | 'generic' {
   return 'generic';
 }
 
+function getRuleFriendlyCategory(ruleName: string): string {
+  const cat = getRuleCategory(ruleName);
+  if (cat === 'spike') return 'Spike';
+  if (cat === 'surge') return 'Surge';
+  const name = ruleName.toUpperCase();
+  if (name.includes('TRND') || name.includes('TREND') || name.includes('DEV') || name.includes('TEMP_DEV')) return 'Trend';
+  if (name.includes('FOUL') || name.includes('DP') || name.includes('HTEX')) return 'Normalized dP';
+  if (name.includes('DRFT') || name.includes('DRIFT')) return 'Drift';
+  return 'Other';
+}
+
 function getStringHash(str: string): number {
   let hash = 0;
   for (let i = 0; i < str.length; i++) {
@@ -291,6 +302,16 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
         label,
         accuracy,
         falsePositives: fps,
+        driftCount: intervalAlerts.filter(a => getRuleFriendlyCategory(a.ruleName) === 'Drift').length,
+        spikeCount: intervalAlerts.filter(a => getRuleFriendlyCategory(a.ruleName) === 'Spike').length,
+        normalizedDpCount: intervalAlerts.filter(a => getRuleFriendlyCategory(a.ruleName) === 'Normalized dP').length,
+        surgeCount: intervalAlerts.filter(a => getRuleFriendlyCategory(a.ruleName) === 'Surge').length,
+        trendCount: intervalAlerts.filter(a => getRuleFriendlyCategory(a.ruleName) === 'Trend').length,
+        toBeValidatedCount: intervalAlerts.filter(a => a.status === 'to_be_validated').length,
+        validationInProgressCount: intervalAlerts.filter(a => a.status === 'validation_in_progress').length,
+        validatedCount: intervalAlerts.filter(a => a.status === 'validated').length,
+        rejectedCount: fps,
+        closedCount: intervalAlerts.filter(a => a.status === 'closed').length,
       };
     });
   }, [alertsList, period, selectedEquipment, rule]);
@@ -301,6 +322,28 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
 
   const fpChartData = useMemo(() => {
     return trendData.map(d => ({ label: d.label, falsePositives: d.falsePositives }));
+  }, [trendData]);
+
+  const ruleAlertsChartData = useMemo(() => {
+    return trendData.map(d => ({
+      timeKey: d.label,
+      Drift: d.driftCount,
+      Spike: d.spikeCount,
+      'Normalized dP': d.normalizedDpCount,
+      Surge: d.surgeCount,
+      Trend: d.trendCount,
+    }));
+  }, [trendData]);
+
+  const statusAlertsChartData = useMemo(() => {
+    return trendData.map(d => ({
+      timeKey: d.label,
+      'To Be Validated': d.toBeValidatedCount,
+      'Validation in Progress': d.validationInProgressCount,
+      Validated: d.validatedCount,
+      Rejected: d.rejectedCount,
+      Closed: d.closedCount,
+    }));
   }, [trendData]);
 
   return (
@@ -507,7 +550,7 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
                   <Maximize2 size={14} className="text-text-muted cursor-pointer hover:text-text-primary transition-colors" />
                 </div>
               </div>
-              <RuleAlertsChart period={period} fpso="All FPSOs" equipment={selectedEquipment} rule={rule} />
+              <RuleAlertsChart data={ruleAlertsChartData} rule={rule} />
             </div>
 
             {/* Alerts Treated by Status */}
@@ -519,7 +562,7 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
                   <Maximize2 size={14} className="text-text-muted cursor-pointer hover:text-text-primary transition-colors" />
                 </div>
               </div>
-              <StatusAlertsChart period={period} fpso="All FPSOs" equipment={selectedEquipment} rule={rule} />
+              <StatusAlertsChart data={statusAlertsChartData} />
             </div>
           </div>
 
