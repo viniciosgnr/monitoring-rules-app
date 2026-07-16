@@ -27,8 +27,10 @@ export default async function AnalyticsPage() {
   const alertsList = await db
     .select({
       id:            alerts.id,
-      ruleName:      monitoringRules.name,
+      instanceId:    alerts.instanceId,
       status:        alerts.status,
+      triggeredAt:   alerts.triggeredAt,
+      ruleName:      monitoringRules.name,
       fpsoCode:      fpsos.code,
       equipmentCode: equipment.code,
     })
@@ -37,6 +39,16 @@ export default async function AnalyticsPage() {
     .innerJoin(monitoringRules, eq(ruleInstances.ruleId,    monitoringRules.id))
     .innerJoin(equipment,       eq(ruleInstances.equipmentId, equipment.id))
     .innerJoin(fpsos,           eq(equipment.fpsoId,        fpsos.id));
+
+  const serializedAlerts = alertsList.map(a => ({
+    id: a.id,
+    instanceId: a.instanceId,
+    status: a.status,
+    triggeredAt: a.triggeredAt.toISOString(),
+    ruleName: a.ruleName,
+    fpsoCode: a.fpsoCode,
+    equipmentCode: a.equipmentCode,
+  }));
 
   return (
     <>
@@ -48,7 +60,7 @@ export default async function AnalyticsPage() {
           rules={ruleList.map(r => r.name)}
           equipments={equipList.map(e => e.code)}
           ruleInstances={instancesList}
-          alertsList={alertsList}
+          alertsList={serializedAlerts}
         />
       </main>
     </>

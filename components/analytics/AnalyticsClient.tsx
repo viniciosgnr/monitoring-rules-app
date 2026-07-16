@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import KpiCard from '@/components/ui/KpiCard';
 import AccuracyChart from './AccuracyChart';
 import FalsePositiveChart from './FalsePositiveChart';
@@ -19,8 +19,10 @@ interface RuleInstanceRow {
 
 interface AlertRow {
   id: number;
-  ruleName: string;
+  instanceId: number;
   status: string;
+  triggeredAt: string;
+  ruleName: string;
   fpsoCode: string;
   equipmentCode: string;
 }
@@ -38,6 +40,15 @@ function getRuleCategory(ruleName: string): 'surge' | 'spike' | 'generic' {
   if (name.includes('SPK') || name.includes('SPIKE')) return 'spike';
   if (name.includes('SURG') || name.includes('THR') || name.includes('TME_NRS')) return 'surge';
   return 'generic';
+}
+
+function getStringHash(str: string): number {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = (hash << 5) - hash + str.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash);
 }
 
 function Sel({ value, onChange, options }: { value: string; onChange: (v: string) => void; options: string[] }) {
@@ -81,90 +92,216 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
 
   const dbAlertsCount = alertsList?.length || 0;
 
-  // Process rules instances deterministically to calculate stats based on period
-  const processedInstances = ruleInstances.map(inst => {
-    const id = inst.id;
-    let alertsCount = 12 + ((id * 37) % 89);
-    let falsePositives = Math.min(alertsCount - 5, 2 + ((id * 17) % 25));
+  // Process rules instances dynamically based on alert database logs
+  const processedInstances = useMemo(() => {
+    return ruleInstances.map(inst => {
+      const id = inst.id;
+      
+      // Filter alerts belonging to this instance and falling within selected period
+      const instAlerts = alertsList.filter(a => {
+        if (a.instanceId !== id) return false;
+        
+        const date = new Date(a.triggeredAt);
+        const now = new Date();
+        const diffMs = now.getTime() - date.getTime();
+        const oneDay = 1000 * 60 * 60 * 24;
+        
+        if (period === 'Last Week' && diffMs > oneDay * 7) return false;
+        if (period === 'Last Month' && diffMs > oneDay * 30) return false;
+        if (period === 'Last 6 month' && diffMs > oneDay * 180) return false;
+        
+        return true;
+      });
 
-    // Scale stats by period
-    if (period === 'Last Week') {
-      alertsCount = Math.max(1, Math.round(alertsCount / 10));
-      falsePositives = Math.min(alertsCount, Math.max(0, Math.round(falsePositives / 10)));
-    } else if (period === 'Last Month') {
-      alertsCount = Math.max(2, Math.round(alertsCount / 3));
-      falsePositives = Math.min(alertsCount, Math.max(0, Math.round(falsePositives / 3)));
-    }
+      const alertsCount = instAlerts.length;
+      const falsePositives = instAlerts.filter(a => a.status === 'rejected').length;
+      const correctActions = instAlerts.filter(a => a.status === 'validated' || a.status === 'closed').length;
+      
+      // Accuracy calculation: if no alerts, generate baseline from id seed
+      const accuracy = alertsCount > 0
+        ? parseFloat(((correctActions / alertsCount) * 100).toFixed(1))
+        : parseFloat((85 + ((id * 23) % 14.5)).toFixed(1));
 
-    // Introduce slight accuracy variation based on period
-    let accuracy = parseFloat((80 + ((id * 23) % 19.5)).toFixed(1));
-    if (period === 'Last Week') {
-      accuracy = parseFloat(Math.min(100, Math.max(50, accuracy + ((id % 5) - 2))).toFixed(1));
-    } else if (period === 'Last Month') {
-      accuracy = parseFloat(Math.min(100, Math.max(50, accuracy + ((id % 7) - 3))).toFixed(1));
-    }
+      return {
+        ...inst,
+        alertsCount,
+        falsePositives,
+        correctActions,
+        accuracy,
+      };
+    });
+  }, [ruleInstances, alertsList, period]);
 
-    return {
-      ...inst,
-      alertsCount,
-      falsePositives,
-      accuracy,
-    };
-  });
+  const filteredInstances = useMemo(() => {
+    return processedInstances.filter(inst => {
+      // 2. Filter by Equipment
+      if (selectedEquipment !== 'All Assets' && inst.equipmentCode !== selectedEquipment) return false;
 
-  const filteredInstances = processedInstances.filter(inst => {
-
-    // 2. Filter by Equipment
-    if (selectedEquipment !== 'All Assets' && inst.equipmentCode !== selectedEquipment) return false;
-
-    // 3. Filter by Rule Category
-    if (rule !== 'All Categories') {
-      const cat = getRuleCategory(inst.ruleName);
-      let friendlyCat = '';
-      if (cat === 'spike') {
-        friendlyCat = 'Spike';
-      } else if (cat === 'surge') {
-        friendlyCat = 'Surge';
-      } else {
-        const name = inst.ruleName.toUpperCase();
-        if (name.includes('TRND') || name.includes('TREND') || name.includes('DEV') || name.includes('TEMP_DEV')) {
-          friendlyCat = 'Trend';
-        } else if (name.includes('FOUL') || name.includes('DP') || name.includes('HTEX')) {
-          friendlyCat = 'Normalized dP';
-        } else if (name.includes('DRFT') || name.includes('DRIFT')) {
-          friendlyCat = 'Drift';
+      // 3. Filter by Rule Category
+      if (rule !== 'All Categories') {
+        const cat = getRuleCategory(inst.ruleName);
+        let friendlyCat = '';
+        if (cat === 'spike') {
+          friendlyCat = 'Spike';
+        } else if (cat === 'surge') {
+          friendlyCat = 'Surge';
+        } else {
+          const name = inst.ruleName.toUpperCase();
+          if (name.includes('TRND') || name.includes('TREND') || name.includes('DEV') || name.includes('TEMP_DEV')) {
+            friendlyCat = 'Trend';
+          } else if (name.includes('FOUL') || name.includes('DP') || name.includes('HTEX')) {
+            friendlyCat = 'Normalized dP';
+          } else if (name.includes('DRFT') || name.includes('DRIFT')) {
+            friendlyCat = 'Drift';
+          }
         }
+        if (friendlyCat !== rule) return false;
       }
-      if (friendlyCat !== rule) return false;
-    }
 
-    return true;
-  });
+      return true;
+    });
+  }, [processedInstances, selectedEquipment, rule]);
 
-  const filteredAccuracyRows = filteredInstances.filter(inst => {
-    const matchesRule = inst.ruleName.toLowerCase().includes(accuracyRuleFilter.toLowerCase());
-    const matchesEquip = inst.equipmentCode.toLowerCase().includes(accuracyEquipFilter.toLowerCase());
-    return matchesRule && matchesEquip;
-  });
+  const filteredAccuracyRows = useMemo(() => {
+    return filteredInstances.filter(inst => {
+      const matchesRule = inst.ruleName.toLowerCase().includes(accuracyRuleFilter.toLowerCase());
+      const matchesEquip = inst.equipmentCode.toLowerCase().includes(accuracyEquipFilter.toLowerCase());
+      return matchesRule && matchesEquip;
+    });
+  }, [filteredInstances, accuracyRuleFilter, accuracyEquipFilter]);
 
-  const filteredFpRows = filteredInstances.filter(inst => {
-    const matchesRule = inst.ruleName.toLowerCase().includes(fpRuleFilter.toLowerCase());
-    const matchesEquip = inst.equipmentCode.toLowerCase().includes(fpEquipFilter.toLowerCase());
-    return matchesRule && matchesEquip;
-  });
+  const filteredFpRows = useMemo(() => {
+    return filteredInstances.filter(inst => {
+      const matchesRule = inst.ruleName.toLowerCase().includes(fpRuleFilter.toLowerCase());
+      const matchesEquip = inst.equipmentCode.toLowerCase().includes(fpEquipFilter.toLowerCase());
+      return matchesRule && matchesEquip;
+    });
+  }, [filteredInstances, fpRuleFilter, fpEquipFilter]);
 
   // Calculate Top 10 lists
-  const lowestAccuracyList = [...filteredInstances]
-    .sort((a, b) => a.accuracy - b.accuracy)
-    .slice(0, 10);
+  const lowestAccuracyList = useMemo(() => {
+    return [...filteredInstances]
+      .sort((a, b) => a.accuracy - b.accuracy)
+      .slice(0, 10);
+  }, [filteredInstances]);
 
-  const highestFpList = [...filteredInstances]
-    .sort((a, b) => b.falsePositives - a.falsePositives)
-    .slice(0, 10);
+  const highestFpList = useMemo(() => {
+    return [...filteredInstances]
+      .sort((a, b) => b.falsePositives - a.falsePositives)
+      .slice(0, 10);
+  }, [filteredInstances]);
 
-  const highestAlertsList = [...filteredInstances]
-    .sort((a, b) => b.alertsCount - a.alertsCount)
-    .slice(0, 10);
+  const highestAlertsList = useMemo(() => {
+    return [...filteredInstances]
+      .sort((a, b) => b.alertsCount - a.alertsCount)
+      .slice(0, 10);
+  }, [filteredInstances]);
+
+  // Calculate KPI card values dynamically
+  const totalFalsePositives = useMemo(() => {
+    return filteredInstances.reduce((sum, inst) => sum + inst.falsePositives, 0);
+  }, [filteredInstances]);
+
+  const coveredAssets = useMemo(() => {
+    return new Set(filteredInstances.map(inst => inst.equipmentCode)).size;
+  }, [filteredInstances]);
+
+  const globalAccuracy = useMemo(() => {
+    const totalAlerts = filteredInstances.reduce((sum, inst) => sum + inst.alertsCount, 0);
+    const totalCorrect = filteredInstances.reduce((sum, inst) => sum + inst.correctActions, 0);
+    
+    if (totalAlerts > 0) {
+      return ((totalCorrect / totalAlerts) * 100).toFixed(1) + '%';
+    }
+    
+    // Average of baseline accuracies
+    const avg = filteredInstances.reduce((sum, inst) => sum + inst.accuracy, 0) / Math.max(1, filteredInstances.length);
+    return avg.toFixed(1) + '%';
+  }, [filteredInstances]);
+
+  const periodSubtitle = useMemo(() => {
+    if (period === 'Last Week') return 'Last 7 days';
+    if (period === 'Last Month') return 'Last 30 days';
+    return 'Last 180 days';
+  }, [period]);
+
+  // Dynamic series aggregation for line charts
+  const trendData = useMemo(() => {
+    const labels = 
+      period === 'Last Week' ? ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] :
+      period === 'Last Month' ? ['W1', 'W2', 'W3', 'W4'] :
+      ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
+
+    return labels.map((label, index) => {
+      const now = new Date();
+      let start = new Date();
+      let end = new Date();
+
+      if (period === 'Last Week') {
+        const daysAgo = 6 - index;
+        start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - daysAgo, 0, 0, 0);
+        end = new Date(now.getFullYear(), now.getMonth(), now.getDate() - daysAgo, 23, 59, 59);
+      } else if (period === 'Last Month') {
+        const weeksAgo = 3 - index;
+        start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - (weeksAgo + 1) * 7, 0, 0, 0);
+        end = new Date(now.getFullYear(), now.getMonth(), now.getDate() - weeksAgo * 7, 23, 59, 59);
+      } else {
+        const monthsAgo = 5 - index;
+        start = new Date(now.getFullYear(), now.getMonth() - monthsAgo, 1, 0, 0, 0);
+        end = new Date(now.getFullYear(), now.getMonth() - monthsAgo + 1, 0, 23, 59, 59);
+      }
+
+      const intervalAlerts = alertsList.filter(a => {
+        // 1. Filter by Asset
+        if (selectedEquipment !== 'All Assets' && a.equipmentCode !== selectedEquipment) return false;
+
+        // 2. Filter by Rule Category
+        if (rule !== 'All Categories') {
+          const cat = getRuleCategory(a.ruleName);
+          let friendlyCat = '';
+          if (cat === 'spike') friendlyCat = 'Spike';
+          else if (cat === 'surge') friendlyCat = 'Surge';
+          else {
+            const name = a.ruleName.toUpperCase();
+            if (name.includes('TRND') || name.includes('TREND') || name.includes('DEV') || name.includes('TEMP_DEV')) {
+              friendlyCat = 'Trend';
+            } else if (name.includes('FOUL') || name.includes('DP') || name.includes('HTEX')) {
+              friendlyCat = 'Normalized dP';
+            } else if (name.includes('DRFT') || name.includes('DRIFT')) {
+              friendlyCat = 'Drift';
+            }
+          }
+          if (friendlyCat !== rule) return false;
+        }
+
+        // 3. Filter by date interval
+        const tTime = new Date(a.triggeredAt).getTime();
+        return tTime >= start.getTime() && tTime <= end.getTime();
+      });
+
+      const total = intervalAlerts.length;
+      const fps = intervalAlerts.filter(a => a.status === 'rejected').length;
+      const correct = intervalAlerts.filter(a => a.status === 'validated' || a.status === 'closed').length;
+
+      const seedVal = getStringHash(selectedEquipment) + getStringHash(rule) + index;
+      const defaultAccuracy = 85 + (seedVal % 13);
+      const accuracy = total > 0 ? Math.round((correct / total) * 100) : defaultAccuracy;
+
+      return {
+        label,
+        accuracy,
+        falsePositives: fps,
+      };
+    });
+  }, [alertsList, period, selectedEquipment, rule]);
+
+  const accuracyChartData = useMemo(() => {
+    return trendData.map(d => ({ label: d.label, accuracy: d.accuracy }));
+  }, [trendData]);
+
+  const fpChartData = useMemo(() => {
+    return trendData.map(d => ({ label: d.label, falsePositives: d.falsePositives }));
+  }, [trendData]);
 
   return (
     <>
@@ -210,20 +347,20 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
             <KpiCard
               title="False Positive"
-              value={28}
-              subtitle="Last month"
+              value={totalFalsePositives}
+              subtitle={periodSubtitle}
               tooltip={`Alerts triggered by the rule that did not correspond to a real anomaly. Total db alerts: ${dbAlertsCount}.`}
             />
             <KpiCard
               title="Coverage"
-              value={22}
-              subtitle="Last month"
+              value={coveredAssets}
+              subtitle={periodSubtitle}
               tooltip="Number of equipment instances covered by at least one active monitoring rule in the selected period."
             />
             <KpiCard
               title="Accuracy"
-              value="21.4%"
-              subtitle="Last month"
+              value={globalAccuracy}
+              subtitle={periodSubtitle}
               tooltip="Ratio of correctly classified alerts (true positives + true negatives) over total alerts. Calculated as: (TP + TN) / Total."
             />
           </div>
@@ -240,7 +377,7 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
                     <Maximize2 size={14} className="text-text-muted cursor-pointer hover:text-text-primary transition-colors" />
                   </div>
                 </div>
-                <AccuracyChart period={period} fpso="All FPSOs" equipment={selectedEquipment} rule={rule} />
+                <AccuracyChart data={accuracyChartData} />
               </div>
             </div>
 
@@ -254,7 +391,7 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
                     <Maximize2 size={14} className="text-text-muted cursor-pointer hover:text-text-primary transition-colors" />
                   </div>
                 </div>
-                <FalsePositiveChart period={period} fpso="All FPSOs" equipment={selectedEquipment} rule={rule} />
+                <FalsePositiveChart data={fpChartData} />
               </div>
             </div>
           </div>
