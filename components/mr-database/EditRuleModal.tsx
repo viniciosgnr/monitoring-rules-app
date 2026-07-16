@@ -15,6 +15,7 @@ interface Props {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   steps: any;
   instanceId?: number;
+  enabled?: boolean;
 }
 
 const inputCls =
@@ -226,6 +227,7 @@ export default function EditRuleModal({
   equipmentCode,
   steps,
   instanceId,
+  enabled,
 }: Props) {
   const { role } = useUserRole();
   const isViewer = role === 'viewer';
@@ -389,6 +391,16 @@ export default function EditRuleModal({
           </div>
 
           <div className="border-t border-border-panel mb-6" />
+
+          {enabled === false && (
+            <div className="mb-6 flex items-start gap-2.5 p-3.5 rounded-card bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs leading-relaxed">
+              <Info size={16} className="text-amber-400 mt-0.5 flex-shrink-0" />
+              <div>
+                <span className="font-semibold block mb-0.5 text-amber-300">Monitoring Rule Instance is Disabled</span>
+                This instance is currently disabled. Modifications to these parameters will be saved, but the rule execution scheduler is paused for this asset.
+              </div>
+            </div>
+          )}
 
           {/* ── Descriptions & Forms depending on category ── */}
           {category === 'surge' && (

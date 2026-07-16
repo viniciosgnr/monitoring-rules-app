@@ -387,6 +387,7 @@ export default function RuleInstanceTable({ rows }: { rows: InstanceRow[] }) {
           equipmentCode={editRow.equipmentCode}
           steps={editRow.processingSteps as Record<string, { tags_to_apply?: string; period?: string }>}
           instanceId={editRow.id}
+          enabled={editRow.enabled}
         />
       )}
 
