@@ -112,22 +112,48 @@ async function seed() {
     })
   ).returning();
 
-  // Alerts — 12 records covering all 5 new status values and all monitoring rules
-  // to_be_validated: 4  |  validation_in_progress: 2  |  validated: 4  |  rejected: 1  |  closed: 1
-  await db.insert(alerts).values([
-    { instanceId: instances[0].id, type: 'Compressor Performance',  endDate: new Date('2026-02-24T08:00:00'), triggeredAt: new Date('2026-02-23T12:47:04'), reviewedAt: null,                              reviewedBy: null,      status: 'to_be_validated'        },
-    { instanceId: instances[0].id, type: 'Compressor Performance',  endDate: new Date('2026-02-25T08:00:00'), triggeredAt: new Date('2026-02-24T09:15:22'), reviewedAt: new Date('2026-02-24T14:30:00'),   reviewedBy: 'Jon Doe', status: 'validated'              },
-    { instanceId: instances[1].id, type: 'Turbine Temp Deviation',  endDate: new Date('2026-02-24T10:00:00'), triggeredAt: new Date('2026-02-23T14:22:11'), reviewedAt: null,                              reviewedBy: null,      status: 'to_be_validated'        },
-    { instanceId: instances[1].id, type: 'Turbine Temp Deviation',  endDate: new Date('2026-02-25T10:00:00'), triggeredAt: new Date('2026-02-24T11:05:44'), reviewedAt: new Date('2026-02-24T16:00:00'),   reviewedBy: 'Jon Doe', status: 'rejected'               },
-    { instanceId: instances[2].id, type: 'Pump Vibration Threshold',endDate: new Date('2026-02-24T12:00:00'), triggeredAt: new Date('2026-02-23T16:33:09'), reviewedAt: null,                              reviewedBy: null,      status: 'validation_in_progress' },
-    { instanceId: instances[2].id, type: 'Pump Vibration Threshold',endDate: new Date('2026-02-25T12:00:00'), triggeredAt: new Date('2026-02-24T13:48:55'), reviewedAt: new Date('2026-02-25T09:00:00'),   reviewedBy: 'Jon Doe', status: 'validated'              },
-    { instanceId: instances[3].id, type: 'Surge Margin Alert',      endDate: new Date('2026-02-24T14:00:00'), triggeredAt: new Date('2026-02-23T18:01:37'), reviewedAt: null,                              reviewedBy: null,      status: 'to_be_validated'        },
-    { instanceId: instances[3].id, type: 'Surge Margin Alert',      endDate: new Date('2026-02-25T14:00:00'), triggeredAt: new Date('2026-02-24T15:20:18'), reviewedAt: new Date('2026-02-25T10:30:00'),   reviewedBy: 'Jon Doe', status: 'validation_in_progress' },
-    { instanceId: instances[4].id, type: 'HX Fouling Index Alert',  endDate: new Date('2026-02-24T16:00:00'), triggeredAt: new Date('2026-02-23T20:15:52'), reviewedAt: new Date('2026-02-24T08:00:00'),   reviewedBy: 'Jon Doe', status: 'validated'              },
-    { instanceId: instances[4].id, type: 'HX Fouling Index Alert',  endDate: new Date('2026-02-25T16:00:00'), triggeredAt: new Date('2026-02-24T17:44:29'), reviewedAt: new Date('2026-02-25T11:00:00'),   reviewedBy: 'Jon Doe', status: 'closed'                },
-    { instanceId: instances[5].id, type: 'Turbine Lube Oil Drift',  endDate: new Date('2026-02-24T18:00:00'), triggeredAt: new Date('2026-02-23T22:30:00'), reviewedAt: null,                              reviewedBy: null,      status: 'to_be_validated'        },
-    { instanceId: instances[5].id, type: 'Turbine Lube Oil Drift',  endDate: new Date('2026-02-25T18:00:00'), triggeredAt: new Date('2026-02-24T23:15:00'), reviewedAt: new Date('2026-02-25T12:00:00'),   reviewedBy: 'Jon Doe', status: 'validated'              },
-  ]);
+  // Alerts — 80 records dynamically distributed relative to current run time covering all statuses and rules
+  const statusPool = ['to_be_validated', 'validation_in_progress', 'validated', 'rejected', 'closed'];
+  const typePool = [
+    'Compressor Performance', 'Turbine Temp Deviation', 'Pump Vibration Threshold', 'Surge Margin Alert', 'HX Fouling Index Alert', 'Turbine Lube Oil Drift'
+  ];
+
+  const alertsValues = [];
+  const nowMs = Date.now();
+
+  for (let i = 0; i < 80; i++) {
+    const inst = instances[i % instances.length];
+    const status = statusPool[i % statusPool.length];
+    const type = typePool[i % typePool.length];
+    
+    let daysAgo = 0;
+    if (i % 10 < 3) {
+      daysAgo = i % 7; // Last Week (0 to 6 days ago)
+    } else if (i % 10 < 7) {
+      daysAgo = 7 + (i % 23); // Last Month (7 to 29 days ago)
+    } else {
+      daysAgo = 30 + (i % 150); // Last 6 Months (30 to 179 days ago)
+    }
+
+    const triggeredAt = new Date(nowMs - daysAgo * 24 * 60 * 60 * 1000 - (i * 13 * 60 * 1000));
+    const endDate = new Date(triggeredAt.getTime() + 12 * 60 * 60 * 1000);
+    const reviewedAt = status !== 'to_be_validated' && status !== 'validation_in_progress'
+      ? new Date(triggeredAt.getTime() + 2 * 60 * 60 * 1000)
+      : null;
+    const reviewedBy = reviewedAt ? 'Jon Doe' : null;
+
+    alertsValues.push({
+      instanceId: inst.id,
+      type,
+      endDate,
+      triggeredAt,
+      reviewedAt,
+      reviewedBy,
+      status,
+    });
+  }
+
+  await db.insert(alerts).values(alertsValues);
 
   // Distribution of change types/descriptions to match mockup (Change Types):
   // Updated Abs Value tags: 19
