@@ -9,8 +9,8 @@
   --bg-panel: #ffffff;
   --bg-card: #ffffff;
   --border-panel: #cbd5e1;
-  --accent-blue: #004B87;       /* SLB DLS cobalt blue */
-  --accent-blue-dark: #003660;
+  --accent-blue: #0f4c81;       /* Classic SLB corporate blue */
+  --accent-blue-dark: #0a3356;
   --accent-purple: #8b5cf6;
   --accent-pink: #db2777;
   --accent-cyan: #0284c7;
@@ -19,7 +19,7 @@
   --status-warn: #d97706;
   --text-primary: #0f172a;      /* slate-900 */
   --text-muted: #475569;        /* slate-600 */
-  --topbar: #004B87;            /* Cobalt blue header */
+  --topbar: #ffffff;
   --bg-input: #ffffff;
   --bg-banner: #eff6ff;         /* Light blue info banner background */
   --bg-highlight: #f1f5f9;      /* Light gray comparison context background */
@@ -31,8 +31,8 @@
   --bg-panel: #111827;
   --bg-card: #141e2e;
   --border-panel: #1e2a3a;
-  --accent-blue: #004B87;       /* SLB DLS cobalt blue */
-  --accent-blue-dark: #003660;
+  --accent-blue: #0ea5e9;
+  --accent-blue-dark: #1d4ed8;
   --accent-purple: #a855f7;
   --accent-pink: #ec4899;
   --accent-cyan: #22d3ee;
@@ -41,7 +41,7 @@
   --status-warn: #f59e0b;
   --text-primary: #e2e8f0;
   --text-muted: #64748b;
-  --topbar: #004B87;            /* Cobalt blue header */
+  --topbar: #0c1220;
   --bg-input: #0b0f1a;
   --bg-banner: #0b1329;         /* Dark blue info banner background */
   --bg-highlight: #080c14;      /* Dark gray comparison context background */
