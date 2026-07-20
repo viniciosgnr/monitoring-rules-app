@@ -15,7 +15,7 @@ export default function NavTabs({ title }: { title: string }) {
   return (
     <div className="flex items-center justify-between pt-10 px-6 bg-bg-base border-b border-border-panel">
       <div className="flex items-center gap-2 py-3">
-        <div className="w-7 h-7 rounded-full bg-accent-blue-dark flex items-center justify-center text-white border border-[#1e40af] shadow-md shadow-accent-blue/10">
+        <div className="w-7 h-7 rounded-full bg-accent-blue-dark flex items-center justify-center text-white border border-accent-blue-dark/50 shadow-md shadow-accent-blue/10">
           <Network size={14} />
         </div>
         <ArrowLeft size={18} className="text-text-muted cursor-pointer hover:text-text-primary transition-colors ml-1 mr-0.5" />

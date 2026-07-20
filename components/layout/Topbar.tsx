@@ -28,7 +28,7 @@ export default function Topbar({ breadcrumb }: { breadcrumb: string }) {
   const initials = role === 'admin' ? 'AD' : 'VW';
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 h-10 bg-topbar border-b border-border-panel flex items-center justify-between px-4">
+    <header className="fixed top-0 left-0 right-0 z-50 h-10 bg-topbar border-b border-[#003660] flex items-center justify-between px-4">
       <div className="flex items-center gap-3">
         {/* SLB Logo — larger to match Figma */}
         <Image
@@ -37,15 +37,15 @@ export default function Topbar({ breadcrumb }: { breadcrumb: string }) {
           width={68}
           height={32}
           priority
-          className="h-8 w-auto object-contain"
+          className="h-8 w-auto object-contain brightness-0 invert"
         />
         {/* Breadcrumb */}
-        <nav className="flex items-center gap-1 text-xs text-text-muted">
-          <Home size={13} className="flex-shrink-0" />
-          <span className="mx-1">›</span>
-          <span>Monitoring Rules</span>
-          <span className="mx-1">›</span>
-          <span className="text-text-primary font-medium">{breadcrumb}</span>
+        <nav className="flex items-center gap-1 text-xs text-white/80">
+          <Home size={13} className="flex-shrink-0 text-white/80" />
+          <span className="mx-1 text-white/40">›</span>
+          <span className="text-white/80">Monitoring Rules</span>
+          <span className="mx-1 text-white/40">›</span>
+          <span className="text-white font-medium">{breadcrumb}</span>
         </nav>
       </div>
       <div className="flex items-center gap-3">
@@ -53,18 +53,18 @@ export default function Topbar({ breadcrumb }: { breadcrumb: string }) {
         <button
           onClick={toggleTheme}
           aria-label="Toggle theme"
-          className="text-text-muted hover:text-text-primary p-1 rounded hover:bg-bg-base/50 transition-colors flex items-center justify-center cursor-pointer"
+          className="text-white/80 hover:text-white p-1 rounded hover:bg-white/10 transition-colors flex items-center justify-center cursor-pointer"
         >
           {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
         </button>
-
-        <HelpCircle size={16} className="text-text-muted hover:text-text-primary cursor-pointer transition-colors" />
-
+ 
+        <HelpCircle size={16} className="text-white/80 hover:text-white cursor-pointer transition-colors p-0.5 rounded hover:bg-white/10" />
+ 
         {/* User Profile Selector Dropdown */}
         <div className="relative flex items-center" ref={dropdownRef}>
           <button
             onClick={() => setDropdownOpen(!dropdownOpen)}
-            className="w-7 h-7 rounded-full bg-accent-blue-dark hover:bg-accent-blue flex items-center justify-center text-xs font-semibold text-white select-none cursor-pointer transition-colors"
+            className="w-7 h-7 rounded-full bg-white/10 border border-white/20 hover:bg-white/20 flex items-center justify-center text-xs font-semibold text-white select-none cursor-pointer transition-colors"
           >
             {initials}
           </button>
