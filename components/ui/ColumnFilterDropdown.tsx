@@ -1,6 +1,6 @@
 'use client';
 import React, { useState, useRef, useEffect } from 'react';
-import { SlidersHorizontal, Search, Check, Minus } from 'lucide-react';
+import { SlidersHorizontal, Search, Check, Minus, ChevronDown } from 'lucide-react';
 
 interface ColumnFilterDropdownProps {
   title?: string;
@@ -8,6 +8,7 @@ interface ColumnFilterDropdownProps {
   selectedValues: string[];
   onChange: (newSelected: string[]) => void;
   placeholder?: string;
+  variant?: 'table' | 'select';
 }
 
 export default function ColumnFilterDropdown({
@@ -16,6 +17,7 @@ export default function ColumnFilterDropdown({
   selectedValues,
   onChange,
   placeholder = 'Filter...',
+  variant = 'table',
 }: ColumnFilterDropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -67,22 +69,39 @@ export default function ColumnFilterDropdown({
     : '';
 
   return (
-    <div className="relative font-normal mt-1.5" ref={dropdownRef}>
+    <div className={`relative font-normal ${variant === 'table' ? 'mt-1.5' : ''}`} ref={dropdownRef}>
       {/* Trigger Box */}
-      <button
-        type="button"
-        onClick={() => setIsOpen(!isOpen)}
-        className={`w-full flex items-center justify-between gap-1 text-[11px] py-0.5 border-b transition-colors cursor-pointer text-left ${
-          isFiltered
-            ? 'border-accent-blue text-accent-blue font-medium'
-            : 'border-border-panel/70 text-text-muted hover:border-text-muted'
-        }`}
-      >
-        <span className="truncate max-w-[120px]" title={summaryText || placeholder}>
-          {summaryText || <span className="opacity-60">{placeholder}</span>}
-        </span>
-        <SlidersHorizontal size={11} className={`flex-shrink-0 ${isFiltered ? 'text-accent-blue' : 'text-text-muted'}`} />
-      </button>
+      {variant === 'select' ? (
+        <button
+          type="button"
+          onClick={() => setIsOpen(!isOpen)}
+          className={`flex items-center justify-between gap-2 px-3 py-1.5 text-xs rounded border transition-colors cursor-pointer ${
+            isFiltered
+              ? 'bg-bg-panel border-accent-blue text-accent-blue font-medium'
+              : 'bg-bg-panel border-border-panel text-text-primary hover:border-accent-blue'
+          }`}
+        >
+          <span className="truncate max-w-[140px]" title={summaryText || placeholder}>
+            {summaryText || placeholder}
+          </span>
+          <ChevronDown size={14} className={`flex-shrink-0 transition-transform ${isOpen ? 'rotate-180 text-accent-blue' : 'text-text-muted'}`} />
+        </button>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setIsOpen(!isOpen)}
+          className={`w-full flex items-center justify-between gap-1 text-[11px] py-0.5 border-b transition-colors cursor-pointer text-left ${
+            isFiltered
+              ? 'border-accent-blue text-accent-blue font-medium'
+              : 'border-border-panel/70 text-text-muted hover:border-text-muted'
+          }`}
+        >
+          <span className="truncate max-w-[120px]" title={summaryText || placeholder}>
+            {summaryText || <span className="opacity-60">{placeholder}</span>}
+          </span>
+          <SlidersHorizontal size={11} className={`flex-shrink-0 ${isFiltered ? 'text-accent-blue' : 'text-text-muted'}`} />
+        </button>
+      )}
 
       {/* Popover Dropdown */}
       {isOpen && (

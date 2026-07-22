@@ -9,7 +9,7 @@ import StatusAlertsChart from './StatusAlertsChart';
 import { SlidersHorizontal, Maximize2 } from 'lucide-react';
 
 const PERIODS = ['Last Week', 'Last Month', 'Last 6 month'];
-const CATEGORIES = ['All Categories', 'Drift', 'Spike', 'Surge', 'Trend', 'Normalized dP'];
+const CATEGORIES_LIST = ['Drift', 'Spike', 'Surge', 'Trend', 'Normalized dP'];
 
 interface RuleInstanceRow {
   id: number;
@@ -70,8 +70,8 @@ function Sel({ value, onChange, options }: { value: string; onChange: (v: string
 export default function AnalyticsClient({ equipments, ruleInstances, alertsList }: Props) {
   const [activeTab, setActiveTab] = useState<'overview' | 'bad_actors'>('overview');
   const [period, setPeriod] = useState('Last Week');
-  const [selectedEquipment, setSelectedEquipment] = useState('All Assets');
-  const [rule, setRule] = useState('All Categories');
+  const [selectedEquipments, setSelectedEquipments] = useState<string[]>([]);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [top10Tab, setTop10Tab] = useState<'lowest_accuracy' | 'highest_fp' | 'highest_alerts'>('lowest_accuracy');
 
   // Local column filters for Overview breakdown tables
@@ -121,16 +121,18 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
 
   const filteredInstances = useMemo(() => {
     return processedInstances.filter(inst => {
-      if (selectedEquipment !== 'All Assets' && inst.equipmentCode !== selectedEquipment) return false;
+      if (selectedEquipments.length > 0 && selectedEquipments.length < equipments.length && !selectedEquipments.includes(inst.equipmentCode)) {
+        return false;
+      }
 
-      if (rule !== 'All Categories') {
+      if (selectedCategories.length > 0 && selectedCategories.length < CATEGORIES_LIST.length) {
         const cat = getRuleFriendlyCategory(inst.ruleName);
-        if (cat !== rule) return false;
+        if (!selectedCategories.includes(cat)) return false;
       }
 
       return true;
     });
-  }, [processedInstances, selectedEquipment, rule]);
+  }, [processedInstances, selectedEquipments, selectedCategories, equipments]);
 
   const accuracyRuleOpts = useMemo(() => Array.from(new Set(filteredInstances.map(i => i.ruleName))).filter(Boolean).sort(), [filteredInstances]);
   const accuracyEquipOpts = useMemo(() => Array.from(new Set(filteredInstances.map(i => i.equipmentCode))).filter(Boolean).sort(), [filteredInstances]);
@@ -228,12 +230,14 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
 
       const intervalAlerts = alertsList.filter(a => {
         // 1. Filter by Asset
-        if (selectedEquipment !== 'All Assets' && a.equipmentCode !== selectedEquipment) return false;
+        if (selectedEquipments.length > 0 && selectedEquipments.length < equipments.length && !selectedEquipments.includes(a.equipmentCode)) {
+          return false;
+        }
 
         // 2. Filter by Rule Category
-        if (rule !== 'All Categories') {
+        if (selectedCategories.length > 0 && selectedCategories.length < CATEGORIES_LIST.length) {
           const friendlyCat = getRuleFriendlyCategory(a.ruleName);
-          if (friendlyCat !== rule) return false;
+          if (!selectedCategories.includes(friendlyCat)) return false;
         }
 
         // 3. Filter by date interval
@@ -245,7 +249,7 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
       const fps = intervalAlerts.filter(a => a.status === 'rejected').length;
       const correct = intervalAlerts.filter(a => a.status === 'validated' || a.status === 'closed').length;
 
-      const seedVal = getStringHash(selectedEquipment) + getStringHash(rule) + index;
+      const seedVal = getStringHash(selectedEquipments.join('')) + getStringHash(selectedCategories.join('')) + index;
       const defaultAccuracy = 85 + (seedVal % 13);
       const accuracy = total > 0 ? Math.round((correct / total) * 100) : defaultAccuracy;
 
@@ -265,7 +269,7 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
         closedCount: intervalAlerts.filter(a => a.status === 'closed').length,
       };
     });
-  }, [alertsList, period, selectedEquipment, rule]);
+  }, [alertsList, period, selectedEquipments, selectedCategories, equipments]);
 
   const accuracyChartData = useMemo(() => {
     return trendData.map(d => ({ label: d.label, accuracy: d.accuracy }));
@@ -304,10 +308,22 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
         <div className="flex items-center gap-2">
           <span className="text-xs font-semibold text-text-muted uppercase tracking-wider">Analysis Filters</span>
         </div>
-        <div className="flex flex-wrap gap-3">
+        <div className="flex flex-wrap gap-3 items-center">
           <Sel value={period} onChange={setPeriod} options={PERIODS} />
-          <Sel value={selectedEquipment} onChange={setSelectedEquipment} options={['All Assets', ...equipments]} />
-          <Sel value={rule} onChange={setRule} options={CATEGORIES} />
+          <ColumnFilterDropdown
+            variant="select"
+            placeholder="All Assets"
+            options={equipments}
+            selectedValues={selectedEquipments}
+            onChange={setSelectedEquipments}
+          />
+          <ColumnFilterDropdown
+            variant="select"
+            placeholder="All Categories"
+            options={CATEGORIES_LIST}
+            selectedValues={selectedCategories}
+            onChange={setSelectedCategories}
+          />
         </div>
       </div>
 
@@ -521,7 +537,7 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
                   <Maximize2 size={14} className="text-text-muted cursor-pointer hover:text-text-primary transition-colors" />
                 </div>
               </div>
-              <RuleAlertsChart data={ruleAlertsChartData} rule={rule} />
+              <RuleAlertsChart data={ruleAlertsChartData} selectedCategories={selectedCategories} />
             </div>
 
             {/* Alerts Treated by Status */}
