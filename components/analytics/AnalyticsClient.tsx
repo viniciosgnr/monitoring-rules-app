@@ -80,8 +80,6 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
   const [fpRuleSelected, setFpRuleSelected] = useState<string[]>([]);
   const [fpEquipSelected, setFpEquipSelected] = useState<string[]>([]);
 
-  const dbAlertsCount = alertsList?.length || 0;
-
   // Process rules instances dynamically based on alert database logs
   const processedInstances = useMemo(() => {
     return ruleInstances.map(inst => {
@@ -359,19 +357,19 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
               title="False Positive"
               value={totalFalsePositives}
               subtitle={periodSubtitle}
-              tooltip={`Alerts triggered by the rule that did not correspond to a real anomaly. Total db alerts: ${dbAlertsCount}.`}
+              tooltip="Number of alerts triggered by rules that were rejected by operators as false alarms (did not correspond to a real anomaly) in the selected period."
             />
             <KpiCard
               title="Coverage"
               value={coveredAssets}
               subtitle={periodSubtitle}
-              tooltip="Number of equipment instances covered by at least one active monitoring rule in the selected period."
+              tooltip="Number of unique assets (equipment) protected by at least one active monitoring rule instance in the selected period."
             />
             <KpiCard
               title="Accuracy"
               value={globalAccuracy}
               subtitle={periodSubtitle}
-              tooltip="Ratio of correctly classified alerts (true positives + true negatives) over total alerts. Calculated as: (TP + TN) / Total."
+              tooltip="Ratio of validated alerts (true positives) over total reviewed alerts. Calculated as: TP / (TP + FP)."
             />
           </div>
 
