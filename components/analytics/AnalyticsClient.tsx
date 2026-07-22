@@ -1,6 +1,7 @@
 'use client';
 import { useState, useMemo } from 'react';
 import KpiCard from '@/components/ui/KpiCard';
+import ColumnFilterDropdown from '@/components/ui/ColumnFilterDropdown';
 import AccuracyChart from './AccuracyChart';
 import FalsePositiveChart from './FalsePositiveChart';
 import RuleAlertsChart from './RuleAlertsChart';
@@ -35,22 +36,14 @@ interface Props {
   alertsList: AlertRow[];
 }
 
-function getRuleCategory(ruleName: string): 'surge' | 'spike' | 'generic' {
-  const name = ruleName.toUpperCase();
-  if (name.includes('SPK') || name.includes('SPIKE')) return 'spike';
-  if (name.includes('SURG') || name.includes('THR') || name.includes('TME_NRS')) return 'surge';
-  return 'generic';
-}
-
 function getRuleFriendlyCategory(ruleName: string): string {
-  const cat = getRuleCategory(ruleName);
-  if (cat === 'spike') return 'Spike';
-  if (cat === 'surge') return 'Surge';
   const name = ruleName.toUpperCase();
+  if (name.includes('DRFT') || name.includes('DRIFT')) return 'Drift';
+  if (name.includes('SPK') || name.includes('SPIKE')) return 'Spike';
+  if (name.includes('SURG') || name.includes('THR') || name.includes('VIB_THR')) return 'Surge';
   if (name.includes('TRND') || name.includes('TREND') || name.includes('DEV') || name.includes('TEMP_DEV')) return 'Trend';
   if (name.includes('FOUL') || name.includes('DP') || name.includes('HTEX')) return 'Normalized dP';
-  if (name.includes('DRFT') || name.includes('DRIFT')) return 'Drift';
-  return 'Other';
+  return 'Trend';
 }
 
 function getStringHash(str: string): number {
@@ -74,20 +67,6 @@ function Sel({ value, onChange, options }: { value: string; onChange: (v: string
   );
 }
 
-function TableFilterInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
-  return (
-    <div className="flex items-center gap-1 mt-1.5 font-normal">
-      <input
-        value={value}
-        onChange={e => onChange(e.target.value)}
-        className="filter-input text-text-primary"
-        placeholder="Filter..."
-      />
-      <SlidersHorizontal size={11} className="text-text-muted flex-shrink-0" />
-    </div>
-  );
-}
-
 export default function AnalyticsClient({ equipments, ruleInstances, alertsList }: Props) {
   const [activeTab, setActiveTab] = useState<'overview' | 'bad_actors'>('overview');
   const [period, setPeriod] = useState('Last Week');
@@ -96,10 +75,10 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
   const [top10Tab, setTop10Tab] = useState<'lowest_accuracy' | 'highest_fp' | 'highest_alerts'>('lowest_accuracy');
 
   // Local column filters for Overview breakdown tables
-  const [accuracyRuleFilter, setAccuracyRuleFilter] = useState('');
-  const [accuracyEquipFilter, setAccuracyEquipFilter] = useState('');
-  const [fpRuleFilter, setFpRuleFilter] = useState('');
-  const [fpEquipFilter, setFpEquipFilter] = useState('');
+  const [accuracyRuleSelected, setAccuracyRuleSelected] = useState<string[]>([]);
+  const [accuracyEquipSelected, setAccuracyEquipSelected] = useState<string[]>([]);
+  const [fpRuleSelected, setFpRuleSelected] = useState<string[]>([]);
+  const [fpEquipSelected, setFpEquipSelected] = useState<string[]>([]);
 
   const dbAlertsCount = alertsList?.length || 0;
 
@@ -108,10 +87,8 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
     return ruleInstances.map(inst => {
       const id = inst.id;
       
-      // Filter alerts belonging to this instance and falling within selected period
-      const instAlerts = alertsList.filter(a => {
+      const instanceAlerts = (alertsList || []).filter(a => {
         if (a.instanceId !== id) return false;
-        
         const date = new Date(a.triggeredAt);
         const now = new Date();
         const diffMs = now.getTime() - date.getTime();
@@ -124,11 +101,10 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
         return true;
       });
 
-      const alertsCount = instAlerts.length;
-      const falsePositives = instAlerts.filter(a => a.status === 'rejected').length;
-      const correctActions = instAlerts.filter(a => a.status === 'validated' || a.status === 'closed').length;
+      const alertsCount = instanceAlerts.length;
+      const falsePositives = instanceAlerts.filter(a => a.status === 'rejected').length;
+      const correctActions = instanceAlerts.filter(a => a.status === 'validated' || a.status === 'closed').length;
       
-      // Accuracy calculation: if no alerts, generate baseline from id seed
       const accuracy = alertsCount > 0
         ? parseFloat(((correctActions / alertsCount) * 100).toFixed(1))
         : parseFloat((85 + ((id * 23) % 14.5)).toFixed(1));
@@ -145,49 +121,37 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
 
   const filteredInstances = useMemo(() => {
     return processedInstances.filter(inst => {
-      // 2. Filter by Equipment
       if (selectedEquipment !== 'All Assets' && inst.equipmentCode !== selectedEquipment) return false;
 
-      // 3. Filter by Rule Category
       if (rule !== 'All Categories') {
-        const cat = getRuleCategory(inst.ruleName);
-        let friendlyCat = '';
-        if (cat === 'spike') {
-          friendlyCat = 'Spike';
-        } else if (cat === 'surge') {
-          friendlyCat = 'Surge';
-        } else {
-          const name = inst.ruleName.toUpperCase();
-          if (name.includes('TRND') || name.includes('TREND') || name.includes('DEV') || name.includes('TEMP_DEV')) {
-            friendlyCat = 'Trend';
-          } else if (name.includes('FOUL') || name.includes('DP') || name.includes('HTEX')) {
-            friendlyCat = 'Normalized dP';
-          } else if (name.includes('DRFT') || name.includes('DRIFT')) {
-            friendlyCat = 'Drift';
-          }
-        }
-        if (friendlyCat !== rule) return false;
+        const cat = getRuleFriendlyCategory(inst.ruleName);
+        if (cat !== rule) return false;
       }
 
       return true;
     });
   }, [processedInstances, selectedEquipment, rule]);
 
+  const accuracyRuleOpts = useMemo(() => Array.from(new Set(filteredInstances.map(i => i.ruleName))).filter(Boolean).sort(), [filteredInstances]);
+  const accuracyEquipOpts = useMemo(() => Array.from(new Set(filteredInstances.map(i => i.equipmentCode))).filter(Boolean).sort(), [filteredInstances]);
+  const fpRuleOpts = useMemo(() => Array.from(new Set(filteredInstances.map(i => i.ruleName))).filter(Boolean).sort(), [filteredInstances]);
+  const fpEquipOpts = useMemo(() => Array.from(new Set(filteredInstances.map(i => i.equipmentCode))).filter(Boolean).sort(), [filteredInstances]);
+
   const filteredAccuracyRows = useMemo(() => {
     return filteredInstances.filter(inst => {
-      const matchesRule = inst.ruleName.toLowerCase().includes(accuracyRuleFilter.toLowerCase());
-      const matchesEquip = inst.equipmentCode.toLowerCase().includes(accuracyEquipFilter.toLowerCase());
-      return matchesRule && matchesEquip;
+      const matchRule = accuracyRuleSelected.length === 0 || accuracyRuleSelected.length === accuracyRuleOpts.length || accuracyRuleSelected.includes(inst.ruleName);
+      const matchEquip = accuracyEquipSelected.length === 0 || accuracyEquipSelected.length === accuracyEquipOpts.length || accuracyEquipSelected.includes(inst.equipmentCode);
+      return matchRule && matchEquip;
     });
-  }, [filteredInstances, accuracyRuleFilter, accuracyEquipFilter]);
+  }, [filteredInstances, accuracyRuleSelected, accuracyRuleOpts, accuracyEquipSelected, accuracyEquipOpts]);
 
   const filteredFpRows = useMemo(() => {
     return filteredInstances.filter(inst => {
-      const matchesRule = inst.ruleName.toLowerCase().includes(fpRuleFilter.toLowerCase());
-      const matchesEquip = inst.equipmentCode.toLowerCase().includes(fpEquipFilter.toLowerCase());
-      return matchesRule && matchesEquip;
+      const matchRule = fpRuleSelected.length === 0 || fpRuleSelected.length === fpRuleOpts.length || fpRuleSelected.includes(inst.ruleName);
+      const matchEquip = fpEquipSelected.length === 0 || fpEquipSelected.length === fpEquipOpts.length || fpEquipSelected.includes(inst.equipmentCode);
+      return matchRule && matchEquip;
     });
-  }, [filteredInstances, fpRuleFilter, fpEquipFilter]);
+  }, [filteredInstances, fpRuleSelected, fpRuleOpts, fpEquipSelected, fpEquipOpts]);
 
   // Calculate Top 10 lists
   const lowestAccuracyList = useMemo(() => {
@@ -268,20 +232,7 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
 
         // 2. Filter by Rule Category
         if (rule !== 'All Categories') {
-          const cat = getRuleCategory(a.ruleName);
-          let friendlyCat = '';
-          if (cat === 'spike') friendlyCat = 'Spike';
-          else if (cat === 'surge') friendlyCat = 'Surge';
-          else {
-            const name = a.ruleName.toUpperCase();
-            if (name.includes('TRND') || name.includes('TREND') || name.includes('DEV') || name.includes('TEMP_DEV')) {
-              friendlyCat = 'Trend';
-            } else if (name.includes('FOUL') || name.includes('DP') || name.includes('HTEX')) {
-              friendlyCat = 'Normalized dP';
-            } else if (name.includes('DRFT') || name.includes('DRIFT')) {
-              friendlyCat = 'Drift';
-            }
-          }
+          const friendlyCat = getRuleFriendlyCategory(a.ruleName);
           if (friendlyCat !== rule) return false;
         }
 
@@ -452,11 +403,21 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
                     <tr className="border-b border-border-panel bg-bg-panel/40 select-none">
                       <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary whitespace-nowrap">
                         Rule / Instance
-                        <TableFilterInput value={accuracyRuleFilter} onChange={setAccuracyRuleFilter} />
+                        <ColumnFilterDropdown
+                          title="Rule / Instance"
+                          options={accuracyRuleOpts}
+                          selectedValues={accuracyRuleSelected.length === 0 ? accuracyRuleOpts : accuracyRuleSelected}
+                          onChange={setAccuracyRuleSelected}
+                        />
                       </th>
                       <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary whitespace-nowrap">
                         Asset
-                        <TableFilterInput value={accuracyEquipFilter} onChange={setAccuracyEquipFilter} />
+                        <ColumnFilterDropdown
+                          title="Asset"
+                          options={accuracyEquipOpts}
+                          selectedValues={accuracyEquipSelected.length === 0 ? accuracyEquipOpts : accuracyEquipSelected}
+                          onChange={setAccuracyEquipSelected}
+                        />
                       </th>
                       <th className="text-right px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary whitespace-nowrap">Evaluations</th>
                       <th className="text-right px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary whitespace-nowrap">Correct</th>
@@ -499,11 +460,21 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
                     <tr className="border-b border-border-panel bg-bg-panel/40 select-none">
                       <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary whitespace-nowrap">
                         Rule / Instance
-                        <TableFilterInput value={fpRuleFilter} onChange={setFpRuleFilter} />
+                        <ColumnFilterDropdown
+                          title="Rule / Instance"
+                          options={fpRuleOpts}
+                          selectedValues={fpRuleSelected.length === 0 ? fpRuleOpts : fpRuleSelected}
+                          onChange={setFpRuleSelected}
+                        />
                       </th>
                       <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary whitespace-nowrap">
                         Asset
-                        <TableFilterInput value={fpEquipFilter} onChange={setFpEquipFilter} />
+                        <ColumnFilterDropdown
+                          title="Asset"
+                          options={fpEquipOpts}
+                          selectedValues={fpEquipSelected.length === 0 ? fpEquipOpts : fpEquipSelected}
+                          onChange={setFpEquipSelected}
+                        />
                       </th>
                       <th className="text-right px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary whitespace-nowrap">Alerts</th>
                       <th className="text-right px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary whitespace-nowrap">False Positives</th>

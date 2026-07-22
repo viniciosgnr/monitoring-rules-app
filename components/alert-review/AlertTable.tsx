@@ -3,8 +3,9 @@ import React, { useState, useMemo, useEffect } from 'react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import EquipmentBadge from '@/components/ui/EquipmentBadge';
 import StatusBadge from '@/components/ui/StatusBadge';
+import ColumnFilterDropdown from '@/components/ui/ColumnFilterDropdown';
 import { updateAlertStatus } from '@/app/actions/alerts';
-import { SlidersHorizontal, ChevronDown, ChevronRight } from 'lucide-react';
+import { ChevronDown, ChevronRight } from 'lucide-react';
 import type { Status } from '@/components/ui/StatusBadge';
 
 interface AlertRow {
@@ -79,7 +80,6 @@ export function getEventId(row: AlertRow): string {
   const year = dateStr ? new Date(dateStr).getFullYear() : 2026;
   const yearTwoDigits = String(year).slice(-2);
 
-  // Acronym mapping
   const t = (row.type || '').toLowerCase();
   let acronym = 'EV';
   if (t.includes('fouling') || t.includes('foul')) acronym = 'FW';
@@ -98,12 +98,11 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
     setMounted(true);
   }, []);
 
-  const [data, setData]     = useState(rows);
-  const [period, setPeriod] = useState('All Time');
-  const [filters, setFilters]           = useState<Record<string, string>>({});
+  const [data, setData]                 = useState(rows);
+  const [period, setPeriod]             = useState('All Time');
+  const [selectedFilters, setSelectedFilters] = useState<Record<string, string[]>>({});
   const [statusScope, setStatusScope]   = useState<'pending' | 'reviewed' | 'all'>('pending');
   const [expandedRules, setExpandedRules] = useState<Set<string>>(() => {
-    // Default: expand all rules that have to_be_validated alerts
     const s = new Set<string>();
     rows.forEach(r => {
       if (r.status === 'to_be_validated') {
@@ -130,7 +129,6 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
     await updateAlertStatus(id, status);
   }
 
-  // Pre-calculate Event ID and Time Open duration so they are searchable/filterable
   const enrichedRows = useMemo(() => {
     return data.map(r => ({
       ...r,
@@ -139,10 +137,24 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
     }));
   }, [data]);
 
-  // Filter rows (column-level + rule search + period + statusScope filtering)
+  const columnOptions = useMemo(() => {
+    const opts: Record<string, string[]> = {
+      eventId: Array.from(new Set(enrichedRows.map(r => r.eventId))).filter(Boolean).sort(),
+      equipmentCode: Array.from(new Set(enrichedRows.map(r => r.equipmentCode))).filter(Boolean).sort(),
+      ruleName: Array.from(new Set(enrichedRows.map(r => getFriendlyRuleName(r.ruleName)))).filter(Boolean).sort(),
+      type: Array.from(new Set(enrichedRows.map(r => r.type))).filter(Boolean).sort(),
+      triggeredAt: Array.from(new Set(enrichedRows.map(r => r.triggeredAt))).filter(Boolean).sort(),
+      endDate: Array.from(new Set(enrichedRows.map(r => r.endDate))).filter(Boolean).sort(),
+      timeOpen: Array.from(new Set(enrichedRows.map(r => r.timeOpen))).filter(Boolean).sort(),
+      status: Array.from(new Set(enrichedRows.map(r => r.status))).filter(Boolean).sort(),
+      reviewedAt: Array.from(new Set(enrichedRows.map(r => r.reviewedAt))).filter(Boolean).sort(),
+      reviewedBy: Array.from(new Set(enrichedRows.map(r => r.reviewedBy))).filter(Boolean).sort(),
+    };
+    return opts;
+  }, [enrichedRows]);
+
   const filtered = useMemo(() => {
     return enrichedRows.filter(r => {
-      // Filter by statusScope
       if (statusScope === 'pending') {
         const isPending = r.status === 'to_be_validated' || r.status === 'validation_in_progress';
         if (!isPending) return false;
@@ -151,7 +163,6 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
         if (!isReviewed) return false;
       }
 
-      // Period filtering
       if (period !== 'All Time' && r.triggeredAtRaw) {
         const date = new Date(r.triggeredAtRaw);
         const now = new Date();
@@ -162,12 +173,23 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
         if (period === 'Last 3 Months' && diffMs > oneDay * 90) return false;
       }
 
-      const colMatch = Object.entries(filters).every(([k, v]) =>
-        !v || String((r as Record<string, unknown>)[k]).toLowerCase().includes(v.toLowerCase())
-      );
+      const colMatch = Object.entries(selectedFilters).every(([colKey, selectedList]) => {
+        if (!selectedList || selectedList.length === 0) return true;
+        const options = columnOptions[colKey] || [];
+        if (selectedList.length === options.length) return true;
+
+        let val = '';
+        if (colKey === 'ruleName') {
+          val = getFriendlyRuleName(r.ruleName);
+        } else {
+          val = String((r as Record<string, unknown>)[colKey] ?? '');
+        }
+
+        return selectedList.includes(val);
+      });
       return colMatch;
     });
-  }, [enrichedRows, filters, period, statusScope]);
+  }, [enrichedRows, selectedFilters, columnOptions, period, statusScope]);
 
   // Group by friendlyName, sorted: rules with to_be_validated alerts first
   const groups = useMemo(() => {
@@ -190,16 +212,23 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
     });
   }, [filtered]);
 
-  function FilterInput({ field }: { field: string }) {
+  function TableColumnFilter({ field, label }: { field: string; label: string }) {
+    const opts = columnOptions[field] || [];
+    const currentSelected = selectedFilters[field] ?? opts;
+
     return (
-      <div className="flex items-center gap-1 mt-1.5">
-        <input
-          value={filters[field] ?? ''}
-          onChange={e => { setFilters(f => ({ ...f, [field]: e.target.value })); }}
-          className="filter-input"
-        />
-        <SlidersHorizontal size={11} className="text-text-muted flex-shrink-0" />
-      </div>
+      <ColumnFilterDropdown
+        title={label}
+        options={opts}
+        selectedValues={currentSelected}
+        onChange={(newSelected) => {
+          setSelectedFilters(prev => ({
+            ...prev,
+            [field]: newSelected,
+          }));
+        }}
+        placeholder="Filter..."
+      />
     );
   }
 
@@ -277,43 +306,43 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
               {/* Event ID */}
               <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary whitespace-nowrap">
                 Event ID
-                <FilterInput field="eventId" />
+                <TableColumnFilter field="eventId" label="Event ID" />
               </th>
               <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary whitespace-nowrap">
                 Asset
-                <FilterInput field="equipmentCode" />
+                <TableColumnFilter field="equipmentCode" label="Asset" />
               </th>
               <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary whitespace-nowrap">
                 Rule
-                <FilterInput field="ruleName" />
+                <TableColumnFilter field="ruleName" label="Rule" />
               </th>
               <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary whitespace-nowrap">
                 Type
-                <FilterInput field="type" />
+                <TableColumnFilter field="type" label="Type" />
               </th>
               <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary whitespace-nowrap">
                 Triggered At
-                <FilterInput field="triggeredAt" />
+                <TableColumnFilter field="triggeredAt" label="Triggered At" />
               </th>
               <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary whitespace-nowrap">
                 End Date
-                <FilterInput field="endDate" />
+                <TableColumnFilter field="endDate" label="End Date" />
               </th>
               <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary whitespace-nowrap">
                 Time Open
-                <FilterInput field="timeOpen" />
+                <TableColumnFilter field="timeOpen" label="Time Open" />
               </th>
               <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary">
                 Status
-                <FilterInput field="status" />
+                <TableColumnFilter field="status" label="Status" />
               </th>
               <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary whitespace-nowrap">
                 Reviewed At
-                <FilterInput field="reviewedAt" />
+                <TableColumnFilter field="reviewedAt" label="Reviewed At" />
               </th>
               <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary whitespace-nowrap">
                 Reviewed By
-                <FilterInput field="reviewedBy" />
+                <TableColumnFilter field="reviewedBy" label="Reviewed By" />
               </th>
             </tr>
           </thead>

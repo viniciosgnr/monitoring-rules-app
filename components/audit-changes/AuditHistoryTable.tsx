@@ -2,8 +2,9 @@
 import React, { useState, useMemo } from 'react';
 import EquipmentBadge from '@/components/ui/EquipmentBadge';
 import Pagination from '@/components/ui/Pagination';
+import ColumnFilterDropdown from '@/components/ui/ColumnFilterDropdown';
 import * as Dialog from '@radix-ui/react-dialog';
-import { SlidersHorizontal, ChevronDown, ChevronRight, Download, X } from 'lucide-react';
+import { ChevronDown, ChevronRight, Download, X } from 'lucide-react';
 
 interface AuditEntry {
   id: number;
@@ -33,17 +34,31 @@ function getFriendlyRuleName(ruleName: string): string {
 }
 
 export default function AuditHistoryTable({ rows }: { rows: AuditEntry[] }) {
-  const [page, setPage]           = useState(1);
-  const [pageSize, setPageSize]   = useState(5);
-  const [filters, setFilters]     = useState<Record<string, string>>({});
-  const [showExportModal, setShowExportModal] = useState(false);
-  const [period, setPeriod]       = useState('All Time');
+  const [page, setPage]                         = useState(1);
+  const [pageSize, setPageSize]                 = useState(5);
+  const [selectedFilters, setSelectedFilters] = useState<Record<string, string[]>>({});
+  const [showExportModal, setShowExportModal]   = useState(false);
+  const [period, setPeriod]                     = useState('All Time');
 
   const [expandedRules, setExpandedRules] = useState<Set<string>>(() => {
     const s = new Set<string>();
     rows.forEach(r => s.add(getFriendlyRuleName(r.ruleName)));
     return s;
   });
+
+  const columnOptions = useMemo(() => {
+    const opts: Record<string, string[]> = {
+      timestamp: Array.from(new Set(rows.map(r => r.timestamp))).filter(Boolean).sort(),
+      userEmail: Array.from(new Set(rows.map(r => r.userEmail))).filter(Boolean).sort(),
+      equipmentCode: Array.from(new Set(rows.map(r => r.equipmentCode))).filter(Boolean).sort(),
+      system: Array.from(new Set(rows.map(r => r.system))).filter(Boolean).sort(),
+      subsystem: Array.from(new Set(rows.map(r => r.subsystem))).filter(Boolean).sort(),
+      ruleName: Array.from(new Set(rows.map(r => getFriendlyRuleName(r.ruleName)))).filter(Boolean).sort(),
+      description: Array.from(new Set(rows.map(r => r.description))).filter(Boolean).sort(),
+      paramChanges: Array.from(new Set(rows.map(r => r.paramChanges))).filter(Boolean).sort(),
+    };
+    return opts;
+  }, [rows]);
 
   function toggleRule(friendlyName: string) {
     setExpandedRules(prev => {
@@ -93,11 +108,23 @@ export default function AuditHistoryTable({ rows }: { rows: AuditEntry[] }) {
         if (period === 'Last Month' && diffMs > oneDay * 30) return false;
         if (period === 'Last 3 Months' && diffMs > oneDay * 90) return false;
       }
-      return Object.entries(filters).every(([k, v]) =>
-        !v || String((r as Record<string, unknown>)[k]).toLowerCase().includes(v.toLowerCase())
-      );
+      return Object.entries(selectedFilters).every(([colKey, selectedList]) => {
+        if (!selectedList || selectedList.length === 0) return true;
+        const options = columnOptions[colKey] || [];
+        if (selectedList.length === options.length) return true;
+
+        let val = '';
+        if (colKey === 'ruleName') {
+          val = getFriendlyRuleName(r.ruleName);
+        } else {
+          val = String((r as Record<string, unknown>)[colKey] ?? '');
+        }
+
+        return selectedList.includes(val);
+      });
     });
-  }, [rows, filters, period]);
+  }, [rows, selectedFilters, columnOptions, period]);
+
   const paged = filtered.slice((page - 1) * pageSize, page * pageSize);
 
   const groups = useMemo(() => {
@@ -111,16 +138,24 @@ export default function AuditHistoryTable({ rows }: { rows: AuditEntry[] }) {
     return Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0]));
   }, [paged]);
 
-  function FilterInput({ field }: { field: string }) {
+  function TableColumnFilter({ field, label }: { field: string; label: string }) {
+    const opts = columnOptions[field] || [];
+    const currentSelected = selectedFilters[field] ?? opts;
+
     return (
-      <div className="flex items-center gap-1 mt-1.5">
-        <input
-          value={filters[field] ?? ''}
-          onChange={e => { setFilters(f => ({ ...f, [field]: e.target.value })); setPage(1); }}
-          className="filter-input"
-        />
-        <SlidersHorizontal size={11} className="text-text-muted flex-shrink-0" />
-      </div>
+      <ColumnFilterDropdown
+        title={label}
+        options={opts}
+        selectedValues={currentSelected}
+        onChange={(newSelected) => {
+          setSelectedFilters(prev => ({
+            ...prev,
+            [field]: newSelected,
+          }));
+          setPage(1);
+        }}
+        placeholder="Filter..."
+      />
     );
   }
 
@@ -170,7 +205,7 @@ export default function AuditHistoryTable({ rows }: { rows: AuditEntry[] }) {
                 {cols.map(([f, l]) => (
                   <th key={f} className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary whitespace-nowrap">
                     {l}
-                    <FilterInput field={f} />
+                    <TableColumnFilter field={f} label={l} />
                   </th>
                 ))}
               </tr>

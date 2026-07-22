@@ -4,9 +4,10 @@ import * as Switch from '@radix-ui/react-switch';
 import * as Dialog from '@radix-ui/react-dialog';
 import EquipmentBadge from '@/components/ui/EquipmentBadge';
 import Pagination from '@/components/ui/Pagination';
+import ColumnFilterDropdown from '@/components/ui/ColumnFilterDropdown';
 import EditRuleModal from './EditRuleModal';
 import { toggleInstance, toggleInstancesBulk } from '@/app/actions/ruleInstances';
-import { SlidersHorizontal, ChevronDown, ChevronRight, Download, X } from 'lucide-react';
+import { ChevronDown, ChevronRight, Download, X } from 'lucide-react';
 import { useUserRole } from '@/components/context/UserRoleContext';
 
 interface InstanceRow {
@@ -42,11 +43,27 @@ export default function RuleInstanceTable({ rows }: { rows: InstanceRow[] }) {
   const { role } = useUserRole();
   const isViewer = role === 'viewer';
 
-  const [data, setData]         = useState(rows);
-  const [page, setPage]         = useState(1);
-  const [pageSize, setPageSize] = useState(5);
-  const [filters, setFilters]   = useState<Record<string, string>>({});
-  const [editRow, setEditRow]   = useState<InstanceRow | null>(null);
+  const [data, setData]                 = useState(rows);
+  const [page, setPage]                 = useState(1);
+  const [pageSize, setPageSize]         = useState(5);
+  const [selectedFilters, setSelectedFilters] = useState<Record<string, string[]>>({});
+  const [editRow, setEditRow]           = useState<InstanceRow | null>(null);
+
+  // Dynamic distinct options per column
+  const columnOptions = useMemo(() => {
+    const opts: Record<string, string[]> = {
+      equipmentCode: Array.from(new Set(data.map(r => r.equipmentCode))).filter(Boolean).sort(),
+      timeseries: Array.from(new Set(data.map(r => r.timeseries))).filter(Boolean).sort(),
+      system: Array.from(new Set(data.map(r => r.system))).filter(Boolean).sort(),
+      subsystem: Array.from(new Set(data.map(r => r.subsystem))).filter(Boolean).sort(),
+      ruleName: Array.from(new Set(data.map(r => getFriendlyRuleName(r.ruleName)))).filter(Boolean).sort(),
+      schedule: Array.from(new Set(data.map(r => r.schedule))).filter(Boolean).sort(),
+      lastRunAt: Array.from(new Set(data.map(r => r.lastRunAt ? new Date(r.lastRunAt).toLocaleDateString('pt-BR') : ''))).filter(Boolean).sort(),
+      nextRunAt: Array.from(new Set(data.map(r => r.nextRunAt ? new Date(r.nextRunAt).toLocaleDateString('pt-BR') : ''))).filter(Boolean).sort(),
+      deactivatedUntil: Array.from(new Set(data.map(r => r.deactivatedUntil ? new Date(r.deactivatedUntil).toLocaleDateString('pt-BR') : ''))).filter(Boolean).sort(),
+    };
+    return opts;
+  }, [data]);
 
   // Disable Modal States
   const [disableRow, setDisableRow] = useState<InstanceRow | null>(null);
@@ -81,9 +98,23 @@ export default function RuleInstanceTable({ rows }: { rows: InstanceRow[] }) {
   }
 
   const filtered = data.filter(r =>
-    Object.entries(filters).every(([k, v]) =>
-      !v || String((r as Record<string, unknown>)[k]).toLowerCase().includes(v.toLowerCase())
-    )
+    Object.entries(selectedFilters).every(([colKey, selectedList]) => {
+      if (!selectedList || selectedList.length === 0) return true;
+      const options = columnOptions[colKey] || [];
+      if (selectedList.length === options.length) return true;
+
+      let val = '';
+      if (colKey === 'ruleName') {
+        val = getFriendlyRuleName(r.ruleName);
+      } else if (colKey === 'lastRunAt' || colKey === 'nextRunAt' || colKey === 'deactivatedUntil') {
+        const raw = r[colKey] as string | null;
+        val = raw ? new Date(raw).toLocaleDateString('pt-BR') : '';
+      } else {
+        val = String((r as Record<string, unknown>)[colKey] ?? '');
+      }
+
+      return selectedList.includes(val);
+    })
   );
 
   const paginatedInstances = useMemo(() => {
@@ -197,16 +228,24 @@ export default function RuleInstanceTable({ rows }: { rows: InstanceRow[] }) {
     document.body.removeChild(link);
   }
 
-  function FilterInput({ field }: { field: string }) {
+  function TableColumnFilter({ field, label }: { field: string; label: string }) {
+    const opts = columnOptions[field] || [];
+    const currentSelected = selectedFilters[field] ?? opts;
+
     return (
-      <div className="flex items-center gap-1 mt-1.5">
-        <input
-          value={filters[field] ?? ''}
-          onChange={e => { setFilters(f => ({ ...f, [field]: e.target.value })); setPage(1); }}
-          className="filter-input"
-        />
-        <SlidersHorizontal size={11} className="text-text-muted flex-shrink-0" />
-      </div>
+      <ColumnFilterDropdown
+        title={label}
+        options={opts}
+        selectedValues={currentSelected}
+        onChange={(newSelected) => {
+          setSelectedFilters(prev => ({
+            ...prev,
+            [field]: newSelected,
+          }));
+          setPage(1);
+        }}
+        placeholder="Filter..."
+      />
     );
   }
 
@@ -245,7 +284,7 @@ export default function RuleInstanceTable({ rows }: { rows: InstanceRow[] }) {
               {cols.map(([field, label]) => (
                 <th key={field} className="text-left px-4 py-2 text-xs font-medium text-text-muted whitespace-nowrap">
                   {label}
-                  <FilterInput field={field} />
+                  <TableColumnFilter field={field} label={label} />
                 </th>
               ))}
               <th className="px-4 py-2 w-12" />
