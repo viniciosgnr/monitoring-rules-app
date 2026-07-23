@@ -173,10 +173,6 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
   }, [filteredInstances]);
 
   // Calculate KPI card values dynamically
-  const totalFalsePositives = useMemo(() => {
-    return filteredInstances.reduce((sum, inst) => sum + inst.falsePositives, 0);
-  }, [filteredInstances]);
-
   const coveredAssets = useMemo(() => {
     return new Set(filteredInstances.map(inst => inst.equipmentCode)).size;
   }, [filteredInstances]);
@@ -193,6 +189,18 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
     const avg = filteredInstances.reduce((sum, inst) => sum + inst.accuracy, 0) / Math.max(1, filteredInstances.length);
     return avg.toFixed(1) + '%';
   }, [filteredInstances]);
+
+  const globalFalsePositiveRate = useMemo(() => {
+    const totalAlerts = filteredInstances.reduce((sum, inst) => sum + inst.alertsCount, 0);
+    const totalFP = filteredInstances.reduce((sum, inst) => sum + inst.falsePositives, 0);
+
+    if (totalAlerts > 0) {
+      return ((totalFP / totalAlerts) * 100).toFixed(1) + '%';
+    }
+
+    const accNum = parseFloat(globalAccuracy);
+    return (100 - (isNaN(accNum) ? 87.5 : accNum)).toFixed(1) + '%';
+  }, [filteredInstances, globalAccuracy]);
 
   const periodSubtitle = useMemo(() => {
     if (period === 'Last Week') return 'Last 7 days';
@@ -351,25 +359,25 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
 
       {activeTab === 'overview' && (
         <>
-          {/* KPI Cards */}
+          {/* KPI Cards: Accuracy -> False Positive (%) -> Coverage */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
             <KpiCard
-              title="False Positive"
-              value={totalFalsePositives}
+              title="Accuracy"
+              value={globalAccuracy}
               subtitle={periodSubtitle}
-              tooltip="Number of alerts triggered by rules that were rejected by operators as false alarms (did not correspond to a real anomaly) in the selected period."
+              tooltip="Ratio of validated alerts (true positives) over total reviewed alerts. Calculated as: TP / (TP + FP)."
+            />
+            <KpiCard
+              title="False Positive"
+              value={globalFalsePositiveRate}
+              subtitle={periodSubtitle}
+              tooltip="Percentage of triggered alerts rejected by operators as false alarms (did not correspond to a real anomaly). Calculated as: FP / Total Alerts."
             />
             <KpiCard
               title="Coverage"
               value={coveredAssets}
               subtitle={periodSubtitle}
               tooltip="Number of unique assets (equipment) protected by at least one active monitoring rule instance in the selected period."
-            />
-            <KpiCard
-              title="Accuracy"
-              value={globalAccuracy}
-              subtitle={periodSubtitle}
-              tooltip="Ratio of validated alerts (true positives) over total reviewed alerts. Calculated as: TP / (TP + FP)."
             />
           </div>
 
