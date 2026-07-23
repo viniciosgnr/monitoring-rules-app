@@ -692,13 +692,9 @@ export default function RuleInstanceTable({ rows }: { rows: InstanceRow[] }) {
                 <X size={18} />
               </Dialog.Close>
             </div>
-            <p className="text-xs text-text-muted mb-4 leading-relaxed">
-              Are you sure you want to re-enable monitoring for instance <span className="font-bold text-text-primary">{enableRow?.ruleName}</span> on asset <span className="font-mono text-text-primary font-semibold">{enableRow?.equipmentCode}</span>?
+            <p className="text-xs text-text-muted mb-6 leading-relaxed">
+              Are you sure you want to enable monitoring for instance <span className="font-bold text-text-primary">{enableRow?.ruleName}</span> on asset <span className="font-mono text-text-primary font-semibold">{enableRow?.equipmentCode}</span>?
             </p>
-            <div className="bg-emerald-500/10 border border-emerald-500/20 rounded p-3 text-xs text-emerald-400 mb-6 leading-relaxed">
-              <p className="font-semibold mb-0.5">Scheduled Routine Resumption:</p>
-              Reactivating will resume scheduled rule evaluations ({enableRow?.schedule}) for this asset and remove any active temporary deactivation date.
-            </div>
 
             <div className="flex justify-end gap-3 border-t border-border-panel pt-4">
               <button
@@ -709,7 +705,7 @@ export default function RuleInstanceTable({ rows }: { rows: InstanceRow[] }) {
               </button>
               <button
                 onClick={confirmEnable}
-                className="px-4 py-2 text-sm rounded bg-emerald-600 text-white font-medium hover:bg-emerald-700 transition-colors cursor-pointer"
+                className="px-4 py-2 text-sm rounded bg-accent-blue text-white font-medium hover:bg-accent-blue-dark transition-colors cursor-pointer"
               >
                 Enable Instance
               </button>
@@ -722,7 +718,7 @@ export default function RuleInstanceTable({ rows }: { rows: InstanceRow[] }) {
       <Dialog.Root open={!!enableGroupData} onOpenChange={v => !v && setEnableGroupData(null)}>
         <Dialog.Portal>
           <Dialog.Overlay className="fixed inset-0 bg-black/60 z-50 backdrop-blur-sm" />
-          <Dialog.Content className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[460px] bg-bg-panel rounded-card border border-border-panel p-6 shadow-2xl">
+          <Dialog.Content className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[440px] bg-bg-panel rounded-card border border-border-panel p-6 shadow-2xl">
             <div className="flex items-center justify-between mb-4">
               <Dialog.Title className="text-base font-semibold text-text-primary">
                 Enable All Rule Instances (Bulk)
@@ -731,13 +727,9 @@ export default function RuleInstanceTable({ rows }: { rows: InstanceRow[] }) {
                 <X size={18} />
               </Dialog.Close>
             </div>
-            <p className="text-xs text-text-muted mb-4 leading-relaxed">
-              Are you sure you want to enable all disabled instances for rule <span className="font-bold text-text-primary">{enableGroupData?.friendlyName}</span>?
+            <p className="text-xs text-text-muted mb-6 leading-relaxed">
+              Are you sure you want to enable all {enableGroupData?.rows.filter(r => !r.enabled).length} disabled instances for rule <span className="font-bold text-text-primary">{enableGroupData?.friendlyName}</span>?
             </p>
-            <div className="bg-emerald-500/10 border border-emerald-500/20 rounded p-3 text-xs text-emerald-400 mb-6 leading-relaxed">
-              <p className="font-semibold mb-0.5">Batch Activation Alert:</p>
-              This action will reactivate {enableGroupData?.rows.filter(r => !r.enabled).length} disabled instance(s) across equipment: <span className="font-mono font-semibold text-text-primary">{enableGroupData?.rows.filter(r => !r.enabled).map(r => r.equipmentCode).join(', ')}</span> and resume their scheduled monitoring routines.
-            </div>
 
             <div className="flex justify-end gap-3 border-t border-border-panel pt-4">
               <button
@@ -748,7 +740,7 @@ export default function RuleInstanceTable({ rows }: { rows: InstanceRow[] }) {
               </button>
               <button
                 onClick={confirmGroupEnable}
-                className="px-4 py-2 text-sm rounded bg-emerald-600 text-white font-medium hover:bg-emerald-700 transition-colors cursor-pointer"
+                className="px-4 py-2 text-sm rounded bg-accent-blue text-white font-medium hover:bg-accent-blue-dark transition-colors cursor-pointer"
               >
                 Enable {enableGroupData?.rows.filter(r => !r.enabled).length} Instance(s)
               </button>
