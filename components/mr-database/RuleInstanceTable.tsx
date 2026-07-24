@@ -9,7 +9,7 @@ import EditRuleModal from './EditRuleModal';
 import { toggleInstance, toggleInstancesBulk } from '@/app/actions/ruleInstances';
 import { ChevronDown, ChevronRight, Download, X } from 'lucide-react';
 import { useUserRole } from '@/components/context/UserRoleContext';
-import * as XLSX from 'xlsx';
+import { exportBrandedExcel } from '@/lib/excelExportUtils';
 
 interface InstanceRow {
   id: number;
@@ -251,24 +251,14 @@ export default function RuleInstanceTable({ rows }: { rows: InstanceRow[] }) {
       ];
     });
 
-    const ws = XLSX.utils.aoa_to_sheet([headers, ...dataRows]);
-    ws['!cols'] = [
-      { wch: 16 }, // Asset
-      { wch: 24 }, // Timeseries
-      { wch: 20 }, // System
-      { wch: 20 }, // Subsystem
-      { wch: 28 }, // Rule
-      { wch: 12 }, // Schedule
-      { wch: 18 }, // Last Run At
-      { wch: 18 }, // Next Run At
-      { wch: 18 }, // Disabled Until
-      { wch: 10 }, // Enabled
-      { wch: 60 }, // Rule Parameters (JSON)
-    ];
-
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Rule Catalog');
-    XLSX.writeFile(wb, 'monitoring_rule_catalog.xlsx');
+    exportBrandedExcel({
+      sheetName: 'Rule Catalog',
+      title: 'Monitoring Rules Management',
+      originTab: 'Monitoring Rule Instance Catalog',
+      headers,
+      rows: dataRows,
+      filename: 'monitoring_rule_catalog.xlsx',
+    });
   }
 
   function TableColumnFilter({ field, label }: { field: string; label: string }) {

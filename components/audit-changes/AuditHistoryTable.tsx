@@ -5,7 +5,7 @@ import Pagination from '@/components/ui/Pagination';
 import ColumnFilterDropdown from '@/components/ui/ColumnFilterDropdown';
 import * as Dialog from '@radix-ui/react-dialog';
 import { ChevronDown, ChevronRight, Download, X } from 'lucide-react';
-import * as XLSX from 'xlsx';
+import { exportBrandedExcel } from '@/lib/excelExportUtils';
 
 interface AuditEntry {
   id: number;
@@ -84,21 +84,14 @@ export default function AuditHistoryTable({ rows }: { rows: AuditEntry[] }) {
       row.paramChanges || ''
     ]);
 
-    const ws = XLSX.utils.aoa_to_sheet([headers, ...dataRows]);
-    ws['!cols'] = [
-      { wch: 18 }, // Last Updated Time
-      { wch: 25 }, // User
-      { wch: 16 }, // Asset
-      { wch: 20 }, // System
-      { wch: 20 }, // Subsystem
-      { wch: 28 }, // RuleName
-      { wch: 30 }, // Description
-      { wch: 45 }, // Parameter Changes
-    ];
-
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Audit History');
-    XLSX.writeFile(wb, 'mr_audit_history.xlsx');
+    exportBrandedExcel({
+      sheetName: 'Audit History',
+      title: 'Monitoring Rules Management',
+      originTab: 'Audit History',
+      headers,
+      rows: dataRows,
+      filename: 'mr_audit_history.xlsx',
+    });
   }
 
   const filtered = useMemo(() => {
