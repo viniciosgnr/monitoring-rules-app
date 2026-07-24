@@ -10,7 +10,7 @@ export default function AccuracyChart({ data }: Props) {
     <ResponsiveContainer width="100%" height={220}>
       <LineChart data={data} margin={{ top: 10, right: 10, left: -10, bottom: 20 }}>
         <CartesianGrid strokeDasharray="3 3" stroke="#1e2a3a" />
-        <XAxis dataKey="label" tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false} />
+        <XAxis dataKey="label" tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false} minTickGap={20} />
         <YAxis tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false} domain={[0, 100]} ticks={[0, 20, 40, 60, 80, 100]} />
         <Tooltip
           contentStyle={{ background: '#111827', border: '1px solid #1e2a3a', borderRadius: 4, color: '#e2e8f0' }}

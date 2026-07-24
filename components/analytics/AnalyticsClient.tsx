@@ -210,29 +210,40 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
 
   // Dynamic series aggregation for line charts
   const trendData = useMemo(() => {
-    const labels = 
-      period === 'Last Week' ? ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] :
-      period === 'Last Month' ? ['W1', 'W2', 'W3', 'W4'] :
-      ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
+    const bucketsCount = period === 'Last Week' ? 7 : period === 'Last Month' ? 30 : 6;
 
-    return labels.map((label, index) => {
+    const buckets = Array.from({ length: bucketsCount }, (_, index) => {
       const now = new Date();
       let start = new Date();
       let end = new Date();
+      let label = '';
 
       if (period === 'Last Week') {
+        const labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+        label = labels[index] || `Day ${index + 1}`;
         const daysAgo = 6 - index;
         start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - daysAgo, 0, 0, 0);
         end = new Date(now.getFullYear(), now.getMonth(), now.getDate() - daysAgo, 23, 59, 59);
       } else if (period === 'Last Month') {
-        const weeksAgo = 3 - index;
-        start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - (weeksAgo + 1) * 7, 0, 0, 0);
-        end = new Date(now.getFullYear(), now.getMonth(), now.getDate() - weeksAgo * 7, 23, 59, 59);
+        const daysAgo = 29 - index;
+        const targetDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - daysAgo);
+        const dayStr = String(targetDate.getDate()).padStart(2, '0');
+        const monthStr = String(targetDate.getMonth() + 1).padStart(2, '0');
+        label = `${dayStr}/${monthStr}`;
+        start = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 0, 0, 0);
+        end = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 23, 59, 59);
       } else {
+        const labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
+        label = labels[index] || `M${index + 1}`;
         const monthsAgo = 5 - index;
         start = new Date(now.getFullYear(), now.getMonth() - monthsAgo, 1, 0, 0, 0);
         end = new Date(now.getFullYear(), now.getMonth() - monthsAgo + 1, 0, 23, 59, 59);
       }
+
+      return { label, start, end, index };
+    });
+
+    return buckets.map(({ label, start, end, index }) => {
 
       const intervalAlerts = alertsList.filter(a => {
         // 1. Filter by Asset
