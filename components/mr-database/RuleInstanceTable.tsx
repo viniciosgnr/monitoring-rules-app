@@ -9,6 +9,7 @@ import EditRuleModal from './EditRuleModal';
 import { toggleInstance, toggleInstancesBulk } from '@/app/actions/ruleInstances';
 import { ChevronDown, ChevronRight, Download, X } from 'lucide-react';
 import { useUserRole } from '@/components/context/UserRoleContext';
+import * as XLSX from 'xlsx';
 
 interface InstanceRow {
   id: number;
@@ -207,10 +208,21 @@ export default function RuleInstanceTable({ rows }: { rows: InstanceRow[] }) {
   }
 
   function downloadExcel() {
-    const headers = ['Asset', 'Timeseries', 'System', 'Subsystem', 'Rule', 'Schedule', 'Last Run At', 'Next Run At', 'Disabled Until', 'Enabled'];
-    const csvRows = [headers.join(',')];
+    const headers = [
+      'Asset',
+      'Timeseries',
+      'System',
+      'Subsystem',
+      'Rule',
+      'Schedule',
+      'Last Run At',
+      'Next Run At',
+      'Disabled Until',
+      'Enabled',
+      'Rule Parameters (JSON)'
+    ];
 
-    for (const row of filtered) {
+    const dataRows = filtered.map(row => {
       let disabledUntilStr = '—';
       if (!row.enabled) {
         if (!row.deactivatedUntil) {
@@ -222,29 +234,41 @@ export default function RuleInstanceTable({ rows }: { rows: InstanceRow[] }) {
         }
       }
 
-      const values = [
-        row.equipmentCode,
-        row.timeseries,
-        row.system,
-        row.subsystem,
-        row.ruleName,
-        row.schedule,
-        row.lastRunAt,
-        row.nextRunAt,
-        disabledUntilStr,
-        row.enabled ? 'Yes' : 'No'
-      ].map(val => `"${String(val).replace(/"/g, '""')}"`);
-      csvRows.push(values.join(','));
-    }
+      const paramsJson = row.processingSteps ? JSON.stringify(row.processingSteps) : '{}';
 
-    const csvContent = 'data:text/csv;charset=utf-8,\uFEFF' + csvRows.join('\n');
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    link.setAttribute('download', 'monitoring_rule_catalog.csv');
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+      return [
+        row.equipmentCode || '',
+        row.timeseries || '',
+        row.system || '',
+        row.subsystem || '',
+        row.ruleName || '',
+        row.schedule || '',
+        row.lastRunAt || '',
+        row.nextRunAt || '',
+        disabledUntilStr,
+        row.enabled ? 'Yes' : 'No',
+        paramsJson,
+      ];
+    });
+
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...dataRows]);
+    ws['!cols'] = [
+      { wch: 16 }, // Asset
+      { wch: 24 }, // Timeseries
+      { wch: 20 }, // System
+      { wch: 20 }, // Subsystem
+      { wch: 28 }, // Rule
+      { wch: 12 }, // Schedule
+      { wch: 18 }, // Last Run At
+      { wch: 18 }, // Next Run At
+      { wch: 18 }, // Disabled Until
+      { wch: 10 }, // Enabled
+      { wch: 60 }, // Rule Parameters (JSON)
+    ];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Rule Catalog');
+    XLSX.writeFile(wb, 'monitoring_rule_catalog.xlsx');
   }
 
   function TableColumnFilter({ field, label }: { field: string; label: string }) {

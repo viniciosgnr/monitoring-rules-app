@@ -5,6 +5,7 @@ import Pagination from '@/components/ui/Pagination';
 import ColumnFilterDropdown from '@/components/ui/ColumnFilterDropdown';
 import * as Dialog from '@radix-ui/react-dialog';
 import { ChevronDown, ChevronRight, Download, X } from 'lucide-react';
+import * as XLSX from 'xlsx';
 
 interface AuditEntry {
   id: number;
@@ -71,30 +72,33 @@ export default function AuditHistoryTable({ rows }: { rows: AuditEntry[] }) {
 
   function downloadExcel() {
     const headers = ['Last Updated Time', 'User', 'Asset', 'System', 'Subsystem', 'RuleName', 'Description', 'Parameter Changes'];
-    const csvRows = [headers.join(',')];
 
-    for (const row of filtered) {
-      const values = [
-        row.timestamp,
-        row.userEmail,
-        row.equipmentCode,
-        row.system,
-        row.subsystem,
-        row.ruleName,
-        row.description,
-        row.paramChanges
-      ].map(val => `"${String(val).replace(/"/g, '""')}"`);
-      csvRows.push(values.join(','));
-    }
+    const dataRows = filtered.map(row => [
+      row.timestamp || '',
+      row.userEmail || '',
+      row.equipmentCode || '',
+      row.system || '',
+      row.subsystem || '',
+      row.ruleName || '',
+      row.description || '',
+      row.paramChanges || ''
+    ]);
 
-    const csvContent = 'data:text/csv;charset=utf-8,\uFEFF' + csvRows.join('\n');
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    link.setAttribute('download', 'mr_audit_history.csv');
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...dataRows]);
+    ws['!cols'] = [
+      { wch: 18 }, // Last Updated Time
+      { wch: 25 }, // User
+      { wch: 16 }, // Asset
+      { wch: 20 }, // System
+      { wch: 20 }, // Subsystem
+      { wch: 28 }, // RuleName
+      { wch: 30 }, // Description
+      { wch: 45 }, // Parameter Changes
+    ];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Audit History');
+    XLSX.writeFile(wb, 'mr_audit_history.xlsx');
   }
 
   const filtered = useMemo(() => {
