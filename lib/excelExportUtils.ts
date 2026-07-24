@@ -65,7 +65,7 @@ export async function exportBrandedExcel({
     });
     worksheet.addImage(logoId, {
       tl: { col: 0, row: 0 },
-      ext: { width: 140, height: 50 },
+      ext: { width: 70, height: 64 },
     });
   }
 

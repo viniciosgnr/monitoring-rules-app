@@ -38,72 +38,108 @@ async function seed() {
     { fpsoId: uny.id, code: 'MMA-100-PUM-0423',  name: 'Pump 0423' },              // 10
     { fpsoId: uny.id, code: 'PIO-310-HX-0146',   name: 'Heat Exchanger 0146' },    // 11
     { fpsoId: uny.id, code: 'PIO-220-TRB-0313',  name: 'Turbine 0313' },           // 12
+    { fpsoId: uny.id, code: 'SEP-500-VES-0101',  name: 'Separator Vessel 0101' },  // 13
+    { fpsoId: uny.id, code: 'SEP-500-VES-0102',  name: 'Separator Vessel 0102' },  // 14
+    { fpsoId: uny.id, code: 'GEN-600-ALT-0201',  name: 'Generator Alternator 0201' },// 15
   ]).returning();
 
 
-  const processingSteps = {
-    abs_value:       { tags_to_apply: 'RUN' },
-    drop_missing:    { tags_to_apply: 'all' },
-    join_timeseries: { tags_to_apply: 'all' },
-    round_timestamp: { period: 'min', tags_to_apply: 'all' },
+  const processingStepsSpike = {
+    rule_trigger_params: [
+      {
+        spike_detection: {
+          height: null,
+          threshold: null,
+          distance: 50,
+          prominence: 1,
+        }
+      }
+    ]
   };
 
-  // Monitoring Rules — names follow the {EQUIP}_{SYS}_{TYPE}_{NN} convention (e.g. COCE_GEN_SPK_01)
+  const processingStepsSurge = {
+    rule_trigger_params: [
+      {
+        threshold_comparison: {
+          value: 150,
+          operator: 'gt',
+        }
+      }
+    ]
+  };
+
+  // Monitoring Rules — names follow the {EQUIP}_{SYS}_{TYPE}_{NN} convention
   const rules = await db.insert(monitoringRules).values([
-    { name: 'COCE_GEN_SPK_01',   description: 'Compressor general spark monitoring',      processingSteps },
-    { name: 'TURB_TEMP_TRND_03',  description: 'Turbine temperature trend monitoring',     processingSteps: {} },
-    { name: 'PUMP_VIB_THR_02',   description: 'Pump vibration threshold',                 processingSteps: {} },
-    { name: 'COCE_SURG_MGN_06',  description: 'Compressor surge margin monitoring',        processingSteps: {} },
-    { name: 'HTEX_NORM_DP_04',   description: 'Heat exchanger normalized dP',              processingSteps: {} },
-    { name: 'TURB_OIL_DRFT_05',   description: 'Turbine lube oil drift monitoring',        processingSteps: {} },
+    { name: 'COCE_GEN_SPK_01',   description: 'Compressor general spark monitoring',      processingSteps: processingStepsSpike },
+    { name: 'TURB_TEMP_TRND_03',  description: 'Turbine temperature trend monitoring',     processingSteps: { threshold: 10 } },
+    { name: 'PUMP_VIB_THR_02',   description: 'Pump vibration threshold',                 processingSteps: processingStepsSurge },
+    { name: 'COCE_SURG_MGN_06',  description: 'Compressor surge margin monitoring',        processingSteps: processingStepsSurge },
+    { name: 'HTEX_NORM_DP_04',   description: 'Heat exchanger normalized dP',              processingSteps: { threshold: 10 } },
+    { name: 'TURB_OIL_DRFT_05',   description: 'Turbine lube oil drift monitoring',        processingSteps: { threshold: 10 } },
   ]).returning();
 
-  // Rule Instances — Map each equipment to the correct rule matching its type
+  // Rule Instances — 32 Instances across equipment assets
   const lastRun = new Date('2026-02-23T12:47:04');
   const nextRun = new Date('2026-02-24T12:47:04');
 
   const instancesData = [
-    // Original 6 instances (0-5)
-    { equipmentId: equipList[0].id, ruleId: rules[0].id }, // COCE-0220 -> Spike (COCE_GEN_SPK_01)
-    { equipmentId: equipList[4].id, ruleId: rules[1].id }, // TRB-0312 -> Trend (TURB_TEMP_TRND_03)
-    { equipmentId: equipList[1].id, ruleId: rules[2].id }, // PUM-0420 -> Surge (PUMP_VIB_THR_02)
-    { equipmentId: equipList[3].id, ruleId: rules[3].id }, // COCE-0221 -> Surge (COCE_SURG_MGN_06)
-    { equipmentId: equipList[2].id, ruleId: rules[4].id }, // HX-0145 -> dP (HTEX_NORM_DP_04)
-    { equipmentId: equipList[4].id, ruleId: rules[5].id }, // TRB-0312 -> Drift (TURB_OIL_DRFT_05)
+    // Spike rules (0-9)
+    { equipmentId: equipList[0].id,  ruleId: rules[0].id, schedule: 'Hourly' },
+    { equipmentId: equipList[3].id,  ruleId: rules[0].id, schedule: 'Hourly' },
+    { equipmentId: equipList[5].id,  ruleId: rules[0].id, schedule: 'Hourly' },
+    { equipmentId: equipList[6].id,  ruleId: rules[0].id, schedule: 'Hourly' },
+    { equipmentId: equipList[7].id,  ruleId: rules[0].id, schedule: 'Hourly' },
+    { equipmentId: equipList[12].id, ruleId: rules[0].id, schedule: 'Daily' },
+    { equipmentId: equipList[13].id, ruleId: rules[0].id, schedule: 'Hourly' },
+    { equipmentId: equipList[14].id, ruleId: rules[0].id, schedule: 'Hourly' },
+    { equipmentId: equipList[15].id, ruleId: rules[0].id, schedule: 'Daily' },
+    { equipmentId: equipList[4].id,  ruleId: rules[0].id, schedule: 'Hourly' },
 
-    // Additional Spike instances (6-10)
-    { equipmentId: equipList[3].id, ruleId: rules[0].id },  // COCE-0221 -> Spike
-    { equipmentId: equipList[5].id, ruleId: rules[0].id },  // COCE-0222 -> Spike
-    { equipmentId: equipList[6].id, ruleId: rules[0].id },  // COCE-0223 -> Spike
-    { equipmentId: equipList[7].id, ruleId: rules[0].id },  // COCE-0224 -> Spike
-    { equipmentId: equipList[12].id, ruleId: rules[0].id }, // TRB-0313 -> Spike
+    // Surge rules (10-19)
+    { equipmentId: equipList[1].id,  ruleId: rules[2].id, schedule: 'Hourly' },
+    { equipmentId: equipList[8].id,  ruleId: rules[2].id, schedule: 'Hourly' },
+    { equipmentId: equipList[9].id,  ruleId: rules[2].id, schedule: 'Hourly' },
+    { equipmentId: equipList[10].id, ruleId: rules[2].id, schedule: 'Daily' },
+    { equipmentId: equipList[3].id,  ruleId: rules[3].id, schedule: 'Hourly' },
+    { equipmentId: equipList[0].id,  ruleId: rules[3].id, schedule: 'Hourly' },
+    { equipmentId: equipList[5].id,  ruleId: rules[3].id, schedule: 'Hourly' },
+    { equipmentId: equipList[6].id,  ruleId: rules[3].id, schedule: 'Hourly' },
+    { equipmentId: equipList[7].id,  ruleId: rules[3].id, schedule: 'Hourly' },
+    { equipmentId: equipList[13].id, ruleId: rules[3].id, schedule: 'Hourly' },
 
-    // Additional Surge instances (11-16)
-    { equipmentId: equipList[8].id, ruleId: rules[2].id },  // PUM-0421 -> Surge
-    { equipmentId: equipList[9].id, ruleId: rules[2].id },  // PUM-0422 -> Surge
-    { equipmentId: equipList[10].id, ruleId: rules[2].id }, // PUM-0423 -> Surge
-    { equipmentId: equipList[0].id, ruleId: rules[3].id },  // COCE-0220 -> Surge
-    { equipmentId: equipList[5].id, ruleId: rules[3].id },  // COCE-0222 -> Surge
-    { equipmentId: equipList[6].id, ruleId: rules[3].id },  // COCE-0223 -> Surge
+    // Trend rules (20-25)
+    { equipmentId: equipList[4].id,  ruleId: rules[1].id, schedule: 'Daily' },
+    { equipmentId: equipList[12].id, ruleId: rules[1].id, schedule: 'Daily' },
+    { equipmentId: equipList[15].id, ruleId: rules[1].id, schedule: 'Daily' },
+    { equipmentId: equipList[0].id,  ruleId: rules[1].id, schedule: 'Daily' },
+    { equipmentId: equipList[1].id,  ruleId: rules[1].id, schedule: 'Daily' },
+    { equipmentId: equipList[2].id,  ruleId: rules[1].id, schedule: 'Weekly' },
 
-    // Additional other types (17)
-    { equipmentId: equipList[11].id, ruleId: rules[4].id }, // HX-0146 -> dP
+    // dP and Drift rules (26-31)
+    { equipmentId: equipList[2].id,  ruleId: rules[4].id, schedule: 'Hourly' },
+    { equipmentId: equipList[11].id, ruleId: rules[4].id, schedule: 'Hourly' },
+    { equipmentId: equipList[4].id,  ruleId: rules[5].id, schedule: 'Hourly' },
+    { equipmentId: equipList[12].id, ruleId: rules[5].id, schedule: 'Hourly' },
+    { equipmentId: equipList[14].id, ruleId: rules[4].id, schedule: 'Daily' },
+    { equipmentId: equipList[15].id, ruleId: rules[5].id, schedule: 'Daily' },
   ];
 
   const instances = await db.insert(ruleInstances).values(
     instancesData.map((data, i) => {
-      const enabled = i !== 0 && i !== 2;
+      const enabled = i !== 0 && i !== 2 && i !== 10;
       let deactivatedUntil: Date | null = null;
       if (i === 0) {
         deactivatedUntil = new Date('2026-01-15T00:00:00');
       } else if (i === 2) {
         deactivatedUntil = new Date('2026-09-15T00:00:00');
+      } else if (i === 10) {
+        deactivatedUntil = new Date('2026-10-01T00:00:00');
       }
       return {
         ruleId:      data.ruleId,
         equipmentId: data.equipmentId,
-        timeseries:  `UNY:FPSO:771-VI-181${i + 1}_X`,
-        schedule:    'Hourly',
+        timeseries:  `UNY:FPSO:771-VI-181${(i % 20) + 1}_X`,
+        schedule:    data.schedule,
         enabled,
         lastRunAt:   lastRun,
         nextRunAt:   nextRun,

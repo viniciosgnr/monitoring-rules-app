@@ -207,6 +207,33 @@ export default function RuleInstanceTable({ rows }: { rows: InstanceRow[] }) {
     setEnableGroupData(null);
   }
 
+function formatModalParamsJson(ruleName: string, steps: unknown): string {
+  const name = ruleName.toUpperCase();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const s = (steps as any) || {};
+
+  if (name.includes('SPK') || name.includes('SPIKE')) {
+    const sd = s.rule_trigger_params?.[0]?.spike_detection || {};
+    return JSON.stringify({
+      height: sd.height ?? null,
+      threshold: sd.threshold ?? null,
+      distance: sd.distance ?? 50,
+      prominence: sd.prominence ?? 1,
+    });
+  }
+
+  if (name.includes('SURG') || name.includes('THR') || name.includes('VIB_THR')) {
+    const val = s.rule_trigger_params?.[0]?.threshold_comparison?.value ?? 150;
+    return JSON.stringify({
+      threshold: val,
+    });
+  }
+
+  return JSON.stringify({
+    threshold: 10,
+  });
+}
+
   function downloadExcel() {
     const headers = [
       'Asset',
@@ -234,7 +261,7 @@ export default function RuleInstanceTable({ rows }: { rows: InstanceRow[] }) {
         }
       }
 
-      const paramsJson = row.processingSteps ? JSON.stringify(row.processingSteps) : '{}';
+      const paramsJson = formatModalParamsJson(row.ruleName, row.processingSteps);
 
       return [
         row.equipmentCode || '',
