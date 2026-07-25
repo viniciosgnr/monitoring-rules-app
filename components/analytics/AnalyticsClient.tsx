@@ -46,15 +46,6 @@ function getRuleFriendlyCategory(ruleName: string): string {
   return 'Trend';
 }
 
-function getStringHash(str: string): number {
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    hash = (hash << 5) - hash + str.charCodeAt(i);
-    hash |= 0;
-  }
-  return Math.abs(hash);
-}
-
 function Sel({ value, onChange, options }: { value: string; onChange: (v: string) => void; options: string[] }) {
   return (
     <select
@@ -249,10 +240,10 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
         end = new Date(now.getFullYear(), now.getMonth() - monthsAgo + 1, 0, 23, 59, 59);
       }
 
-      return { label, start, end, index };
+      return { label, start, end };
     });
 
-    return buckets.map(({ label, start, end, index }) => {
+    return buckets.map(({ label, start, end }) => {
 
       const intervalAlerts = alertsList.filter(a => {
         // 1. Filter by Asset
@@ -271,15 +262,13 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
         return tTime >= start.getTime() && tTime <= end.getTime();
       });
 
-      const fpsRaw = intervalAlerts.filter(a => a.status === 'rejected').length;
+      const total = intervalAlerts.length;
+      const fps = intervalAlerts.filter(a => a.status === 'rejected').length;
+      const correct = intervalAlerts.filter(a => a.status === 'validated' || a.status === 'closed').length;
 
-      // Smooth wave for accuracy trend line in 86.5% - 94.8% range
-      const hashOffset = (getStringHash(selectedEquipments.join('')) + getStringHash(selectedCategories.join(''))) % 7;
-      const waveAcc = 90.5 + 3.2 * Math.sin((index + hashOffset) * 0.42) + ((index * 3) % 2) * 0.4;
-      const accuracy = Math.min(95, Math.max(86, Math.round(waveAcc)));
-
-      // Smooth daily false positives between 1 and 3
-      const falsePositives = fpsRaw > 0 ? fpsRaw : 1 + (Math.abs(Math.round(Math.sin((index + hashOffset) * 0.55) * 1.4)));
+      // Strict daily alert ratio calculation: (correct / total) * 100
+      const accuracy = total > 0 ? Math.round((correct / total) * 100) : 90;
+      const falsePositives = fps;
 
       return {
         label,
