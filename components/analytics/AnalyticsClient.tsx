@@ -6,7 +6,7 @@ import AccuracyChart from './AccuracyChart';
 import FalsePositiveChart from './FalsePositiveChart';
 import RuleAlertsChart from './RuleAlertsChart';
 import StatusAlertsChart from './StatusAlertsChart';
-import { SlidersHorizontal, Maximize2 } from 'lucide-react';
+import { SlidersHorizontal, Maximize2, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
 
 const PERIODS = ['Last Week', 'Last Month', 'Last 6 month'];
 const CATEGORIES_LIST = ['Drift', 'Spike', 'Surge', 'Trend', 'Normalized dP'];
@@ -70,6 +70,30 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
   const [accuracyEquipSelected, setAccuracyEquipSelected] = useState<string[]>([]);
   const [fpRuleSelected, setFpRuleSelected] = useState<string[]>([]);
   const [fpEquipSelected, setFpEquipSelected] = useState<string[]>([]);
+
+  // Sorting state for Breakdown Tables
+  const [accSortField, setAccSortField] = useState<'evaluations' | 'correct' | 'accuracy' | null>(null);
+  const [accSortDir, setAccSortDir] = useState<'asc' | 'desc'>('asc');
+  const [fpSortField, setFpSortField] = useState<'alerts' | 'fp' | 'fpRate' | null>(null);
+  const [fpSortDir, setFpSortDir] = useState<'asc' | 'desc'>('desc');
+
+  const toggleAccSort = (field: 'evaluations' | 'correct' | 'accuracy') => {
+    if (accSortField === field) {
+      setAccSortDir(prev => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setAccSortField(field);
+      setAccSortDir(field === 'accuracy' ? 'asc' : 'desc');
+    }
+  };
+
+  const toggleFpSort = (field: 'alerts' | 'fp' | 'fpRate') => {
+    if (fpSortField === field) {
+      setFpSortDir(prev => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setFpSortField(field);
+      setFpSortDir('desc');
+    }
+  };
 
   // Process rules instances dynamically based on alert database logs
   const processedInstances = useMemo(() => {
@@ -139,20 +163,45 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
   const fpEquipOpts = useMemo(() => Array.from(new Set(filteredInstances.map(i => i.equipmentCode))).filter(Boolean).sort(), [filteredInstances]);
 
   const filteredAccuracyRows = useMemo(() => {
-    return filteredInstances.filter(inst => {
+    const rows = filteredInstances.filter(inst => {
       const matchRule = accuracyRuleSelected.length === 0 || accuracyRuleSelected.length === accuracyRuleOpts.length || accuracyRuleSelected.includes(inst.ruleName);
       const matchEquip = accuracyEquipSelected.length === 0 || accuracyEquipSelected.length === accuracyEquipOpts.length || accuracyEquipSelected.includes(inst.equipmentCode);
       return matchRule && matchEquip;
     });
-  }, [filteredInstances, accuracyRuleSelected, accuracyRuleOpts, accuracyEquipSelected, accuracyEquipOpts]);
+
+    if (!accSortField) return rows;
+
+    return [...rows].sort((a, b) => {
+      let valA = 0;
+      let valB = 0;
+      if (accSortField === 'evaluations') { valA = a.totalEvaluations; valB = b.totalEvaluations; }
+      else if (accSortField === 'correct') { valA = a.correctActions; valB = b.correctActions; }
+      else if (accSortField === 'accuracy') { valA = a.accuracy; valB = b.accuracy; }
+      return accSortDir === 'asc' ? valA - valB : valB - valA;
+    });
+  }, [filteredInstances, accuracyRuleSelected, accuracyRuleOpts, accuracyEquipSelected, accuracyEquipOpts, accSortField, accSortDir]);
 
   const filteredFpRows = useMemo(() => {
-    return filteredInstances.filter(inst => {
+    const rows = filteredInstances.filter(inst => {
       const matchRule = fpRuleSelected.length === 0 || fpRuleSelected.length === fpRuleOpts.length || fpRuleSelected.includes(inst.ruleName);
       const matchEquip = fpEquipSelected.length === 0 || fpEquipSelected.length === fpEquipOpts.length || fpEquipSelected.includes(inst.equipmentCode);
       return matchRule && matchEquip;
     });
-  }, [filteredInstances, fpRuleSelected, fpRuleOpts, fpEquipSelected, fpEquipOpts]);
+
+    if (!fpSortField) return rows;
+
+    return [...rows].sort((a, b) => {
+      let valA = 0;
+      let valB = 0;
+      if (fpSortField === 'alerts') { valA = a.alertsCount; valB = b.alertsCount; }
+      else if (fpSortField === 'fp') { valA = a.falsePositives; valB = b.falsePositives; }
+      else if (fpSortField === 'fpRate') {
+        valA = (a.falsePositives / a.alertsCount) * 100;
+        valB = (b.falsePositives / b.alertsCount) * 100;
+      }
+      return fpSortDir === 'asc' ? valA - valB : valB - valA;
+    });
+  }, [filteredInstances, fpRuleSelected, fpRuleOpts, fpEquipSelected, fpEquipOpts, fpSortField, fpSortDir]);
 
   // Calculate Top 10 lists
   const lowestAccuracyList = useMemo(() => {
@@ -452,9 +501,45 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
                           onChange={setAccuracyEquipSelected}
                         />
                       </th>
-                      <th className="text-right px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary whitespace-nowrap">Evaluations</th>
-                      <th className="text-right px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary whitespace-nowrap">Correct</th>
-                      <th className="text-right px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary whitespace-nowrap">Accuracy</th>
+                      <th
+                        onClick={() => toggleAccSort('evaluations')}
+                        className="text-right px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary whitespace-nowrap cursor-pointer hover:bg-bg-panel/60 hover:text-white transition-colors group select-none"
+                      >
+                        <div className="inline-flex items-center gap-1.5 justify-end">
+                          <span>Evaluations</span>
+                          {accSortField === 'evaluations' ? (
+                            accSortDir === 'asc' ? <ArrowUp className="w-3 h-3 text-accent-blue" /> : <ArrowDown className="w-3 h-3 text-accent-blue" />
+                          ) : (
+                            <ArrowUpDown className="w-3 h-3 opacity-0 group-hover:opacity-60 transition-opacity" />
+                          )}
+                        </div>
+                      </th>
+                      <th
+                        onClick={() => toggleAccSort('correct')}
+                        className="text-right px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary whitespace-nowrap cursor-pointer hover:bg-bg-panel/60 hover:text-white transition-colors group select-none"
+                      >
+                        <div className="inline-flex items-center gap-1.5 justify-end">
+                          <span>Correct</span>
+                          {accSortField === 'correct' ? (
+                            accSortDir === 'asc' ? <ArrowUp className="w-3 h-3 text-accent-blue" /> : <ArrowDown className="w-3 h-3 text-accent-blue" />
+                          ) : (
+                            <ArrowUpDown className="w-3 h-3 opacity-0 group-hover:opacity-60 transition-opacity" />
+                          )}
+                        </div>
+                      </th>
+                      <th
+                        onClick={() => toggleAccSort('accuracy')}
+                        className="text-right px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary whitespace-nowrap cursor-pointer hover:bg-bg-panel/60 hover:text-white transition-colors group select-none"
+                      >
+                        <div className="inline-flex items-center gap-1.5 justify-end">
+                          <span>Accuracy</span>
+                          {accSortField === 'accuracy' ? (
+                            accSortDir === 'asc' ? <ArrowUp className="w-3 h-3 text-accent-blue" /> : <ArrowDown className="w-3 h-3 text-accent-blue" />
+                          ) : (
+                            <ArrowUpDown className="w-3 h-3 opacity-0 group-hover:opacity-60 transition-opacity" />
+                          )}
+                        </div>
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
@@ -507,9 +592,45 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
                           onChange={setFpEquipSelected}
                         />
                       </th>
-                      <th className="text-right px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary whitespace-nowrap">Alerts</th>
-                      <th className="text-right px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary whitespace-nowrap">False Positives</th>
-                      <th className="text-right px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary whitespace-nowrap">FP Rate</th>
+                      <th
+                        onClick={() => toggleFpSort('alerts')}
+                        className="text-right px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary whitespace-nowrap cursor-pointer hover:bg-bg-panel/60 hover:text-white transition-colors group select-none"
+                      >
+                        <div className="inline-flex items-center gap-1.5 justify-end">
+                          <span>Alerts</span>
+                          {fpSortField === 'alerts' ? (
+                            fpSortDir === 'asc' ? <ArrowUp className="w-3 h-3 text-status-warn" /> : <ArrowDown className="w-3 h-3 text-status-warn" />
+                          ) : (
+                            <ArrowUpDown className="w-3 h-3 opacity-0 group-hover:opacity-60 transition-opacity" />
+                          )}
+                        </div>
+                      </th>
+                      <th
+                        onClick={() => toggleFpSort('fp')}
+                        className="text-right px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary whitespace-nowrap cursor-pointer hover:bg-bg-panel/60 hover:text-white transition-colors group select-none"
+                      >
+                        <div className="inline-flex items-center gap-1.5 justify-end">
+                          <span>False Positives</span>
+                          {fpSortField === 'fp' ? (
+                            fpSortDir === 'asc' ? <ArrowUp className="w-3 h-3 text-status-warn" /> : <ArrowDown className="w-3 h-3 text-status-warn" />
+                          ) : (
+                            <ArrowUpDown className="w-3 h-3 opacity-0 group-hover:opacity-60 transition-opacity" />
+                          )}
+                        </div>
+                      </th>
+                      <th
+                        onClick={() => toggleFpSort('fpRate')}
+                        className="text-right px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary whitespace-nowrap cursor-pointer hover:bg-bg-panel/60 hover:text-white transition-colors group select-none"
+                      >
+                        <div className="inline-flex items-center gap-1.5 justify-end">
+                          <span>FP Rate</span>
+                          {fpSortField === 'fpRate' ? (
+                            fpSortDir === 'asc' ? <ArrowUp className="w-3 h-3 text-status-warn" /> : <ArrowDown className="w-3 h-3 text-status-warn" />
+                          ) : (
+                            <ArrowUpDown className="w-3 h-3 opacity-0 group-hover:opacity-60 transition-opacity" />
+                          )}
+                        </div>
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
