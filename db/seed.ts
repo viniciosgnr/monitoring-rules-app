@@ -148,8 +148,7 @@ async function seed() {
     })
   ).returning();
 
-  // Alerts — 80 records dynamically distributed relative to current run time covering all statuses and rules
-  const statusPool = ['to_be_validated', 'validation_in_progress', 'validated', 'rejected', 'closed'];
+  // Alerts — 180 records dynamically distributed across 30 days with weighted realistic status ratios
   const typePool = [
     'Compressor Performance', 'Turbine Temp Deviation', 'Pump Vibration Threshold', 'Surge Margin Alert', 'HX Fouling Index Alert', 'Turbine Lube Oil Drift'
   ];
@@ -157,36 +156,47 @@ async function seed() {
   const alertsValues = [];
   const nowMs = Date.now();
 
-  for (let i = 0; i < 80; i++) {
-    const inst = instances[i % instances.length];
-    const status = statusPool[i % statusPool.length];
-    const type = typePool[i % typePool.length];
-    
-    let daysAgo = 0;
-    if (i % 10 < 3) {
-      daysAgo = i % 7; // Last Week (0 to 6 days ago)
-    } else if (i % 10 < 7) {
-      daysAgo = 7 + (i % 23); // Last Month (7 to 29 days ago)
-    } else {
-      daysAgo = 30 + (i % 150); // Last 6 Months (30 to 179 days ago)
+  // Generate alerts across past 30 days (4 to 8 alerts per day)
+  for (let day = 0; day < 30; day++) {
+    const alertsPerDay = 5 + (day % 3); // 5 to 7 alerts per day
+    for (let j = 0; j < alertsPerDay; j++) {
+      const idx = day * 7 + j;
+      const inst = instances[idx % instances.length];
+      const type = typePool[idx % typePool.length];
+
+      // Weighted status distribution: ~87% true positive (validated/closed), ~9% rejected (FP), ~4% pending
+      let status = 'validated';
+      const randMod = (idx * 37 + day * 13) % 100;
+      if (randMod < 55) {
+        status = 'validated';
+      } else if (randMod < 87) {
+        status = 'closed';
+      } else if (randMod < 96) {
+        status = 'rejected'; // False positive
+      } else if (randMod < 98) {
+        status = 'validation_in_progress';
+      } else {
+        status = 'to_be_validated';
+      }
+
+      const hoursOffset = (j * 4 + (day * 3) % 4) % 24;
+      const triggeredAt = new Date(nowMs - day * 24 * 60 * 60 * 1000 - hoursOffset * 60 * 60 * 1000);
+      const endDate = new Date(triggeredAt.getTime() + 12 * 60 * 60 * 1000);
+      const reviewedAt = status !== 'to_be_validated' && status !== 'validation_in_progress'
+        ? new Date(triggeredAt.getTime() + 2 * 60 * 60 * 1000)
+        : null;
+      const reviewedBy = reviewedAt ? 'Jon Doe' : null;
+
+      alertsValues.push({
+        instanceId: inst.id,
+        type,
+        endDate,
+        triggeredAt,
+        reviewedAt,
+        reviewedBy,
+        status,
+      });
     }
-
-    const triggeredAt = new Date(nowMs - daysAgo * 24 * 60 * 60 * 1000 - (i * 13 * 60 * 1000));
-    const endDate = new Date(triggeredAt.getTime() + 12 * 60 * 60 * 1000);
-    const reviewedAt = status !== 'to_be_validated' && status !== 'validation_in_progress'
-      ? new Date(triggeredAt.getTime() + 2 * 60 * 60 * 1000)
-      : null;
-    const reviewedBy = reviewedAt ? 'Jon Doe' : null;
-
-    alertsValues.push({
-      instanceId: inst.id,
-      type,
-      endDate,
-      triggeredAt,
-      reviewedAt,
-      reviewedBy,
-      status,
-    });
   }
 
   await db.insert(alerts).values(alertsValues);
