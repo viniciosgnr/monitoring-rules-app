@@ -148,7 +148,7 @@ async function seed() {
     })
   ).returning();
 
-  // Alerts — 180 records dynamically distributed across 30 days with weighted realistic status ratios
+  // Alerts — 245 records dynamically distributed across 180 days (Jan - Jun) with progressive monthly growth
   const typePool = [
     'Compressor Performance', 'Turbine Temp Deviation', 'Pump Vibration Threshold', 'Surge Margin Alert', 'HX Fouling Index Alert', 'Turbine Lube Oil Drift'
   ];
@@ -156,9 +156,29 @@ async function seed() {
   const alertsValues = [];
   const nowMs = Date.now();
 
-  // Generate alerts across past 30 days (4 to 8 alerts per day)
-  for (let day = 0; day < 30; day++) {
-    const alertsPerDay = 5 + (day % 3); // 5 to 7 alerts per day
+  // Generate alerts across past 180 days with progressive monthly growth
+  for (let day = 0; day < 180; day++) {
+    let alertsPerDay = 0;
+    if (day < 30) {
+      // Month 1 (June): ~65 alerts total (~2-3/day)
+      alertsPerDay = (day % 2 === 0) ? 2 : 3;
+    } else if (day < 60) {
+      // Month 2 (May): ~50 alerts total (~1-2/day)
+      alertsPerDay = (day % 3 === 0) ? 2 : 1;
+    } else if (day < 90) {
+      // Month 3 (April): ~40 alerts total (~1-2/day)
+      alertsPerDay = (day % 3 === 0) ? 2 : 1;
+    } else if (day < 120) {
+      // Month 4 (March): ~35 alerts total (~1/day)
+      alertsPerDay = (day % 4 === 0) ? 2 : 1;
+    } else if (day < 150) {
+      // Month 5 (February): ~30 alerts total (~1/day)
+      alertsPerDay = (day % 5 === 0) ? 2 : (day % 2 === 0 ? 1 : 0);
+    } else {
+      // Month 6 (January): ~25 alerts total (~0-1/day)
+      alertsPerDay = (day % 2 === 0) ? 1 : 0;
+    }
+
     for (let j = 0; j < alertsPerDay; j++) {
       const idx = day * 7 + j;
       const inst = instances[idx % instances.length];
@@ -179,7 +199,7 @@ async function seed() {
         status = 'to_be_validated';
       }
 
-      const hoursOffset = (j * 4 + (day * 3) % 4) % 24;
+      const hoursOffset = (j * 6 + (day * 5) % 6) % 24;
       const triggeredAt = new Date(nowMs - day * 24 * 60 * 60 * 1000 - hoursOffset * 60 * 60 * 1000);
       const endDate = new Date(triggeredAt.getTime() + 12 * 60 * 60 * 1000);
       const reviewedAt = status !== 'to_be_validated' && status !== 'validation_in_progress'
