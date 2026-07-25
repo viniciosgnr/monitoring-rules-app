@@ -82,6 +82,8 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
 
   // Process rules instances dynamically based on alert database logs
   const processedInstances = useMemo(() => {
+    const daysCount = period === 'Last Week' ? 7 : period === 'Last Month' ? 30 : 180;
+
     return ruleInstances.map(inst => {
       const id = inst.id;
       
@@ -102,18 +104,23 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
       const rawCount = instanceAlerts.length;
       const rawFps = instanceAlerts.filter(a => a.status === 'rejected').length;
       
-      const alertsCount = rawCount > 0 ? rawCount : (10 + (id * 7) % 15);
-      const falsePositives = rawFps > 0 ? rawFps : (1 + (id % 2));
+      // Period-scaled alerts and false positives
+      const alertsCount = rawCount > 0 ? rawCount : Math.max(2, Math.round(daysCount * 0.18 + (id % 3)));
+      const falsePositives = rawFps > 0 ? rawFps : Math.max(1, Math.round(alertsCount * 0.08));
+      
+      // Dynamic period-scaled evaluations (~5-8 per day per instance)
+      const totalEvaluations = (5 + ((id * 3) % 4)) * daysCount;
       
       // High, uniform baseline accuracy between 86.5% and 94.8%
       const baseAcc = 86.5 + ((id * 31) % 8.3);
       const accuracy = parseFloat(baseAcc.toFixed(1));
-      const correctActions = Math.round(alertsCount * (accuracy / 100));
+      const correctActions = Math.round(totalEvaluations * (accuracy / 100));
 
       return {
         ...inst,
         alertsCount,
         falsePositives,
+        totalEvaluations,
         correctActions,
         accuracy,
       };
@@ -181,14 +188,13 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
   }, [filteredInstances]);
 
   const globalAccuracy = useMemo(() => {
-    const totalAlerts = filteredInstances.reduce((sum, inst) => sum + inst.alertsCount, 0);
+    const totalEvals = filteredInstances.reduce((sum, inst) => sum + inst.totalEvaluations, 0);
     const totalCorrect = filteredInstances.reduce((sum, inst) => sum + inst.correctActions, 0);
     
-    if (totalAlerts > 0) {
-      return ((totalCorrect / totalAlerts) * 100).toFixed(1) + '%';
+    if (totalEvals > 0) {
+      return ((totalCorrect / totalEvals) * 100).toFixed(1) + '%';
     }
     
-    // Average of baseline accuracies
     const avg = filteredInstances.reduce((sum, inst) => sum + inst.accuracy, 0) / Math.max(1, filteredInstances.length);
     return avg.toFixed(1) + '%';
   }, [filteredInstances]);
@@ -469,14 +475,12 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
                       </tr>
                     ) : (
                       filteredAccuracyRows.map(inst => {
-                        const totalEvaluations = 100 + ((inst.id * 41) % 150);
-                        const correctActions = Math.round(totalEvaluations * (inst.accuracy / 100));
                         return (
                           <tr key={inst.id} className="border-b border-border-panel hover:bg-bg-panel/10 transition-colors">
                             <td className="px-4 py-3 font-medium text-slate-300">{inst.ruleName}</td>
                             <td className="px-4 py-3 text-slate-400">{inst.equipmentCode}</td>
-                            <td className="px-4 py-3 text-right text-slate-400">{totalEvaluations}</td>
-                            <td className="px-4 py-3 text-right text-status-ok font-medium">{correctActions}</td>
+                            <td className="px-4 py-3 text-right text-slate-400">{inst.totalEvaluations}</td>
+                            <td className="px-4 py-3 text-right text-status-ok font-medium">{inst.correctActions}</td>
                             <td className="px-4 py-3 text-right font-semibold text-accent-blue">{inst.accuracy}%</td>
                           </tr>
                         );
