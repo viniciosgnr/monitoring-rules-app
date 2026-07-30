@@ -8,22 +8,22 @@ interface Props {
 export default function FalsePositiveChart({ data }: Props) {
   return (
     <ResponsiveContainer width="100%" height={220}>
-      <LineChart data={data} margin={{ top: 10, right: 10, left: -10, bottom: 20 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="#1e2a3a" />
-        <XAxis dataKey="label" tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false} minTickGap={20} />
-        <YAxis tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false} domain={[0, 'dataMax + 2']} allowDecimals={false} />
+      <LineChart data={data} margin={{ top: 15, right: 15, left: -10, bottom: 15 }}>
+        <CartesianGrid strokeDasharray="3 3" stroke="#1E293B" opacity={0.5} />
+        <XAxis dataKey="label" tick={{ fill: '#94A3B8', fontSize: 11 }} axisLine={false} tickLine={false} minTickGap={15} />
+        <YAxis tick={{ fill: '#94A3B8', fontSize: 11 }} axisLine={false} tickLine={false} domain={[0, 80]} ticks={[0, 20, 40, 60, 80]} />
         <Tooltip
-          contentStyle={{ background: '#111827', border: '1px solid #1e2a3a', borderRadius: 4, color: '#e2e8f0' }}
-          cursor={{ stroke: '#1e2a3a' }}
+          contentStyle={{ background: '#111827', border: '1px solid #1E293B', borderRadius: 8, color: '#E2E8F0', fontSize: 12 }}
+          cursor={{ stroke: '#1E293B' }}
           formatter={(value) => [value, 'False Positives']}
         />
         <Line
           type="monotone"
           dataKey="falsePositives"
-          stroke="#f59e0b"
-          strokeWidth={2}
-          dot={{ fill: '#f59e0b', r: 3, strokeWidth: 0 }}
-          activeDot={{ r: 5, fill: '#f59e0b' }}
+          stroke="#F59E0B"
+          strokeWidth={2.5}
+          dot={{ fill: '#F59E0B', r: 5, strokeWidth: 0 }}
+          activeDot={{ r: 7, fill: '#F59E0B', stroke: '#111827', strokeWidth: 2 }}
         />
       </LineChart>
     </ResponsiveContainer>

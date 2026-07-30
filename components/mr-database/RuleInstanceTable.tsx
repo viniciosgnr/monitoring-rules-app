@@ -322,33 +322,33 @@ function formatModalParamsJson(ruleName: string, steps: unknown): string {
   ];
 
   return (
-    <div className="bg-bg-card border border-border-panel rounded-card overflow-hidden">
-      <div className="px-4 py-3 border-b border-border-panel flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-text-primary">Monitoring Rule Instance Catalog</h2>
+    <div className="bg-[#111827] border border-[#1E293B] rounded-2xl overflow-hidden shadow-sm">
+      <div className="px-5 py-4 border-b border-[#1E293B] flex items-center justify-between">
+        <h2 className="text-sm font-semibold text-white">Monitoring rule instance catalog</h2>
         {/* Export Button */}
         <button
           onClick={() => setShowExportModal(true)}
-          className="flex items-center gap-2 px-3 py-1.5 text-xs font-semibold rounded bg-bg-panel border border-border-panel text-text-primary hover:border-accent-blue hover:text-accent-blue transition-colors"
+          className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-normal rounded-full bg-transparent border border-[#1E293B] text-white hover:border-[#3B82F6] hover:text-[#3B82F6] transition-colors cursor-pointer"
         >
           <Download size={13} />
-          Export to Excel
+          Export to excel
         </button>
       </div>
 
       <div className="overflow-x-auto">
-        <table className="w-full text-sm">
+        <table className="w-full text-sm border-collapse">
           <thead>
-            <tr className="border-b border-border-panel">
+            <tr className="border-b border-[#1E293B] bg-[#0B0F19]/40">
               {/* Chevron column */}
-              <th className="w-8 px-3 py-2" />
+              <th className="w-8 px-3 py-3" />
               {cols.map(([field, label]) => (
-                <th key={field} className="text-left px-4 py-2 text-xs font-medium text-text-muted whitespace-nowrap">
+                <th key={field} className="text-left px-4 py-3 text-xs font-normal text-[#94A3B8] whitespace-nowrap">
                   {label}
                   <TableColumnFilter field={field} label={label} />
                 </th>
               ))}
-              <th className="px-4 py-2 w-12" />
-              <th className="px-4 py-2 w-20" />
+              <th className="px-4 py-3 w-12" />
+              <th className="px-4 py-3 w-20" />
             </tr>
           </thead>
           <tbody>
@@ -361,94 +361,94 @@ function formatModalParamsJson(ruleName: string, steps: unknown): string {
                 <React.Fragment key={friendlyName}>
                   {/* Group header row */}
                   <tr
-                    className="border-b border-border-panel bg-bg-base/70 cursor-pointer hover:bg-bg-base transition-colors select-none"
+                    className="border-b border-[#1E293B] bg-[#151D2E] cursor-pointer hover:bg-[#1A2438] transition-colors select-none"
                     onClick={() => toggleRule(friendlyName)}
                   >
-                    <td className="px-3 py-2.5">
+                    <td className="px-3 py-3">
                       {isExpanded ? (
-                        <ChevronDown size={14} className="text-text-muted" />
+                        <ChevronDown size={14} className="text-[#94A3B8]" />
                       ) : (
-                        <ChevronRight size={14} className="text-text-muted" />
+                        <ChevronRight size={14} className="text-[#94A3B8]" />
                       )}
                     </td>
-                    <td colSpan={cols.length} className="px-1 py-2.5">
+                    <td colSpan={cols.length} className="px-1 py-3">
                       <div className="flex items-center gap-3">
-                        <span className="text-xs font-semibold text-text-primary">{friendlyName}</span>
-                        <span className="text-[11px] text-text-muted">
+                        <span className="text-xs font-medium text-white">{friendlyName}</span>
+                        <span className="text-xs text-[#64748B]">
                           {totalCount} instance{totalCount !== 1 ? 's' : ''} ({enabledCount} active)
                         </span>
                       </div>
                     </td>
-                    {/* Group Switch (Aligns with column switches) */}
-                    <td className="px-4 py-2.5" onClick={e => e.stopPropagation()}>
+                    {/* Group Switch */}
+                    <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
                       <div className="flex items-center gap-2">
                         <Switch.Root
                           checked={enabledCount > 0}
                           onCheckedChange={v => handleGroupSwitchChange(friendlyName, groupRows, v)}
-                          className={`relative w-10 h-5 rounded-full border border-border-panel bg-bg-panel data-[state=checked]:bg-accent-blue outline-none cursor-pointer transition-colors ${
+                          className={`relative w-9 h-5 rounded-full border border-[#1E293B] bg-[#1E293B] data-[state=checked]:bg-[#3B82F6] outline-none cursor-pointer transition-colors ${
                             isViewer ? 'opacity-40 pointer-events-none' : ''
                           }`}
                         >
-                          <Switch.Thumb className="block w-4 h-4 bg-white rounded-full shadow-sm translate-x-0.5 data-[state=checked]:translate-x-5 transition-transform" />
+                          <Switch.Thumb className="block w-4 h-4 bg-white rounded-full shadow-sm translate-x-0.5 data-[state=checked]:translate-x-4 transition-transform" />
                         </Switch.Root>
                       </div>
                     </td>
-                    <td className="px-4 py-2.5" />
+                    <td className="px-4 py-3" />
                   </tr>
 
                   {isExpanded && groupRows.map(row => (
-                    <tr key={row.id} className="border-b border-border-panel hover:bg-bg-panel/40">
+                    <tr key={row.id} className="border-b border-[#1E293B] bg-[#0F1623] hover:bg-[#1A2335] transition-colors">
                       {/* Indent line spacer */}
                       <td className="px-3 py-3">
-                        <div className="w-px h-4 bg-border-panel mx-auto" />
+                        <div className="w-px h-4 bg-[#1E293B] mx-auto" />
                       </td>
                       <td className="px-4 py-3">
                         <EquipmentBadge code={row.equipmentCode} />
                       </td>
-                      <td className="px-4 py-3 text-text-muted font-mono text-xs">{row.timeseries}</td>
-                      <td className="px-4 py-3 text-text-muted text-sm">{row.system}</td>
-                      <td className="px-4 py-3 text-text-muted text-sm">{row.subsystem}</td>
-                      <td className="px-4 py-3 text-text-muted font-mono text-xs">{row.ruleName}</td>
-                      <td className="px-4 py-3 text-text-muted text-sm">{row.schedule}</td>
-                      <td className="px-4 py-3 text-text-muted text-xs">{row.lastRunAt}</td>
-                      <td className="px-4 py-3 text-text-muted text-xs">{row.nextRunAt}</td>
-                      <td className="px-4 py-3 text-sm">
+                      <td className="px-4 py-3 text-[#94A3B8] font-mono text-xs">{row.timeseries}</td>
+                      <td className="px-4 py-3 text-[#94A3B8] text-xs">{row.system}</td>
+                      <td className="px-4 py-3 text-[#94A3B8] text-xs">{row.subsystem}</td>
+                      <td className="px-4 py-3 text-[#94A3B8] font-mono text-xs">{row.ruleName}</td>
+                      <td className="px-4 py-3 text-[#94A3B8] text-xs">{row.schedule}</td>
+                      <td className="px-4 py-3 text-[#94A3B8] text-xs">{row.lastRunAt}</td>
+                      <td className="px-4 py-3 text-[#94A3B8] text-xs">{row.nextRunAt}</td>
+                      <td className="px-4 py-3 text-xs">
                         {!row.enabled ? (
                           !row.deactivatedUntil ? (
-                            <span className="text-text-muted">Indefinite</span>
+                            <span className="text-[#64748B]">Indefinite</span>
                           ) : (() => {
                             const limit = new Date(row.deactivatedUntil);
                             const now = new Date();
                             const dateStr = limit.toLocaleDateString('pt-BR');
                             if (now > limit) {
                               return (
-                                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-500/10 text-red-500 border border-red-500/20">
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-500/10 text-red-400 border border-red-500/20">
                                   <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
                                   Expired ({dateStr})
                                 </span>
                               );
                             }
-                             return <span className="text-text-muted text-xs">{dateStr}</span>;
+                             return <span className="text-[#94A3B8] text-xs">{dateStr}</span>;
                           })()
                         ) : (
-                          <span className="text-text-muted">—</span>
+                          <span className="text-[#64748B]">—</span>
                         )}
                       </td>
                       <td className="px-4 py-3">
                         <Switch.Root
                           checked={row.enabled}
                           onCheckedChange={v => handleSwitchChange(row, v)}
-                          className={`relative w-10 h-5 rounded-full border border-border-panel bg-bg-panel data-[state=checked]:bg-accent-blue outline-none cursor-pointer transition-colors ${
+                          className={`relative w-9 h-5 rounded-full border border-[#1E293B] bg-[#1E293B] data-[state=checked]:bg-[#3B82F6] outline-none cursor-pointer transition-colors ${
                             isViewer ? 'opacity-40 pointer-events-none' : ''
                           }`}
                         >
-                          <Switch.Thumb className="block w-4 h-4 bg-white rounded-full shadow-sm translate-x-0.5 data-[state=checked]:translate-x-5 transition-transform" />
+                          <Switch.Thumb className="block w-4 h-4 bg-white rounded-full shadow-sm translate-x-0.5 data-[state=checked]:translate-x-4 transition-transform" />
                         </Switch.Root>
                       </td>
                       <td className="px-4 py-3">
                         <button
                           onClick={() => setEditRow(row)}
-                          className="px-3 py-1 text-xs rounded-full border border-border-panel text-text-primary hover:border-accent-blue hover:text-accent-blue transition-colors"
+                          className="px-3.5 py-1 text-xs rounded-full border border-[#1E293B] text-white hover:border-[#3B82F6] hover:text-[#3B82F6] transition-colors cursor-pointer"
                         >
                           {isViewer ? 'View' : 'Edit'}
                         </button>
@@ -461,7 +461,7 @@ function formatModalParamsJson(ruleName: string, steps: unknown): string {
 
             {groups.length === 0 && (
               <tr>
-                <td colSpan={13} className="px-4 py-8 text-center text-text-muted text-sm">No results found</td>
+                <td colSpan={13} className="px-4 py-8 text-center text-[#64748B] text-xs">No results found</td>
               </tr>
             )}
           </tbody>
@@ -490,30 +490,30 @@ function formatModalParamsJson(ruleName: string, steps: unknown): string {
         />
       )}
 
-      {/* Disable reason modal */}
+      {/* Disable single instance modal */}
       <Dialog.Root open={!!disableRow} onOpenChange={v => !v && setDisableRow(null)}>
         <Dialog.Portal>
-          <Dialog.Overlay className="fixed inset-0 bg-black/60 z-50 backdrop-blur-sm" />
-          <Dialog.Content className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[460px] bg-bg-panel rounded-card border border-border-panel p-6 shadow-2xl">
-            <div className="flex items-center justify-between mb-4">
-              <Dialog.Title className="text-base font-semibold text-text-primary">
+          <Dialog.Overlay className="fixed inset-0 bg-black/70 z-50 backdrop-blur-sm" />
+          <Dialog.Content className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[480px] bg-[#111827] rounded-2xl border border-[#1E293B] p-6 shadow-2xl select-none">
+            <div className="flex items-center justify-between mb-5">
+              <Dialog.Title className="text-base font-semibold text-white">
                 Disable Monitoring Rule Instance
               </Dialog.Title>
-              <Dialog.Close className="text-text-muted hover:text-text-primary transition-colors">
+              <Dialog.Close className="text-[#64748B] hover:text-white transition-colors cursor-pointer">
                 <X size={18} />
               </Dialog.Close>
             </div>
-            <p className="text-xs text-text-muted mb-4 leading-relaxed">
-              Specify a justification for disabling the rule instance <span className="font-semibold text-text-primary">{disableRow ? getFriendlyRuleName(disableRow.ruleName) : ''}</span> (<span className="font-mono text-text-muted text-[11px]">{disableRow?.ruleName}</span>) for equipment <span className="text-text-primary font-medium">{disableRow?.equipmentCode}</span>.
+            <p className="text-xs text-[#94A3B8] mb-5 leading-relaxed">
+              Specify a justification for disabling the rule instance <span className="font-semibold text-white">{disableRow ? getFriendlyRuleName(disableRow.ruleName) : ''}</span> (<span className="font-mono text-[#94A3B8]">{disableRow?.ruleName}</span>) for equipment <span className="text-white font-semibold">{disableRow?.equipmentCode}</span>.
             </p>
 
             <div className="space-y-4">
               <div>
-                <label className="text-xs text-text-muted font-medium">Justification Reason</label>
+                <label className="text-[11px] font-semibold uppercase tracking-wider text-[#94A3B8] block mb-1.5">JUSTIFICATION REASON</label>
                 <select
                   value={disableReason}
                   onChange={e => setDisableReason(e.target.value)}
-                  className="w-full mt-1.5 bg-bg-input border border-border-panel rounded px-3 py-2 text-sm text-text-primary outline-none focus:border-accent-blue transition-colors"
+                  className="w-full bg-[#0B0F19] border border-[#1E293B] rounded-xl px-3.5 py-2.5 text-xs text-white outline-none focus:border-[#3B82F6] transition-colors cursor-pointer"
                 >
                   <option value="Process Shutdown / Maintenance">Process Shutdown / Maintenance</option>
                   <option value="Sensor Calibration">Sensor Calibration</option>
@@ -524,43 +524,43 @@ function formatModalParamsJson(ruleName: string, steps: unknown): string {
 
               {disableReason === 'Other' && (
                 <div>
-                  <label className="text-xs text-text-muted font-medium">Custom Reason</label>
+                  <label className="text-[11px] font-semibold uppercase tracking-wider text-[#94A3B8] block mb-1.5">CUSTOM REASON</label>
                   <textarea
                     value={customReason}
                     onChange={e => setCustomReason(e.target.value)}
                     placeholder="Describe the reason for disabling this rule..."
-                    className="w-full mt-1.5 bg-bg-input border border-border-panel rounded px-3 py-2 text-sm text-text-primary outline-none focus:border-accent-blue transition-colors h-24 resize-none"
+                    className="w-full bg-[#0B0F19] border border-[#1E293B] rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-[#64748B] outline-none focus:border-[#3B82F6] transition-colors h-24 resize-none"
                   />
                 </div>
               )}
 
               <div>
-                <label className="text-xs text-text-muted font-medium">Deactivation Due Date (Optional)</label>
-                <div className="flex gap-2 mt-1.5 flex-wrap">
+                <label className="text-[11px] font-semibold uppercase tracking-wider text-[#94A3B8] block mb-1.5">DEACTIVATION DUE DATE (OPTIONAL)</label>
+                <div className="flex gap-2 items-center flex-wrap">
                   <input
                     type="date"
                     value={dueDate}
                     onChange={e => setDueDate(e.target.value)}
-                    className="bg-bg-input border border-border-panel rounded px-3 py-1.5 text-sm text-text-primary outline-none focus:border-accent-blue transition-colors min-w-[140px] flex-1"
+                    className="bg-[#0B0F19] border border-[#1E293B] rounded-xl px-3.5 py-2 text-xs text-white outline-none focus:border-[#3B82F6] transition-colors min-w-[150px] flex-1"
                   />
                   <button
                     type="button"
                     onClick={() => applyPresetDays(7)}
-                    className="px-2.5 py-1.5 text-xs font-semibold rounded bg-bg-panel border border-border-panel text-text-primary hover:border-accent-blue hover:text-accent-blue transition-colors cursor-pointer"
+                    className="px-3 py-2 text-xs rounded-full border border-[#1E293B] text-white hover:border-[#3B82F6] hover:text-[#3B82F6] transition-colors cursor-pointer"
                   >
                     +7 Days
                   </button>
                   <button
                     type="button"
                     onClick={() => applyPresetDays(30)}
-                    className="px-2.5 py-1.5 text-xs font-semibold rounded bg-bg-panel border border-border-panel text-text-primary hover:border-accent-blue hover:text-accent-blue transition-colors cursor-pointer"
+                    className="px-3 py-2 text-xs rounded-full border border-[#1E293B] text-white hover:border-[#3B82F6] hover:text-[#3B82F6] transition-colors cursor-pointer"
                   >
                     +30 Days
                   </button>
                   <button
                     type="button"
                     onClick={() => applyPresetDays(90)}
-                    className="px-2.5 py-1.5 text-xs font-semibold rounded bg-bg-panel border border-border-panel text-text-primary hover:border-accent-blue hover:text-accent-blue transition-colors cursor-pointer"
+                    className="px-3 py-2 text-xs rounded-full border border-[#1E293B] text-white hover:border-[#3B82F6] hover:text-[#3B82F6] transition-colors cursor-pointer"
                   >
                     +90 Days
                   </button>
@@ -568,16 +568,16 @@ function formatModalParamsJson(ruleName: string, steps: unknown): string {
               </div>
             </div>
 
-            <div className="flex justify-end gap-3 mt-6 border-t border-border-panel pt-4">
+            <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-[#1E293B]">
               <button
                 onClick={() => setDisableRow(null)}
-                className="px-4 py-2 text-sm rounded border border-border-panel text-text-muted hover:text-text-primary hover:border-text-muted transition-colors"
+                className="px-4 py-2 text-xs rounded-full border border-[#1E293B] text-white hover:bg-[#1E293B] transition-colors cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 onClick={confirmDisable}
-                className="px-4 py-2 text-sm rounded bg-red-600 text-white font-medium hover:bg-red-700 transition-colors"
+                className="px-4 py-2 text-xs rounded-full bg-[#EF4444] text-white font-medium hover:bg-[#DC2626] transition-colors cursor-pointer"
               >
                 Confirm Disable
               </button>
@@ -586,33 +586,40 @@ function formatModalParamsJson(ruleName: string, steps: unknown): string {
         </Dialog.Portal>
       </Dialog.Root>
 
-      {/* Disable Group reason modal */}
+      {/* Disable Group reason modal (Bulk) */}
       <Dialog.Root open={!!disableGroupData} onOpenChange={v => !v && setDisableGroupData(null)}>
         <Dialog.Portal>
-          <Dialog.Overlay className="fixed inset-0 bg-black/60 z-50 backdrop-blur-sm" />
-          <Dialog.Content className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[460px] bg-bg-panel rounded-card border border-border-panel p-6 shadow-2xl">
-            <div className="flex items-center justify-between mb-4">
-              <Dialog.Title className="text-base font-semibold text-text-primary">
+          <Dialog.Overlay className="fixed inset-0 bg-black/70 z-50 backdrop-blur-sm" />
+          <Dialog.Content className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[480px] bg-[#111827] rounded-2xl border border-[#1E293B] p-6 shadow-2xl select-none">
+            <div className="flex items-center justify-between mb-5">
+              <Dialog.Title className="text-base font-semibold text-white">
                 Disable All Rule Instances (Bulk)
               </Dialog.Title>
-              <Dialog.Close className="text-text-muted hover:text-text-primary transition-colors">
+              <Dialog.Close className="text-[#64748B] hover:text-white transition-colors cursor-pointer">
                 <X size={18} />
               </Dialog.Close>
             </div>
-            <p className="text-xs text-text-muted mb-4 leading-relaxed">
-              Specify a justification for disabling **ALL** instances of the Monitoring Rule <span className="font-bold text-text-primary">{disableGroupData?.friendlyName}</span>.
+            <p className="text-xs text-[#94A3B8] mb-4 leading-relaxed">
+              Specify a justification for disabling <span className="font-semibold text-white">ALL</span> instances of the Monitoring Rule <span className="font-semibold text-white">{disableGroupData?.friendlyName}</span>
             </p>
-            <p className="text-xs text-text-muted bg-amber-500/10 border border-amber-500/20 rounded p-2.5 mb-4 leading-relaxed">
-              <span className="font-semibold text-amber-500">Warning:</span> This will disable {disableGroupData?.rows.filter(r => r.enabled).length} active rule instance(s) across equipment: <span className="font-mono text-text-primary">{disableGroupData?.rows.filter(r => r.enabled).map(r => r.equipmentCode).join(', ')}</span>.
-            </p>
+            {/* Amber Warning Box matching Figma Image 3 & 4 */}
+            <div className="bg-[#2A1D0E] border border-[#EAB308]/40 rounded-xl p-3 mb-5 leading-relaxed text-xs">
+              <p className="font-medium text-[#F59E0B] mb-1">Warning:</p>
+              <p className="text-[#FCD34D]">
+                This will disable {disableGroupData?.rows.filter(r => r.enabled).length} active rule instance(s) across equipment:{' '}
+                <span className="font-mono text-[#FEE2E2]">
+                  {disableGroupData?.rows.filter(r => r.enabled).map(r => r.equipmentCode).join(', ')}
+                </span>
+              </p>
+            </div>
 
             <div className="space-y-4">
               <div>
-                <label className="text-xs text-text-muted font-medium">Justification Reason</label>
+                <label className="text-[11px] font-semibold uppercase tracking-wider text-[#94A3B8] block mb-1.5">JUSTIFICATION REASON</label>
                 <select
                   value={disableReason}
                   onChange={e => setDisableReason(e.target.value)}
-                  className="w-full mt-1.5 bg-bg-input border border-border-panel rounded px-3 py-2 text-sm text-text-primary outline-none focus:border-accent-blue transition-colors"
+                  className="w-full bg-[#0B0F19] border border-[#1E293B] rounded-xl px-3.5 py-2.5 text-xs text-white outline-none focus:border-[#3B82F6] transition-colors cursor-pointer"
                 >
                   <option value="Process Shutdown / Maintenance">Process Shutdown / Maintenance</option>
                   <option value="Sensor Calibration">Sensor Calibration</option>
@@ -623,43 +630,43 @@ function formatModalParamsJson(ruleName: string, steps: unknown): string {
 
               {disableReason === 'Other' && (
                 <div>
-                  <label className="text-xs text-text-muted font-medium">Custom Reason</label>
+                  <label className="text-[11px] font-semibold uppercase tracking-wider text-[#94A3B8] block mb-1.5">CUSTOM REASON</label>
                   <textarea
                     value={customReason}
                     onChange={e => setCustomReason(e.target.value)}
                     placeholder="Describe the reason for disabling these rules..."
-                    className="w-full mt-1.5 bg-bg-input border border-border-panel rounded px-3 py-2 text-sm text-text-primary outline-none focus:border-accent-blue transition-colors h-24 resize-none"
+                    className="w-full bg-[#0B0F19] border border-[#1E293B] rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-[#64748B] outline-none focus:border-[#3B82F6] transition-colors h-24 resize-none"
                   />
                 </div>
               )}
 
               <div>
-                <label className="text-xs text-text-muted font-medium">Deactivation Due Date (Optional)</label>
-                <div className="flex gap-2 mt-1.5 flex-wrap">
+                <label className="text-[11px] font-semibold uppercase tracking-wider text-[#94A3B8] block mb-1.5">DEACTIVATION DUE DATE (OPTIONAL)</label>
+                <div className="flex gap-2 items-center flex-wrap">
                   <input
                     type="date"
                     value={dueDate}
                     onChange={e => setDueDate(e.target.value)}
-                    className="bg-bg-input border border-border-panel rounded px-3 py-1.5 text-sm text-text-primary outline-none focus:border-accent-blue transition-colors min-w-[140px] flex-1"
+                    className="bg-[#0B0F19] border border-[#1E293B] rounded-xl px-3.5 py-2 text-xs text-white outline-none focus:border-[#3B82F6] transition-colors min-w-[150px] flex-1"
                   />
                   <button
                     type="button"
                     onClick={() => applyPresetDays(7)}
-                    className="px-2.5 py-1.5 text-xs font-semibold rounded bg-bg-panel border border-border-panel text-text-primary hover:border-accent-blue hover:text-accent-blue transition-colors cursor-pointer"
+                    className="px-3 py-2 text-xs rounded-full border border-[#1E293B] text-white hover:border-[#3B82F6] hover:text-[#3B82F6] transition-colors cursor-pointer"
                   >
                     +7 Days
                   </button>
                   <button
                     type="button"
                     onClick={() => applyPresetDays(30)}
-                    className="px-2.5 py-1.5 text-xs font-semibold rounded bg-bg-panel border border-border-panel text-text-primary hover:border-accent-blue hover:text-accent-blue transition-colors cursor-pointer"
+                    className="px-3 py-2 text-xs rounded-full border border-[#1E293B] text-white hover:border-[#3B82F6] hover:text-[#3B82F6] transition-colors cursor-pointer"
                   >
                     +30 Days
                   </button>
                   <button
                     type="button"
                     onClick={() => applyPresetDays(90)}
-                    className="px-2.5 py-1.5 text-xs font-semibold rounded bg-bg-panel border border-border-panel text-text-primary hover:border-accent-blue hover:text-accent-blue transition-colors cursor-pointer"
+                    className="px-3 py-2 text-xs rounded-full border border-[#1E293B] text-white hover:border-[#3B82F6] hover:text-[#3B82F6] transition-colors cursor-pointer"
                   >
                     +90 Days
                   </button>
@@ -667,16 +674,16 @@ function formatModalParamsJson(ruleName: string, steps: unknown): string {
               </div>
             </div>
 
-            <div className="flex justify-end gap-3 mt-6 border-t border-border-panel pt-4">
+            <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-[#1E293B]">
               <button
                 onClick={() => setDisableGroupData(null)}
-                className="px-4 py-2 text-sm rounded border border-border-panel text-text-muted hover:text-text-primary hover:border-text-muted transition-colors"
+                className="px-4 py-2 text-xs rounded-full border border-[#1E293B] text-white hover:bg-[#1E293B] transition-colors cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 onClick={confirmGroupDisable}
-                className="px-4 py-2 text-sm rounded bg-red-600 text-white font-medium hover:bg-red-700 transition-colors"
+                className="px-4 py-2 text-xs rounded-full bg-[#EF4444] text-white font-medium hover:bg-[#DC2626] transition-colors cursor-pointer"
               >
                 Confirm Disable All
               </button>
@@ -685,33 +692,33 @@ function formatModalParamsJson(ruleName: string, steps: unknown): string {
         </Dialog.Portal>
       </Dialog.Root>
 
-      {/* Export Confirmation modal */}
+      {/* Export Confirmation modal matching Figma Image 2 from new batch */}
       <Dialog.Root open={showExportModal} onOpenChange={setShowExportModal}>
         <Dialog.Portal>
-          <Dialog.Overlay className="fixed inset-0 bg-black/60 z-50 backdrop-blur-sm" />
-          <Dialog.Content className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[440px] bg-bg-panel rounded-card border border-border-panel p-6 shadow-2xl">
+          <Dialog.Overlay className="fixed inset-0 bg-black/70 z-50 backdrop-blur-sm" />
+          <Dialog.Content className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[450px] bg-[#111827] rounded-2xl border border-[#1E293B] p-6 shadow-2xl select-none">
             <div className="flex items-center justify-between mb-4">
-              <Dialog.Title className="text-base font-semibold text-text-primary">
+              <Dialog.Title className="text-base font-semibold text-white">
                 Export Catalog to Excel
               </Dialog.Title>
-              <Dialog.Close className="text-text-muted hover:text-text-primary transition-colors">
+              <Dialog.Close className="text-[#64748B] hover:text-white transition-colors cursor-pointer">
                 <X size={18} />
               </Dialog.Close>
             </div>
-            <p className="text-xs text-text-muted mb-6 leading-relaxed">
+            <p className="text-xs text-[#94A3B8] mb-6 leading-relaxed">
               Are you sure you want to download the current Monitoring Rule Instance Catalog? This will export all filtered records in CSV format compatible with Microsoft Excel.
             </p>
 
-            <div className="flex justify-end gap-3 border-t border-border-panel pt-4">
+            <div className="flex justify-end gap-3 pt-4 border-t border-[#1E293B]">
               <button
                 onClick={() => setShowExportModal(false)}
-                className="px-4 py-2 text-sm rounded border border-border-panel text-text-muted hover:text-text-primary hover:border-text-muted transition-colors"
+                className="px-4 py-2 text-xs rounded-full border border-[#1E293B] text-white hover:bg-[#1E293B] transition-colors cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 onClick={() => { downloadExcel(); setShowExportModal(false); }}
-                className="px-4 py-2 text-sm rounded bg-accent-blue text-white font-medium hover:bg-accent-blue-dark transition-colors"
+                className="px-4 py-2 text-xs rounded-full bg-[#3B82F6] text-white font-medium hover:bg-[#2563EB] transition-colors cursor-pointer"
               >
                 Download
               </button>
@@ -720,35 +727,35 @@ function formatModalParamsJson(ruleName: string, steps: unknown): string {
         </Dialog.Portal>
       </Dialog.Root>
 
-      {/* Enable Instance Confirmation modal */}
+      {/* Enable Instance Confirmation modal matching Figma Image 5 */}
       <Dialog.Root open={!!enableRow} onOpenChange={v => !v && setEnableRow(null)}>
         <Dialog.Portal>
-          <Dialog.Overlay className="fixed inset-0 bg-black/60 z-50 backdrop-blur-sm" />
-          <Dialog.Content className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[440px] bg-bg-panel rounded-card border border-border-panel p-6 shadow-2xl">
+          <Dialog.Overlay className="fixed inset-0 bg-black/70 z-50 backdrop-blur-sm" />
+          <Dialog.Content className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[450px] bg-[#111827] rounded-2xl border border-[#1E293B] p-6 shadow-2xl select-none">
             <div className="flex items-center justify-between mb-4">
-              <Dialog.Title className="text-base font-semibold text-text-primary">
-                Enable Monitoring Rule Instance
+              <Dialog.Title className="text-base font-semibold text-white">
+                Enable monitoring rule instance
               </Dialog.Title>
-              <Dialog.Close className="text-text-muted hover:text-text-primary transition-colors cursor-pointer">
+              <Dialog.Close className="text-[#64748B] hover:text-white transition-colors cursor-pointer">
                 <X size={18} />
               </Dialog.Close>
             </div>
-            <p className="text-xs text-text-muted mb-6 leading-relaxed">
-              Are you sure you want to enable monitoring for instance <span className="font-bold text-text-primary">{enableRow?.ruleName}</span> on asset <span className="font-mono text-text-primary font-semibold">{enableRow?.equipmentCode}</span>?
+            <p className="text-xs text-[#94A3B8] mb-6 leading-relaxed">
+              Are you sure you want to enable monitoring for instance <span className="font-semibold text-white">{enableRow?.ruleName}</span> on asset <span className="font-semibold text-white">{enableRow?.equipmentCode}</span>?
             </p>
 
-            <div className="flex justify-end gap-3 border-t border-border-panel pt-4">
+            <div className="flex justify-end gap-3 pt-4 border-t border-[#1E293B]">
               <button
                 onClick={() => setEnableRow(null)}
-                className="px-4 py-2 text-sm rounded border border-border-panel text-text-muted hover:text-text-primary hover:border-text-muted transition-colors cursor-pointer"
+                className="px-4 py-2 text-xs rounded-full border border-[#1E293B] text-white hover:bg-[#1E293B] transition-colors cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 onClick={confirmEnable}
-                className="px-4 py-2 text-sm rounded bg-accent-blue text-white font-medium hover:bg-accent-blue-dark transition-colors cursor-pointer"
+                className="px-4 py-2 text-xs rounded-full bg-[#3B82F6] text-white font-medium hover:bg-[#2563EB] transition-colors cursor-pointer"
               >
-                Enable Instance
+                Yes, enable
               </button>
             </div>
           </Dialog.Content>
@@ -758,32 +765,32 @@ function formatModalParamsJson(ruleName: string, steps: unknown): string {
       {/* Enable Group Confirmation modal */}
       <Dialog.Root open={!!enableGroupData} onOpenChange={v => !v && setEnableGroupData(null)}>
         <Dialog.Portal>
-          <Dialog.Overlay className="fixed inset-0 bg-black/60 z-50 backdrop-blur-sm" />
-          <Dialog.Content className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[440px] bg-bg-panel rounded-card border border-border-panel p-6 shadow-2xl">
+          <Dialog.Overlay className="fixed inset-0 bg-black/70 z-50 backdrop-blur-sm" />
+          <Dialog.Content className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[450px] bg-[#111827] rounded-2xl border border-[#1E293B] p-6 shadow-2xl select-none">
             <div className="flex items-center justify-between mb-4">
-              <Dialog.Title className="text-base font-semibold text-text-primary">
-                Enable All Rule Instances (Bulk)
+              <Dialog.Title className="text-base font-semibold text-white">
+                Enable monitoring rule instances
               </Dialog.Title>
-              <Dialog.Close className="text-text-muted hover:text-text-primary transition-colors cursor-pointer">
+              <Dialog.Close className="text-[#64748B] hover:text-white transition-colors cursor-pointer">
                 <X size={18} />
               </Dialog.Close>
             </div>
-            <p className="text-xs text-text-muted mb-6 leading-relaxed">
-              Are you sure you want to enable all {enableGroupData?.rows.filter(r => !r.enabled).length} disabled instances for rule <span className="font-bold text-text-primary">{enableGroupData?.friendlyName}</span>?
+            <p className="text-xs text-[#94A3B8] mb-6 leading-relaxed">
+              Are you sure you want to enable all {enableGroupData?.rows.filter(r => !r.enabled).length} disabled instances for rule <span className="font-semibold text-white">{enableGroupData?.friendlyName}</span>?
             </p>
 
-            <div className="flex justify-end gap-3 border-t border-border-panel pt-4">
+            <div className="flex justify-end gap-3 pt-4 border-t border-[#1E293B]">
               <button
                 onClick={() => setEnableGroupData(null)}
-                className="px-4 py-2 text-sm rounded border border-border-panel text-text-muted hover:text-text-primary hover:border-text-muted transition-colors cursor-pointer"
+                className="px-4 py-2 text-xs rounded-full border border-[#1E293B] text-white hover:bg-[#1E293B] transition-colors cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 onClick={confirmGroupEnable}
-                className="px-4 py-2 text-sm rounded bg-accent-blue text-white font-medium hover:bg-accent-blue-dark transition-colors cursor-pointer"
+                className="px-4 py-2 text-xs rounded-full bg-[#3B82F6] text-white font-medium hover:bg-[#2563EB] transition-colors cursor-pointer"
               >
-                Enable {enableGroupData?.rows.filter(r => !r.enabled).length} Instance(s)
+                Yes, enable
               </button>
             </div>
           </Dialog.Content>

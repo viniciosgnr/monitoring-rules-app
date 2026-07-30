@@ -8,7 +8,7 @@ import RuleAlertsChart from './RuleAlertsChart';
 import StatusAlertsChart from './StatusAlertsChart';
 import { SlidersHorizontal, Maximize2, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
 
-const PERIODS = ['Last Week', 'Last Month', 'Last 6 month'];
+const PERIODS = ['Last Week', 'Last Month', 'Last 6 month', '1 Year', 'All time'];
 const CATEGORIES_LIST = ['Drift', 'Spike', 'Surge', 'Trend', 'Normalized dP'];
 
 interface RuleInstanceRow {
@@ -51,9 +51,9 @@ function Sel({ value, onChange, options }: { value: string; onChange: (v: string
     <select
       value={value}
       onChange={e => onChange(e.target.value)}
-      className="bg-bg-panel border border-border-panel rounded px-3 py-1.5 text-xs text-text-primary outline-none cursor-pointer hover:border-accent-blue transition-colors"
+      className="bg-[#0B0F19] border border-[#1E293B] rounded-xl px-3.5 py-1.5 text-xs text-white outline-none cursor-pointer hover:border-[#3B82F6] transition-colors"
     >
-      {options.map(o => <option key={o}>{o}</option>)}
+      {options.map(o => <option key={o} value={o} className="bg-[#111827] text-white">{o}</option>)}
     </select>
   );
 }
@@ -97,7 +97,11 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
 
   // Process rules instances dynamically based on alert database logs
   const processedInstances = useMemo(() => {
-    const daysCount = period === 'Last Week' ? 7 : period === 'Last Month' ? 30 : 180;
+    const daysCount =
+      period === 'Last Week' ? 7 :
+      period === 'Last Month' ? 30 :
+      period === 'Last 6 month' ? 180 :
+      period === '1 Year' ? 365 : 365;
 
     return ruleInstances.map(inst => {
       const id = inst.id;
@@ -112,6 +116,8 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
         if (period === 'Last Week' && diffMs > oneDay * 7) return false;
         if (period === 'Last Month' && diffMs > oneDay * 30) return false;
         if (period === 'Last 6 month' && diffMs > oneDay * 180) return false;
+        if (period === '1 Year' && diffMs > oneDay * 365) return false;
+        // 'All time' includes all historical alerts without date boundary capping
         
         return true;
       });
@@ -252,28 +258,35 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
   }, [filteredInstances, globalAccuracy]);
 
   const periodSubtitle = useMemo(() => {
-    if (period === 'Last Week') return 'Last 7 days';
-    if (period === 'Last Month') return 'Last 30 days';
-    return 'Last 180 days';
+    if (period === 'Last Week') return 'Last week';
+    if (period === 'Last Month') return 'Last month';
+    if (period === 'Last 6 month') return 'Last 6 months';
+    if (period === '1 Year') return 'Last 1 year';
+    return 'All time';
   }, [period]);
 
   // Dynamic series aggregation for line charts
   const trendData = useMemo(() => {
-    const bucketsCount = period === 'Last Week' ? 7 : period === 'Last Month' ? 30 : 6;
+    const isWeekly = period === 'Last Week';
+    const isDailyMonth = period === 'Last Month';
+    const is6Months = period === 'Last 6 month';
+    const bucketsCount = isWeekly ? 7 : isDailyMonth ? 30 : is6Months ? 6 : 12;
+
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const now = new Date();
 
     const buckets = Array.from({ length: bucketsCount }, (_, index) => {
-      const now = new Date();
       let start = new Date();
       let end = new Date();
       let label = '';
 
-      if (period === 'Last Week') {
+      if (isWeekly) {
         const labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
         label = labels[index] || `Day ${index + 1}`;
         const daysAgo = 6 - index;
         start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - daysAgo, 0, 0, 0);
         end = new Date(now.getFullYear(), now.getMonth(), now.getDate() - daysAgo, 23, 59, 59);
-      } else if (period === 'Last Month') {
+      } else if (isDailyMonth) {
         const daysAgo = 29 - index;
         const targetDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - daysAgo);
         const dayStr = String(targetDate.getDate()).padStart(2, '0');
@@ -282,31 +295,28 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
         start = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 0, 0, 0);
         end = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 23, 59, 59);
       } else {
-        const labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
-        label = labels[index] || `M${index + 1}`;
-        const monthsAgo = 5 - index;
-        start = new Date(now.getFullYear(), now.getMonth() - monthsAgo, 1, 0, 0, 0);
-        end = new Date(now.getFullYear(), now.getMonth() - monthsAgo + 1, 0, 23, 59, 59);
+        const totalMonths = bucketsCount;
+        const monthsAgo = (totalMonths - 1) - index;
+        const targetMonth = new Date(now.getFullYear(), now.getMonth() - monthsAgo, 1, 0, 0, 0);
+        label = monthNames[targetMonth.getMonth()];
+        start = new Date(targetMonth.getFullYear(), targetMonth.getMonth(), 1, 0, 0, 0);
+        end = new Date(targetMonth.getFullYear(), targetMonth.getMonth() + 1, 0, 23, 59, 59);
       }
 
       return { label, start, end };
     });
 
     return buckets.map(({ label, start, end }) => {
-
       const intervalAlerts = alertsList.filter(a => {
-        // 1. Filter by Asset
         if (selectedEquipments.length > 0 && selectedEquipments.length < equipments.length && !selectedEquipments.includes(a.equipmentCode)) {
           return false;
         }
 
-        // 2. Filter by Rule Category
         if (selectedCategories.length > 0 && selectedCategories.length < CATEGORIES_LIST.length) {
           const friendlyCat = getRuleFriendlyCategory(a.ruleName);
           if (!selectedCategories.includes(friendlyCat)) return false;
         }
 
-        // 3. Filter by date interval
         const tTime = new Date(a.triggeredAt).getTime();
         return tTime >= start.getTime() && tTime <= end.getTime();
       });
@@ -315,7 +325,6 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
       const fps = intervalAlerts.filter(a => a.status === 'rejected').length;
       const correct = intervalAlerts.filter(a => a.status === 'validated' || a.status === 'closed').length;
 
-      // Strict daily alert ratio calculation: (correct / total) * 100
       const accuracy = total > 0 ? Math.round((correct / total) * 100) : 90;
       const falsePositives = fps;
 
@@ -369,12 +378,34 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
 
   return (
     <>
-      {/* Global Filters Control Bar */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 border-b border-border-panel/30 pb-4">
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-semibold text-text-muted uppercase tracking-wider">Analysis Filters</span>
+      {/* Navigation Sub-tabs & Global Filters Header */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+        {/* Optisite Sub-tabs */}
+        <div className="flex items-center gap-1 bg-[#0B0F19] border border-[#1E293B] p-1 rounded-xl select-none">
+          <button
+            onClick={() => setActiveTab('overview')}
+            className={`px-4 py-1.5 text-xs rounded-lg transition-colors cursor-pointer ${
+              activeTab === 'overview'
+                ? 'bg-[#1E293B] text-white font-medium shadow-sm'
+                : 'text-[#94A3B8] hover:text-white'
+            }`}
+          >
+            Overview & Trends
+          </button>
+          <button
+            onClick={() => setActiveTab('bad_actors')}
+            className={`px-4 py-1.5 text-xs rounded-lg transition-colors cursor-pointer ${
+              activeTab === 'bad_actors'
+                ? 'bg-[#1E293B] text-white font-medium shadow-sm'
+                : 'text-[#94A3B8] hover:text-white'
+            }`}
+          >
+            Bad Actors & Rule Audit
+          </button>
         </div>
-        <div className="flex flex-wrap gap-3 items-center">
+
+        {/* Global Filters Control Bar */}
+        <div className="flex flex-wrap gap-2.5 items-center">
           <Sel value={period} onChange={setPeriod} options={PERIODS} />
           <ColumnFilterDropdown
             variant="select"
@@ -391,30 +422,6 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
             onChange={setSelectedCategories}
           />
         </div>
-      </div>
-
-      {/* Sub-tabs Navigation */}
-      <div className="flex border-b border-border-panel mb-6 text-sm">
-        <button
-          onClick={() => setActiveTab('overview')}
-          className={`px-6 py-3 font-semibold border-b-2 transition-all cursor-pointer ${
-            activeTab === 'overview'
-              ? 'border-accent-blue text-accent-blue bg-bg-panel/10'
-              : 'border-transparent text-text-muted hover:text-text-primary'
-          }`}
-        >
-          Overview & Trends
-        </button>
-        <button
-          onClick={() => setActiveTab('bad_actors')}
-          className={`px-6 py-3 font-semibold border-b-2 transition-all cursor-pointer ${
-            activeTab === 'bad_actors'
-              ? 'border-accent-blue text-accent-blue bg-bg-panel/10'
-              : 'border-transparent text-text-muted hover:text-text-primary'
-          }`}
-        >
-          Bad Actors & Rule Audit
-        </button>
       </div>
 
       {activeTab === 'overview' && (
@@ -689,60 +696,80 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
             </div>
           </div>
 
-          {/* Top 10 Rule Instances Card */}
+          {/* Top 10 Bad Actors Card */}
           <div className="bg-bg-card border border-border-panel rounded-card overflow-hidden mt-2">
-            <div className="px-4 py-3 border-b border-border-panel flex flex-col md:flex-row md:items-center justify-between gap-4 bg-bg-panel/20">
+            <div className="px-4 py-3.5 border-b border-border-panel flex flex-col md:flex-row md:items-center justify-between gap-4 bg-[#0F172A]/40">
               <div>
-                <h3 className="text-sm font-bold text-text-primary">Top 10 Monitoring Rule Instances</h3>
-                <p className="text-[10px] text-text-muted mt-0.5">Rankings based on active filters and time period</p>
+                <h3 className="text-sm font-bold text-text-primary">Top 10 Bad Actors</h3>
+                <p className="text-[10px] text-text-muted mt-0.5">Global rankings of rule configurations across all FPSOs (unaffected by filters)</p>
               </div>
-              {/* Tab buttons */}
-              <div className="flex bg-bg-panel/60 p-0.5 rounded border border-border-panel/50 text-xs">
+              {/* Tab buttons - Optisite rounded-full pill styling */}
+              <div className="flex items-center bg-[#070A11] p-1 rounded-full border border-[#1E293B] text-xs">
                 <button
                   onClick={() => setTop10Tab('lowest_accuracy')}
-                  className={`px-3 py-1.5 rounded font-semibold transition-all cursor-pointer ${
+                  className={`px-3.5 py-1 rounded-full font-medium transition-all cursor-pointer ${
                     top10Tab === 'lowest_accuracy'
-                      ? 'bg-accent-blue text-[#090d16] font-bold shadow'
-                      : 'text-text-muted hover:text-text-primary'
+                      ? 'bg-[#1E2738] border border-[#2D3B55] text-[#60A5FA] shadow-sm font-semibold'
+                      : 'text-[#E2E8F0] hover:text-white'
                   }`}
                 >
-                  Lowest Accuracy
+                  Lowest accuracy
                 </button>
                 <button
                   onClick={() => setTop10Tab('highest_fp')}
-                  className={`px-3 py-1.5 rounded font-semibold transition-all cursor-pointer ${
+                  className={`px-3.5 py-1 rounded-full font-medium transition-all cursor-pointer ${
                     top10Tab === 'highest_fp'
-                      ? 'bg-accent-blue text-[#090d16] font-bold shadow'
-                      : 'text-text-muted hover:text-text-primary'
+                      ? 'bg-[#1E2738] border border-[#2D3B55] text-[#60A5FA] shadow-sm font-semibold'
+                      : 'text-[#E2E8F0] hover:text-white'
                   }`}
                 >
-                  Highest False Positives
+                  Highest false positives
                 </button>
                 <button
                   onClick={() => setTop10Tab('highest_alerts')}
-                  className={`px-3 py-1.5 rounded font-semibold transition-all cursor-pointer ${
+                  className={`px-3.5 py-1 rounded-full font-medium transition-all cursor-pointer ${
                     top10Tab === 'highest_alerts'
-                      ? 'bg-accent-blue text-[#090d16] font-bold shadow'
-                      : 'text-text-muted hover:text-text-primary'
+                      ? 'bg-[#1E2738] border border-[#2D3B55] text-[#60A5FA] shadow-sm font-semibold'
+                      : 'text-[#E2E8F0] hover:text-white'
                   }`}
                 >
-                  Highest Alerts
+                  Highest alerts
                 </button>
               </div>
             </div>
 
-            {/* Table representation */}
+            {/* Table representation matching Optisite mockup */}
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
-                  <tr className="border-b border-border-panel text-text-muted text-[10px] font-bold uppercase tracking-wider bg-bg-panel/40 select-none">
-                    <th className="px-4 py-3 w-16">Rank</th>
-                    <th className="px-4 py-3">Monitoring Rule</th>
-                    <th className="px-4 py-3">Asset</th>
+                  <tr className="border-b border-[#1E293B] text-[#94A3B8] text-xs font-semibold select-none bg-[#0B0F19]/50">
+                    <th className="px-4 py-3 w-20">
+                      <div className="mb-1 text-xs">Rank</div>
+                      <div className="h-0.5 w-full bg-[#1E293B] relative flex justify-end items-center">
+                        <SlidersHorizontal className="w-3 h-3 text-[#64748B] -mr-1" />
+                      </div>
+                    </th>
+                    <th className="px-4 py-3">
+                      <div className="mb-1 text-xs">Monitoring Rule</div>
+                      <div className="h-0.5 w-full bg-[#1E293B] relative flex justify-end items-center">
+                        <SlidersHorizontal className="w-3 h-3 text-[#64748B] -mr-1" />
+                      </div>
+                    </th>
+                    <th className="px-4 py-3">
+                      <div className="mb-1 text-xs">Asset</div>
+                      <div className="h-0.5 w-full bg-[#1E293B] relative flex justify-end items-center">
+                        <SlidersHorizontal className="w-3 h-3 text-[#64748B] -mr-1" />
+                      </div>
+                    </th>
                     <th className="px-4 py-3 text-right">
-                      {top10Tab === 'lowest_accuracy' && 'Accuracy'}
-                      {top10Tab === 'highest_fp' && 'False Positives'}
-                      {top10Tab === 'highest_alerts' && 'Total Alerts'}
+                      <div className="mb-1 text-xs">
+                        {top10Tab === 'lowest_accuracy' && 'Accuracy'}
+                        {top10Tab === 'highest_fp' && 'False Positives'}
+                        {top10Tab === 'highest_alerts' && 'Total Alerts'}
+                      </div>
+                      <div className="h-0.5 w-full bg-[#1E293B] relative flex justify-end items-center">
+                        <SlidersHorizontal className="w-3 h-3 text-[#64748B] -mr-1" />
+                      </div>
                     </th>
                   </tr>
                 </thead>
@@ -757,31 +784,31 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
 
                   {top10Tab === 'lowest_accuracy' &&
                     lowestAccuracyList.map((item, index) => (
-                      <tr key={item.id} className="border-b border-border-panel hover:bg-bg-panel/40 transition-colors">
-                        <td className="px-4 py-3 font-semibold text-text-muted">#{index + 1}</td>
-                        <td className="px-4 py-3 font-medium text-text-primary">{item.ruleName}</td>
-                        <td className="px-4 py-3 text-text-muted">{item.equipmentCode}</td>
-                        <td className="px-4 py-3 text-right font-bold text-accent-blue">{item.accuracy}%</td>
+                      <tr key={item.id} className="border-b border-[#1E293B] hover:bg-bg-panel/40 transition-colors">
+                        <td className="px-4 py-3.5 font-semibold text-[#94A3B8]">#{index + 1}</td>
+                        <td className="px-4 py-3.5 font-medium text-text-primary">{item.ruleName}</td>
+                        <td className="px-4 py-3.5 text-[#94A3B8]">{item.equipmentCode}</td>
+                        <td className="px-4 py-3.5 text-right font-bold text-[#3B82F6]">{item.accuracy}%</td>
                       </tr>
                     ))}
 
                   {top10Tab === 'highest_fp' &&
                     highestFpList.map((item, index) => (
-                      <tr key={item.id} className="border-b border-border-panel hover:bg-bg-panel/40 transition-colors">
-                        <td className="px-4 py-3 font-semibold text-text-muted">#{index + 1}</td>
-                        <td className="px-4 py-3 font-medium text-text-primary">{item.ruleName}</td>
-                        <td className="px-4 py-3 text-text-muted">{item.equipmentCode}</td>
-                        <td className="px-4 py-3 text-right font-bold text-status-warn">{item.falsePositives}</td>
+                      <tr key={item.id} className="border-b border-[#1E293B] hover:bg-bg-panel/40 transition-colors">
+                        <td className="px-4 py-3.5 font-semibold text-[#94A3B8]">#{index + 1}</td>
+                        <td className="px-4 py-3.5 font-medium text-text-primary">{item.ruleName}</td>
+                        <td className="px-4 py-3.5 text-[#94A3B8]">{item.equipmentCode}</td>
+                        <td className="px-4 py-3.5 text-right font-bold text-[#F59E0B]">{item.falsePositives}</td>
                       </tr>
                     ))}
 
                   {top10Tab === 'highest_alerts' &&
                     highestAlertsList.map((item, index) => (
-                      <tr key={item.id} className="border-b border-border-panel hover:bg-bg-panel/40 transition-colors">
-                        <td className="px-4 py-3 font-semibold text-text-muted">#{index + 1}</td>
-                        <td className="px-4 py-3 font-medium text-text-primary">{item.ruleName}</td>
-                        <td className="px-4 py-3 text-text-muted">{item.equipmentCode}</td>
-                        <td className="px-4 py-3 text-right font-bold text-status-ok">{item.alertsCount}</td>
+                      <tr key={item.id} className="border-b border-[#1E293B] hover:bg-bg-panel/40 transition-colors">
+                        <td className="px-4 py-3.5 font-semibold text-[#94A3B8]">#{index + 1}</td>
+                        <td className="px-4 py-3.5 font-medium text-text-primary">{item.ruleName}</td>
+                        <td className="px-4 py-3.5 text-[#94A3B8]">{item.equipmentCode}</td>
+                        <td className="px-4 py-3.5 text-right font-bold text-[#22C55E]">{item.alertsCount}</td>
                       </tr>
                     ))}
                 </tbody>

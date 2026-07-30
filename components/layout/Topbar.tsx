@@ -64,37 +64,62 @@ export default function Topbar({ breadcrumb }: { breadcrumb: string }) {
         <div className="relative flex items-center" ref={dropdownRef}>
           <button
             onClick={() => setDropdownOpen(!dropdownOpen)}
-            className="w-7 h-7 rounded-full bg-accent-blue-dark hover:bg-accent-blue flex items-center justify-center text-xs font-semibold text-white select-none cursor-pointer transition-colors"
+            className="w-7 h-7 rounded-full bg-[#3B82F6] hover:bg-[#2563EB] flex items-center justify-center text-xs font-medium text-white select-none cursor-pointer transition-colors"
           >
             {initials}
           </button>
           
           {dropdownOpen && (
-            <div className="absolute right-0 top-8 w-32 bg-bg-panel border border-border-panel rounded shadow-xl py-1 z-50">
-              <button
-                onClick={() => {
-                  setRole('admin');
-                  setDropdownOpen(false);
-                }}
-                className={`w-full text-left px-3 py-1.5 text-xs hover:bg-bg-base/50 transition-colors flex items-center justify-between cursor-pointer ${
-                  role === 'admin' ? 'text-accent-blue font-semibold' : 'text-text-primary'
-                }`}
-              >
-                <span>Admin</span>
-                {role === 'admin' && <span className="w-1.5 h-1.5 rounded-full bg-accent-blue" />}
-              </button>
-              <button
-                onClick={() => {
-                  setRole('viewer');
-                  setDropdownOpen(false);
-                }}
-                className={`w-full text-left px-3 py-1.5 text-xs hover:bg-bg-base/50 transition-colors flex items-center justify-between cursor-pointer ${
-                  role === 'viewer' ? 'text-accent-blue font-semibold' : 'text-text-primary'
-                }`}
-              >
-                <span>Viewer</span>
-                {role === 'viewer' && <span className="w-1.5 h-1.5 rounded-full bg-accent-blue" />}
-              </button>
+            <div className="absolute right-0 top-9 w-60 bg-[#111827] border border-[#1E293B] rounded-2xl shadow-2xl p-3 z-50 select-none">
+              {/* Header inside popover matching Image 1 */}
+              <div className="flex items-center justify-between pb-3 mb-3 border-b border-[#1E293B]">
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={toggleTheme}
+                    className="text-[#94A3B8] hover:text-white transition-colors"
+                    aria-label="Toggle theme"
+                  >
+                    {theme === 'dark' ? <Sun size={17} /> : <Moon size={17} />}
+                  </button>
+                  <HelpCircle size={17} className="text-[#94A3B8] hover:text-white cursor-pointer transition-colors" />
+                </div>
+                <div className="w-8 h-8 rounded-full bg-[#3B82F6] flex items-center justify-center text-xs font-semibold text-white">
+                  {initials}
+                </div>
+              </div>
+
+              {/* Role Selection List matching Image 1 */}
+              <div className="space-y-1">
+                <button
+                  onClick={() => {
+                    setRole('admin');
+                    setDropdownOpen(false);
+                  }}
+                  className={`w-full text-left px-3.5 py-2.5 rounded-xl text-sm font-normal transition-colors flex items-center justify-between cursor-pointer ${
+                    role === 'admin'
+                      ? 'bg-[#2B3B55] text-white font-medium'
+                      : 'text-[#94A3B8] hover:bg-[#1E293B]/60 hover:text-white'
+                  }`}
+                >
+                  <span>Admin</span>
+                  {role === 'admin' && <span className="w-2.5 h-2.5 rounded-full bg-[#3B82F6] shadow-sm" />}
+                </button>
+
+                <button
+                  onClick={() => {
+                    setRole('viewer');
+                    setDropdownOpen(false);
+                  }}
+                  className={`w-full text-left px-3.5 py-2.5 rounded-xl text-sm font-normal transition-colors flex items-center justify-between cursor-pointer ${
+                    role === 'viewer'
+                      ? 'bg-[#2B3B55] text-white font-medium'
+                      : 'text-[#94A3B8] hover:bg-[#1E293B]/60 hover:text-white'
+                  }`}
+                >
+                  <span>Viewer</span>
+                  {role === 'viewer' && <span className="w-2.5 h-2.5 rounded-full bg-[#3B82F6] shadow-sm" />}
+                </button>
+              </div>
             </div>
           )}
         </div>

@@ -1,6 +1,6 @@
 'use client';
 import React, { useState, useRef, useEffect } from 'react';
-import { SlidersHorizontal, Search, Check, Minus, ChevronDown } from 'lucide-react';
+import { SlidersHorizontal, Check, Minus, ChevronDown } from 'lucide-react';
 
 interface ColumnFilterDropdownProps {
   title?: string;
@@ -12,7 +12,6 @@ interface ColumnFilterDropdownProps {
 }
 
 export default function ColumnFilterDropdown({
-  title,
   options = [],
   selectedValues,
   onChange,
@@ -105,50 +104,40 @@ export default function ColumnFilterDropdown({
 
       {/* Popover Dropdown */}
       {isOpen && (
-        <div className="absolute left-0 top-full mt-1 w-56 bg-bg-panel border border-border-panel rounded-card shadow-2xl z-50 p-2 text-xs space-y-2 select-none">
-          {title && (
-            <div className="text-[10px] font-bold uppercase tracking-wider text-text-muted px-1 pb-1 border-b border-border-panel/40 mb-1">
-              Filter: {title}
-            </div>
-          )}
+        <div className="absolute left-0 top-full mt-1.5 w-52 bg-[#131927] border border-[#1E2E48] rounded-xl shadow-2xl z-50 p-2.5 text-xs select-none">
           {/* Search Bar */}
-          <div className="relative flex items-center">
-            <Search size={12} className="absolute left-2 text-text-muted" />
+          <div className="pb-2 mb-2 border-b border-[#1E2E48]">
             <input
               type="text"
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
               placeholder="Search..."
-              className="w-full pl-7 pr-2 py-1 bg-bg-input border border-border-panel/60 rounded text-xs text-text-primary outline-none focus:border-accent-blue transition-colors"
+              className="w-full bg-transparent text-xs text-[#E2E8F0] placeholder-[#64748B] outline-none"
             />
           </div>
 
-          {/* Option List */}
-          <div className="max-h-48 overflow-y-auto space-y-0.5 pr-0.5">
+          {/* Option List with custom dark scrollbar */}
+          <div className="max-h-48 overflow-y-auto space-y-1.5 pr-1 scrollbar-thin scrollbar-thumb-[#2B3B55] scrollbar-track-transparent">
             {/* Select All Checkbox Row */}
             <div
               onClick={handleToggleSelectAll}
-              className="flex items-center gap-2 px-2 py-1 rounded hover:bg-bg-highlight cursor-pointer text-text-primary font-semibold"
+              className="flex items-center gap-2.5 px-1.5 py-1 rounded hover:bg-[#1E2E48]/50 cursor-pointer text-[#E2E8F0] font-medium"
             >
               <div
-                className={`w-3.5 h-3.5 rounded border flex items-center justify-center transition-colors ${
-                  allSelected
-                    ? 'bg-accent-blue border-accent-blue text-white'
-                    : isIndeterminate
-                    ? 'bg-accent-blue/20 border-accent-blue text-accent-blue'
-                    : 'border-border-panel bg-bg-input'
+                className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${
+                  allSelected || isIndeterminate
+                    ? 'bg-[#3B82F6] border-[#3B82F6] text-white'
+                    : 'border-[#334155] bg-transparent'
                 }`}
               >
-                {allSelected && <Check size={10} strokeWidth={3} />}
-                {isIndeterminate && <Minus size={10} strokeWidth={3} />}
+                {allSelected && <Check size={11} strokeWidth={3} />}
+                {isIndeterminate && <Minus size={11} strokeWidth={3} />}
               </div>
-              <span>(Select All)</span>
+              <span className="text-xs">(Select All)</span>
             </div>
 
-            <div className="border-t border-border-panel/40 my-1" />
-
             {filteredOptions.length === 0 ? (
-              <div className="px-2 py-2 text-text-muted italic text-center">No options found</div>
+              <div className="px-2 py-2 text-[#64748B] italic text-center text-xs">No options found</div>
             ) : (
               filteredOptions.map(opt => {
                 const checked = selectedValues.includes(opt);
@@ -156,18 +145,18 @@ export default function ColumnFilterDropdown({
                   <div
                     key={opt}
                     onClick={() => handleToggleOption(opt)}
-                    className="flex items-center gap-2 px-2 py-1 rounded hover:bg-bg-highlight cursor-pointer text-text-primary"
+                    className="flex items-center gap-2.5 px-1.5 py-1 rounded hover:bg-[#1E2E48]/50 cursor-pointer text-[#E2E8F0]"
                   >
                     <div
-                      className={`w-3.5 h-3.5 rounded border flex items-center justify-center transition-colors ${
+                      className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${
                         checked
-                          ? 'bg-accent-blue border-accent-blue text-white'
-                          : 'border-border-panel bg-bg-input'
+                          ? 'bg-[#3B82F6] border-[#3B82F6] text-white'
+                          : 'border-[#334155] bg-transparent'
                       }`}
                     >
-                      {checked && <Check size={10} strokeWidth={3} />}
+                      {checked && <Check size={11} strokeWidth={3} />}
                     </div>
-                    <span className="truncate">{opt}</span>
+                    <span className="truncate text-xs">{opt}</span>
                   </div>
                 );
               })

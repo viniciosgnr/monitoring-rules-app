@@ -19,8 +19,7 @@ interface Props {
 }
 
 const inputCls =
-  'w-full mt-1 bg-bg-input border border-border-panel rounded px-3 py-2 text-sm text-text-primary outline-none focus:border-accent-blue transition-colors';
-
+  'w-full mt-1.5 bg-[#0B0F19] border border-[#1E293B] rounded-xl px-3.5 py-2 text-xs text-white placeholder-[#64748B] outline-none focus:border-[#3B82F6] transition-colors';
 
 /* ─── Inline tooltip ───────────────────────────────────────────────── */
 function ParamTooltip({
@@ -78,8 +77,8 @@ function ParamTooltip({
       <span className={`
         absolute ${alignClass}
         ${isUp ? 'bottom-full mb-1.5' : 'top-full mt-1.5'}
-        w-80 bg-bg-panel border border-border-panel rounded-card
-        shadow-xl px-3 py-2.5 text-xs text-text-muted leading-relaxed
+        w-80 bg-[#131927] border border-[#1E2E48] rounded-xl
+        shadow-2xl px-3.5 py-2.5 text-xs text-[#94A3B8] leading-relaxed
         whitespace-normal text-left
       `}>
         <span className="space-y-1 block">
@@ -90,13 +89,13 @@ function ParamTooltip({
             
             const parts = content.split('**');
             const parsed = parts.map((part, i) =>
-              i % 2 === 1 ? <strong key={i} className="font-semibold text-text-primary">{part}</strong> : part
+              i % 2 === 1 ? <strong key={i} className="font-semibold text-white">{part}</strong> : part
             );
 
             if (isBullet) {
               return (
                 <span key={idx} className="flex items-start gap-1">
-                  <span className="text-accent-blue select-none mt-0.5">•</span>
+                  <span className="text-[#3B82F6] select-none mt-0.5">•</span>
                   <span className="flex-1">{parsed}</span>
                 </span>
               );
@@ -105,9 +104,9 @@ function ParamTooltip({
           })}
         </span>
         {isUp ? (
-          <span className={`absolute ${arrowClass} top-full w-0 h-0 border-x-4 border-x-transparent border-t-4 border-t-border-panel`} />
+          <span className={`absolute ${arrowClass} top-full w-0 h-0 border-x-4 border-x-transparent border-t-4 border-t-[#1E2E48]`} />
         ) : (
-          <span className={`absolute ${arrowClass} bottom-full w-0 h-0 border-x-4 border-x-transparent border-b-4 border-b-border-panel`} />
+          <span className={`absolute ${arrowClass} bottom-full w-0 h-0 border-x-4 border-x-transparent border-b-4 border-b-[#1E2E48]`} />
         )}
       </span>
     </div>
@@ -119,7 +118,7 @@ function ParamTooltip({
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
-      <Info size={12} className="text-text-muted hover:text-accent-blue transition-colors" />
+      <Info size={13} className="text-[#64748B] hover:text-[#3B82F6] transition-colors" />
       {isOpen && typeof document !== 'undefined' && createPortal(tooltipContent, document.body)}
     </span>
   );
@@ -139,12 +138,12 @@ function FieldBlock({
 }) {
   return (
     <div>
-      <label className="flex items-center text-xs text-text-muted min-h-[16px]">
+      <label className="flex items-center text-xs text-[#94A3B8] font-normal min-h-[16px]">
         {label || '\u00A0'}
         {tooltip && <ParamTooltip text={tooltip} />}
       </label>
       {children}
-      {hint && <p className="text-xs text-text-muted mt-1">{hint}</p>}
+      {hint && <p className="text-xs text-[#64748B] mt-1">{hint}</p>}
     </div>
   );
 }
@@ -162,7 +161,7 @@ function SectionTitle({
   tooltipAlign?: 'center' | 'left' | 'right';
 }) {
   return (
-    <p className="text-sm font-medium text-text-primary mb-3 flex items-center">
+    <p className="text-sm font-medium text-white mb-3 flex items-center">
       {label}
       {tooltip && <ParamTooltip text={tooltip} direction={tooltipDirection} align={tooltipAlign} />}
     </p>
@@ -356,13 +355,13 @@ export default function EditRuleModal({
   return (
     <Dialog.Root open={open} onOpenChange={v => !v && onClose()}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 bg-black/60 z-50 backdrop-blur-sm" />
-        <Dialog.Content className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[900px] max-h-[85vh] overflow-y-auto bg-bg-panel rounded-card border border-border-panel p-6 shadow-2xl">
+        <Dialog.Overlay className="fixed inset-0 bg-black/70 z-50 backdrop-blur-sm" />
+        <Dialog.Content className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[820px] max-h-[88vh] overflow-y-auto bg-[#111827] rounded-2xl border border-[#1E293B] p-6 shadow-2xl select-none">
 
           {/* ── Header ── */}
-          <div className="flex items-start justify-between mb-5">
+          <div className="flex items-start justify-between mb-4">
             <div>
-              <Dialog.Title className="text-base font-semibold text-text-primary mb-1">
+              <Dialog.Title className="text-base font-semibold text-white mb-2">
                 {isViewer
                   ? category === 'surge'
                     ? 'View Surge Margin Parameters'
@@ -375,25 +374,27 @@ export default function EditRuleModal({
                   ? 'Spike Detection Parameters'
                   : 'Monitoring Rule — Details'}
               </Dialog.Title>
-              {/* Selected rule identity */}
+              {/* Selected rule identity badge matching Figma */}
               <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                <span className="equipment-badge">{equipmentCode}</span>
-                <span className="text-xs font-semibold text-text-primary">
+                <span className="px-2.5 py-0.5 rounded-md border border-[#3B82F6]/40 bg-[#3B82F6]/10 text-[#3B82F6] font-mono text-xs font-medium">
+                  {equipmentCode}
+                </span>
+                <span className="text-xs font-normal text-white">
                   {getFriendlyRuleName(ruleName)}
                 </span>
-                <span className="text-xs font-mono text-text-muted">({ruleName})</span>
-                <span className="text-xs text-text-muted">· {category === 'generic' ? 'Data Processing Steps' : 'Rule Config'}</span>
+                <span className="text-xs font-mono text-[#94A3B8]">({ruleName})</span>
+                <span className="text-xs text-[#64748B]">· {category === 'generic' ? 'Data Processing Steps' : 'Rule Config'}</span>
               </div>
             </div>
-            <Dialog.Close className="text-text-muted hover:text-text-primary transition-colors mt-0.5">
+            <Dialog.Close className="text-[#64748B] hover:text-white transition-colors cursor-pointer mt-0.5">
               <X size={18} />
             </Dialog.Close>
           </div>
 
-          <div className="border-t border-border-panel mb-6" />
+          <div className="border-t border-[#1E293B] mb-5" />
 
           {enabled === false && (
-            <div className="mb-6 flex items-start gap-2.5 p-3.5 rounded-card bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs leading-relaxed">
+            <div className="mb-5 flex items-start gap-2.5 p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs leading-relaxed">
               <Info size={16} className="text-amber-400 mt-0.5 flex-shrink-0" />
               <div>
                 <span className="font-semibold block mb-0.5 text-amber-300">Monitoring Rule Instance is Disabled</span>
@@ -405,8 +406,8 @@ export default function EditRuleModal({
           {/* ── Descriptions & Forms depending on category ── */}
           {category === 'surge' && (
             <div className="space-y-6">
-              <div className="bg-bg-panel/40 border border-border-panel rounded p-3 text-xs text-text-muted leading-relaxed">
-                <strong>Description:</strong> This rule monitors the surge margin by checking if the equipment operates in a condition lower than the minimum threshold limit. An alert is raised if the equipment operates for more than 50% of the last day in such a condition.
+              <div className="bg-[#0B0F19] border border-[#1E293B] rounded-xl p-3.5 text-xs text-[#94A3B8] leading-relaxed">
+                <strong className="text-white">Description:</strong> This rule monitors the surge margin by checking if the equipment operates in a condition lower than the minimum threshold limit. An alert is raised if the equipment operates for more than 50% of the last day in such a condition.
               </div>
 
               {/* Rule Trigger Parameters */}
@@ -437,8 +438,8 @@ export default function EditRuleModal({
                       }}
                       className={inputCls}
                     />
-                    <span className="text-xs text-text-muted mt-1 block">
-                      Previous value: <span className="font-semibold text-text-primary">{initialThresholdValue}</span>
+                    <span className="text-xs text-[#64748B] mt-1.5 block">
+                      Previous value: <span className="text-[#94A3B8]">{initialThresholdValue}</span>
                     </span>
                   </FieldBlock>
                 </div>
@@ -448,8 +449,8 @@ export default function EditRuleModal({
 
           {category === 'spike' && (
             <div className="space-y-6">
-              <div className="bg-bg-panel/40 border border-border-panel rounded p-3 text-xs text-text-muted leading-relaxed">
-                <strong>Description:</strong> This rule monitors equipment for spikes in timeseries data and filters detected spikes based on operational status.
+              <div className="bg-[#0B0F19] border border-[#1E293B] rounded-xl p-3.5 text-xs text-[#94A3B8] leading-relaxed">
+                <strong className="text-white">Description:</strong> This rule monitors equipment for spikes in timeseries data and filters detected spikes based on operational status.
               </div>
 
               {/* Rule Trigger Params */}
@@ -483,8 +484,8 @@ export default function EditRuleModal({
                       placeholder="null"
                       className={inputCls}
                     />
-                    <span className="text-xs text-text-muted mt-1 block">
-                      Previous value: <span className="font-semibold text-text-primary">{initialHeightSpike === '' ? 'null' : initialHeightSpike}</span>
+                    <span className="text-xs text-[#64748B] mt-1.5 block">
+                      Previous value: <span className="text-[#94A3B8]">{initialHeightSpike === '' ? 'null' : initialHeightSpike}</span>
                     </span>
                   </FieldBlock>
 
@@ -512,8 +513,8 @@ export default function EditRuleModal({
                       placeholder="null"
                       className={inputCls}
                     />
-                    <span className="text-xs text-text-muted mt-1 block">
-                      Previous value: <span className="font-semibold text-text-primary">{initialThresholdSpike === '' ? 'null' : initialThresholdSpike}</span>
+                    <span className="text-xs text-[#64748B] mt-1.5 block">
+                      Previous value: <span className="text-[#94A3B8]">{initialThresholdSpike === '' ? 'null' : initialThresholdSpike}</span>
                     </span>
                   </FieldBlock>
 
@@ -541,8 +542,8 @@ export default function EditRuleModal({
                       }}
                       className={inputCls}
                     />
-                    <span className="text-xs text-text-muted mt-1 block">
-                      Previous value: <span className="font-semibold text-text-primary">{initialDistanceSpike}</span>
+                    <span className="text-xs text-[#64748B] mt-1.5 block">
+                      Previous value: <span className="text-[#94A3B8]">{initialDistanceSpike}</span>
                     </span>
                   </FieldBlock>
 
@@ -571,8 +572,8 @@ export default function EditRuleModal({
                       }}
                       className={inputCls}
                     />
-                    <span className="text-xs text-text-muted mt-1 block">
-                      Previous value: <span className="font-semibold text-text-primary">{initialProminenceSpike}</span>
+                    <span className="text-xs text-[#64748B] mt-1.5 block">
+                      Previous value: <span className="text-[#94A3B8]">{initialProminenceSpike}</span>
                     </span>
                   </FieldBlock>
                 </div>
@@ -586,7 +587,7 @@ export default function EditRuleModal({
                   tooltipDirection="up"
                   tooltipAlign="left"
                 />
-                <p className="text-xs text-text-muted mt-1.5 leading-relaxed">
+                <p className="text-xs text-[#94A3B8] mt-1 leading-relaxed">
                   Hover over the tooltip icon above to view suggested preset values for Sensitive, Balanced, and Conservative configurations.
                 </p>
               </div>
@@ -605,7 +606,7 @@ export default function EditRuleModal({
                   label=""
                   hint="Comma-separated list · e.g. RUN, Surge Margin Actual"
                 >
-                  <div className="w-full mt-1 bg-bg-highlight border border-border-panel/50 rounded px-3 py-2 text-xs font-mono text-text-muted select-none">
+                  <div className="w-full mt-1.5 bg-[#0B0F19] border border-[#1E293B] rounded-xl px-3.5 py-2 text-xs font-mono text-[#94A3B8] select-none">
                     {s.abs_value?.tags_to_apply || '—'}
                   </div>
                 </FieldBlock>
@@ -621,7 +622,7 @@ export default function EditRuleModal({
                   label=""
                   hint="Comma-separated list · e.g. RUN, all"
                 >
-                  <div className="w-full mt-1 bg-bg-highlight border border-border-panel/50 rounded px-3 py-2 text-xs font-mono text-text-muted select-none">
+                  <div className="w-full mt-1.5 bg-[#0B0F19] border border-[#1E293B] rounded-xl px-3.5 py-2 text-xs font-mono text-[#94A3B8] select-none">
                     {s.drop_missing?.tags_to_apply || '—'}
                   </div>
                 </FieldBlock>
@@ -637,7 +638,7 @@ export default function EditRuleModal({
                   label=""
                   hint="Comma-separated list · e.g. all"
                 >
-                  <div className="w-full mt-1 bg-bg-highlight border border-border-panel/50 rounded px-3 py-2 text-xs font-mono text-text-muted select-none">
+                  <div className="w-full mt-1.5 bg-[#0B0F19] border border-[#1E293B] rounded-xl px-3.5 py-2 text-xs font-mono text-[#94A3B8] select-none">
                     {s.join_timeseries?.tags_to_apply || '—'}
                   </div>
                 </FieldBlock>
@@ -671,7 +672,7 @@ export default function EditRuleModal({
                     label=""
                     hint="Comma-separated list · e.g. all"
                   >
-                    <div className="w-full mt-1 bg-bg-highlight border border-border-panel/50 rounded px-3 py-2 text-xs font-mono text-text-muted select-none">
+                    <div className="w-full mt-1.5 bg-[#0B0F19] border border-[#1E293B] rounded-xl px-3.5 py-2 text-xs font-mono text-[#94A3B8] select-none">
                       {s.round_timestamp?.tags_to_apply || '—'}
                     </div>
                   </FieldBlock>
@@ -680,26 +681,24 @@ export default function EditRuleModal({
             </div>
           )}
 
-
-
           {/* Parameter Change History */}
-          <div className="border-t border-border-panel mt-6 pt-5">
-            <h3 className="text-xs font-semibold text-text-primary mb-3">Parameter Change History</h3>
+          <div className="border-t border-[#1E293B] mt-6 pt-5">
+            <h3 className="text-xs font-semibold text-white mb-3">Parameter Change History</h3>
             {history.length === 0 ? (
-              <div className="text-xs text-text-muted italic">No past parameter updates recorded for this instance.</div>
+              <div className="text-xs text-[#64748B] italic">No past parameter updates recorded for this instance.</div>
             ) : (
               <div className="space-y-2 max-h-40 overflow-y-auto pr-2">
                 {history.map(log => {
                   const diffs = getDiffElements(log.beforeState, log.afterState, category);
                   if (diffs.length === 0) return null;
                   return (
-                    <div key={log.id} className="text-xs text-text-muted leading-relaxed">
-                      <span className="text-text-primary font-medium">
+                    <div key={log.id} className="text-xs text-[#94A3B8] leading-relaxed">
+                      <span className="text-[#E2E8F0]">
                         {new Date(log.createdAt).toLocaleDateString('pt-BR')}{' '}
                         {new Date(log.createdAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                       </span>{' '}
-                      by <span className="font-medium text-text-primary">{log.userEmail}</span> -{' '}
-                      <span className="text-text-primary font-semibold">{diffs.join(', ')}</span>
+                      by <span className="text-[#E2E8F0] font-normal">{log.userEmail}</span> ·{' '}
+                      <span className="text-white font-medium">{diffs.join(', ')}</span>
                     </div>
                   );
                 })}
@@ -708,11 +707,11 @@ export default function EditRuleModal({
           </div>
 
           {/* ── Actions ── */}
-          <div className="flex justify-end gap-3 border-t border-border-panel pt-4 mt-6">
+          <div className="flex justify-end gap-3 border-t border-[#1E293B] pt-4 mt-6">
             {isViewer ? (
               <button
                 onClick={onClose}
-                className="px-4 py-2 text-sm rounded bg-accent-blue text-white font-medium hover:bg-accent-blue-dark transition-colors cursor-pointer"
+                className="px-4 py-2 text-xs rounded-full bg-[#3B82F6] text-white font-medium hover:bg-[#2563EB] transition-colors cursor-pointer"
               >
                 Close
               </button>
@@ -720,14 +719,14 @@ export default function EditRuleModal({
               <>
                 <button
                   onClick={onClose}
-                  className="Marcos px-4 py-2 text-sm rounded border border-border-panel text-text-muted hover:text-text-primary hover:border-text-muted transition-colors"
+                  className="px-4 py-2 text-xs rounded-full border border-[#1E293B] text-white hover:bg-[#1E293B] transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleSave}
                   disabled={saving}
-                  className="px-4 py-2 text-sm rounded bg-accent-blue text-white font-medium hover:bg-accent-blue-dark disabled:opacity-50 transition-colors"
+                  className="px-4 py-2 text-xs rounded-full bg-[#3B82F6] text-white font-medium hover:bg-[#2563EB] disabled:opacity-50 transition-colors cursor-pointer"
                 >
                   {saving ? 'Saving…' : 'Save'}
                 </button>
