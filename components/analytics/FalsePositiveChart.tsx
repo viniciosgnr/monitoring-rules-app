@@ -6,16 +6,23 @@ interface Props {
 }
 
 export default function FalsePositiveChart({ data }: Props) {
+  const values = (data || []).map(d => d.falsePositives).filter(v => typeof v === 'number' && !isNaN(v));
+  const minVal = values.length > 0 ? Math.min(...values) : 0;
+  const maxVal = values.length > 0 ? Math.max(...values) : 50;
+
+  const yMin = Math.max(0, Math.floor((minVal - 2) / 5) * 5);
+  const yMax = Math.min(100, Math.ceil((maxVal + 2) / 5) * 5);
+
   return (
     <ResponsiveContainer width="100%" height={220}>
       <LineChart data={data} margin={{ top: 15, right: 15, left: -10, bottom: 15 }}>
         <CartesianGrid strokeDasharray="3 3" stroke="#1E293B" opacity={0.5} />
         <XAxis dataKey="label" tick={{ fill: '#94A3B8', fontSize: 11 }} axisLine={false} tickLine={false} minTickGap={15} />
-        <YAxis tick={{ fill: '#94A3B8', fontSize: 11 }} axisLine={false} tickLine={false} domain={[0, 80]} ticks={[0, 20, 40, 60, 80]} />
+        <YAxis tick={{ fill: '#94A3B8', fontSize: 11 }} axisLine={false} tickLine={false} domain={[yMin, yMax]} />
         <Tooltip
           contentStyle={{ background: '#111827', border: '1px solid #1E293B', borderRadius: 8, color: '#E2E8F0', fontSize: 12 }}
           cursor={{ stroke: '#1E293B' }}
-          formatter={(value) => [value, 'False Positives']}
+          formatter={(value) => [`${value}%`, 'False Positive Rate']}
         />
         <Line
           type="monotone"

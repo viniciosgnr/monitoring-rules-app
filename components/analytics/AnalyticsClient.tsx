@@ -63,7 +63,6 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
   const [period, setPeriod] = useState('Last Week');
   const [selectedEquipments, setSelectedEquipments] = useState<string[]>([]);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
-  const [top10Tab, setTop10Tab] = useState<'lowest_accuracy' | 'highest_fp' | 'highest_alerts'>('lowest_accuracy');
 
   // Local column filters for Overview breakdown tables
   const [accuracyRuleSelected, setAccuracyRuleSelected] = useState<string[]>([]);
@@ -95,13 +94,59 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
     }
   };
 
+  // Shared time buckets & exact period boundaries for 100% mathematical synchronization
+  const periodBoundaries = useMemo(() => {
+    const isWeekly = period === 'Last Week';
+    const isDailyMonth = period === 'Last Month';
+    const is6Months = period === 'Last 6 month';
+    const isAllTime = period === 'All time';
+    const bucketsCount = isWeekly ? 7 : isDailyMonth ? 30 : is6Months ? 6 : 12;
+
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const now = new Date();
+
+    const buckets = Array.from({ length: bucketsCount }, (_, index) => {
+      let start = new Date();
+      let end = new Date();
+      let label = '';
+
+      if (isWeekly) {
+        const daysAgo = 6 - index;
+        const targetDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - daysAgo);
+        const dayStr = String(targetDate.getDate()).padStart(2, '0');
+        const monthStr = String(targetDate.getMonth() + 1).padStart(2, '0');
+        label = `${dayStr}/${monthStr}`;
+        start = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 0, 0, 0);
+        end = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 23, 59, 59);
+      } else if (isDailyMonth) {
+        const daysAgo = 29 - index;
+        const targetDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - daysAgo);
+        const dayStr = String(targetDate.getDate()).padStart(2, '0');
+        const monthStr = String(targetDate.getMonth() + 1).padStart(2, '0');
+        label = `${dayStr}/${monthStr}`;
+        start = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 0, 0, 0);
+        end = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 23, 59, 59);
+      } else {
+        const totalMonths = bucketsCount;
+        const monthsAgo = (totalMonths - 1) - index;
+        const targetMonth = new Date(now.getFullYear(), now.getMonth() - monthsAgo, 1, 0, 0, 0);
+        label = monthNames[targetMonth.getMonth()];
+        start = new Date(targetMonth.getFullYear(), targetMonth.getMonth(), 1, 0, 0, 0);
+        end = new Date(targetMonth.getFullYear(), targetMonth.getMonth() + 1, 0, 23, 59, 59);
+      }
+
+      return { label, start, end };
+    });
+
+    const periodStart = isAllTime ? new Date(0) : buckets[0].start;
+    const periodEnd = isAllTime ? new Date() : buckets[buckets.length - 1].end;
+
+    return { buckets, periodStart, periodEnd };
+  }, [period]);
+
   // Process rules instances dynamically based on alert database logs
   const processedInstances = useMemo(() => {
-    const daysCount =
-      period === 'Last Week' ? 7 :
-      period === 'Last Month' ? 30 :
-      period === 'Last 6 month' ? 180 :
-      period === '1 Year' ? 365 : 365;
+    const { periodStart, periodEnd } = periodBoundaries;
 
     return ruleInstances.map(inst => {
       const id = inst.id;
@@ -109,33 +154,18 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
       const instanceAlerts = (alertsList || []).filter(a => {
         if (a.instanceId !== id) return false;
         const date = new Date(a.triggeredAt);
-        const now = new Date();
-        const diffMs = now.getTime() - date.getTime();
-        const oneDay = 1000 * 60 * 60 * 24;
-        
-        if (period === 'Last Week' && diffMs > oneDay * 7) return false;
-        if (period === 'Last Month' && diffMs > oneDay * 30) return false;
-        if (period === 'Last 6 month' && diffMs > oneDay * 180) return false;
-        if (period === '1 Year' && diffMs > oneDay * 365) return false;
-        // 'All time' includes all historical alerts without date boundary capping
-        
-        return true;
+        const tTime = date.getTime();
+        return tTime >= periodStart.getTime() && tTime <= periodEnd.getTime();
       });
 
-      const rawCount = instanceAlerts.length;
-      const rawFps = instanceAlerts.filter(a => a.status === 'rejected').length;
+      const totalEvaluations = instanceAlerts.length;
+      const falsePositives = instanceAlerts.filter(a => a.status === 'rejected').length;
+      const correctActions = instanceAlerts.filter(a => a.status === 'validated' || a.status === 'closed').length;
+      const alertsCount = totalEvaluations;
       
-      // Period-scaled alerts and false positives
-      const alertsCount = rawCount > 0 ? rawCount : Math.max(2, Math.round(daysCount * 0.18 + (id % 3)));
-      const falsePositives = rawFps > 0 ? rawFps : Math.max(1, Math.round(alertsCount * 0.08));
-      
-      // Dynamic period-scaled evaluations (~5-8 per day per instance)
-      const totalEvaluations = (5 + ((id * 3) % 4)) * daysCount;
-      
-      // High, uniform baseline accuracy between 86.5% and 94.8%
-      const baseAcc = 86.5 + ((id * 31) % 8.3);
-      const accuracy = parseFloat(baseAcc.toFixed(1));
-      const correctActions = Math.round(totalEvaluations * (accuracy / 100));
+      const accuracy = totalEvaluations > 0
+        ? parseFloat(((correctActions / totalEvaluations) * 100).toFixed(1))
+        : 90.0;
 
       return {
         ...inst,
@@ -146,7 +176,7 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
         accuracy,
       };
     });
-  }, [ruleInstances, alertsList, period]);
+  }, [ruleInstances, alertsList, periodBoundaries]);
 
   const filteredInstances = useMemo(() => {
     return processedInstances.filter(inst => {
@@ -209,19 +239,7 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
     });
   }, [filteredInstances, fpRuleSelected, fpRuleOpts, fpEquipSelected, fpEquipOpts, fpSortField, fpSortDir]);
 
-  // Calculate Top 10 lists
-  const lowestAccuracyList = useMemo(() => {
-    return [...filteredInstances]
-      .sort((a, b) => a.accuracy - b.accuracy)
-      .slice(0, 10);
-  }, [filteredInstances]);
-
-  const highestFpList = useMemo(() => {
-    return [...filteredInstances]
-      .sort((a, b) => b.falsePositives - a.falsePositives)
-      .slice(0, 10);
-  }, [filteredInstances]);
-
+  // Calculate Top 10 list by highest alerts
   const highestAlertsList = useMemo(() => {
     return [...filteredInstances]
       .sort((a, b) => b.alertsCount - a.alertsCount)
@@ -267,46 +285,10 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
 
   // Dynamic series aggregation for line charts
   const trendData = useMemo(() => {
-    const isWeekly = period === 'Last Week';
-    const isDailyMonth = period === 'Last Month';
-    const is6Months = period === 'Last 6 month';
-    const bucketsCount = isWeekly ? 7 : isDailyMonth ? 30 : is6Months ? 6 : 12;
-
-    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    const now = new Date();
-
-    const buckets = Array.from({ length: bucketsCount }, (_, index) => {
-      let start = new Date();
-      let end = new Date();
-      let label = '';
-
-      if (isWeekly) {
-        const labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-        label = labels[index] || `Day ${index + 1}`;
-        const daysAgo = 6 - index;
-        start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - daysAgo, 0, 0, 0);
-        end = new Date(now.getFullYear(), now.getMonth(), now.getDate() - daysAgo, 23, 59, 59);
-      } else if (isDailyMonth) {
-        const daysAgo = 29 - index;
-        const targetDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - daysAgo);
-        const dayStr = String(targetDate.getDate()).padStart(2, '0');
-        const monthStr = String(targetDate.getMonth() + 1).padStart(2, '0');
-        label = `${dayStr}/${monthStr}`;
-        start = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 0, 0, 0);
-        end = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 23, 59, 59);
-      } else {
-        const totalMonths = bucketsCount;
-        const monthsAgo = (totalMonths - 1) - index;
-        const targetMonth = new Date(now.getFullYear(), now.getMonth() - monthsAgo, 1, 0, 0, 0);
-        label = monthNames[targetMonth.getMonth()];
-        start = new Date(targetMonth.getFullYear(), targetMonth.getMonth(), 1, 0, 0, 0);
-        end = new Date(targetMonth.getFullYear(), targetMonth.getMonth() + 1, 0, 23, 59, 59);
-      }
-
-      return { label, start, end };
-    });
+    const { buckets, periodStart } = periodBoundaries;
 
     return buckets.map(({ label, start, end }) => {
+      // 1. Isolated interval alerts (for stacked bar chart distributions per bucket)
       const intervalAlerts = alertsList.filter(a => {
         if (selectedEquipments.length > 0 && selectedEquipments.length < equipments.length && !selectedEquipments.includes(a.equipmentCode)) {
           return false;
@@ -321,12 +303,28 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
         return tTime >= start.getTime() && tTime <= end.getTime();
       });
 
-      const total = intervalAlerts.length;
-      const fps = intervalAlerts.filter(a => a.status === 'rejected').length;
-      const correct = intervalAlerts.filter(a => a.status === 'validated' || a.status === 'closed').length;
+      // 2. Cumulative alerts (from periodStart up to bucket end) for smooth trend line charts
+      const cumulativeAlerts = alertsList.filter(a => {
+        if (selectedEquipments.length > 0 && selectedEquipments.length < equipments.length && !selectedEquipments.includes(a.equipmentCode)) {
+          return false;
+        }
 
-      const accuracy = total > 0 ? Math.round((correct / total) * 100) : 90;
-      const falsePositives = fps;
+        if (selectedCategories.length > 0 && selectedCategories.length < CATEGORIES_LIST.length) {
+          const friendlyCat = getRuleFriendlyCategory(a.ruleName);
+          if (!selectedCategories.includes(friendlyCat)) return false;
+        }
+
+        const tTime = new Date(a.triggeredAt).getTime();
+        return tTime >= periodStart.getTime() && tTime <= end.getTime();
+      });
+
+      const cumTotal = cumulativeAlerts.length;
+      const cumFps = cumulativeAlerts.filter(a => a.status === 'rejected').length;
+      const cumCorrect = cumulativeAlerts.filter(a => a.status === 'validated' || a.status === 'closed').length;
+
+      // Cumulative accuracy (%) and false positive rate (%) matching top KPI totals at the last point
+      const accuracy = cumTotal > 0 ? parseFloat(((cumCorrect / cumTotal) * 100).toFixed(1)) : 90;
+      const falsePositives = cumTotal > 0 ? parseFloat(((cumFps / cumTotal) * 100).toFixed(1)) : 10.0;
 
       return {
         label,
@@ -340,11 +338,11 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
         toBeValidatedCount: intervalAlerts.filter(a => a.status === 'to_be_validated').length,
         validationInProgressCount: intervalAlerts.filter(a => a.status === 'validation_in_progress').length,
         validatedCount: intervalAlerts.filter(a => a.status === 'validated').length,
-        rejectedCount: falsePositives,
+        rejectedCount: intervalAlerts.filter(a => a.status === 'rejected').length,
         closedCount: intervalAlerts.filter(a => a.status === 'closed').length,
       };
     });
-  }, [alertsList, period, selectedEquipments, selectedCategories, equipments]);
+  }, [alertsList, periodBoundaries, selectedEquipments, selectedCategories, equipments]);
 
   const accuracyChartData = useMemo(() => {
     return trendData.map(d => ({ label: d.label, accuracy: d.accuracy }));
@@ -400,7 +398,7 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
                 : 'text-[#94A3B8] hover:text-white'
             }`}
           >
-            Bad Actors & Rule Audit
+            Alerts Treated
           </button>
         </div>
 
@@ -604,7 +602,7 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
                         className="text-right px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary whitespace-nowrap cursor-pointer hover:bg-bg-panel/60 hover:text-white transition-colors group select-none"
                       >
                         <div className="inline-flex items-center gap-1.5 justify-end">
-                          <span>Alerts</span>
+                          <span>Evaluations</span>
                           {fpSortField === 'alerts' ? (
                             fpSortDir === 'asc' ? <ArrowUp className="w-3 h-3 text-status-warn" /> : <ArrowDown className="w-3 h-3 text-status-warn" />
                           ) : (
@@ -696,45 +694,12 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
             </div>
           </div>
 
-          {/* Top 10 Bad Actors Card */}
-          <div className="bg-bg-card border border-border-panel rounded-card overflow-hidden mt-2">
-            <div className="px-4 py-3.5 border-b border-border-panel flex flex-col md:flex-row md:items-center justify-between gap-4 bg-[#0F172A]/40">
+          {/* Top 10 Bad Actors Card - Matching Optisite mockup */}
+          <div className="bg-[#0B0F19] border border-[#1E293B] rounded-xl overflow-hidden mt-3 shadow-sm">
+            <div className="px-5 py-4 border-b border-[#1E293B] flex flex-col md:flex-row md:items-center justify-between gap-4 bg-[#0F172A]/30">
               <div>
-                <h3 className="text-sm font-bold text-text-primary">Top 10 Bad Actors</h3>
-                <p className="text-[10px] text-text-muted mt-0.5">Global rankings of rule configurations across all FPSOs (unaffected by filters)</p>
-              </div>
-              {/* Tab buttons - Optisite rounded-full pill styling */}
-              <div className="flex items-center bg-[#070A11] p-1 rounded-full border border-[#1E293B] text-xs">
-                <button
-                  onClick={() => setTop10Tab('lowest_accuracy')}
-                  className={`px-3.5 py-1 rounded-full font-medium transition-all cursor-pointer ${
-                    top10Tab === 'lowest_accuracy'
-                      ? 'bg-[#1E2738] border border-[#2D3B55] text-[#60A5FA] shadow-sm font-semibold'
-                      : 'text-[#E2E8F0] hover:text-white'
-                  }`}
-                >
-                  Lowest accuracy
-                </button>
-                <button
-                  onClick={() => setTop10Tab('highest_fp')}
-                  className={`px-3.5 py-1 rounded-full font-medium transition-all cursor-pointer ${
-                    top10Tab === 'highest_fp'
-                      ? 'bg-[#1E2738] border border-[#2D3B55] text-[#60A5FA] shadow-sm font-semibold'
-                      : 'text-[#E2E8F0] hover:text-white'
-                  }`}
-                >
-                  Highest false positives
-                </button>
-                <button
-                  onClick={() => setTop10Tab('highest_alerts')}
-                  className={`px-3.5 py-1 rounded-full font-medium transition-all cursor-pointer ${
-                    top10Tab === 'highest_alerts'
-                      ? 'bg-[#1E2738] border border-[#2D3B55] text-[#60A5FA] shadow-sm font-semibold'
-                      : 'text-[#E2E8F0] hover:text-white'
-                  }`}
-                >
-                  Highest alerts
-                </button>
+                <h3 className="text-sm font-semibold text-white tracking-wide">Top 10 Bad Actors</h3>
+                <p className="text-xs text-[#94A3B8] mt-0.5">Global rankings of rule configurations across all FPSOs (unaffected by filters)</p>
               </div>
             </div>
 
@@ -742,75 +707,50 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
-                  <tr className="border-b border-[#1E293B] text-[#94A3B8] text-xs font-semibold select-none bg-[#0B0F19]/50">
-                    <th className="px-4 py-3 w-20">
-                      <div className="mb-1 text-xs">Rank</div>
-                      <div className="h-0.5 w-full bg-[#1E293B] relative flex justify-end items-center">
-                        <SlidersHorizontal className="w-3 h-3 text-[#64748B] -mr-1" />
+                  <tr className="border-b border-[#1E293B] text-[#94A3B8] text-xs font-medium select-none bg-[#0B0F19]">
+                    <th className="px-5 py-3.5 w-24">
+                      <div className="text-xs text-[#94A3B8]">Rank</div>
+                      <div className="h-[1px] w-full bg-[#1E293B] mt-2 relative flex justify-end items-center">
+                        <SlidersHorizontal className="w-3.5 h-3.5 text-[#64748B] bg-[#0B0F19] pl-1" />
                       </div>
                     </th>
-                    <th className="px-4 py-3">
-                      <div className="mb-1 text-xs">Monitoring Rule</div>
-                      <div className="h-0.5 w-full bg-[#1E293B] relative flex justify-end items-center">
-                        <SlidersHorizontal className="w-3 h-3 text-[#64748B] -mr-1" />
+                    <th className="px-5 py-3.5">
+                      <div className="text-xs text-[#94A3B8]">Monitoring Rule</div>
+                      <div className="h-[1px] w-full bg-[#1E293B] mt-2 relative flex justify-end items-center">
+                        <SlidersHorizontal className="w-3.5 h-3.5 text-[#64748B] bg-[#0B0F19] pl-1" />
                       </div>
                     </th>
-                    <th className="px-4 py-3">
-                      <div className="mb-1 text-xs">Asset</div>
-                      <div className="h-0.5 w-full bg-[#1E293B] relative flex justify-end items-center">
-                        <SlidersHorizontal className="w-3 h-3 text-[#64748B] -mr-1" />
+                    <th className="px-5 py-3.5">
+                      <div className="text-xs text-[#94A3B8]">Asset</div>
+                      <div className="h-[1px] w-full bg-[#1E293B] mt-2 relative flex justify-end items-center">
+                        <SlidersHorizontal className="w-3.5 h-3.5 text-[#64748B] bg-[#0B0F19] pl-1" />
                       </div>
                     </th>
-                    <th className="px-4 py-3 text-right">
-                      <div className="mb-1 text-xs">
-                        {top10Tab === 'lowest_accuracy' && 'Accuracy'}
-                        {top10Tab === 'highest_fp' && 'False Positives'}
-                        {top10Tab === 'highest_alerts' && 'Total Alerts'}
-                      </div>
-                      <div className="h-0.5 w-full bg-[#1E293B] relative flex justify-end items-center">
-                        <SlidersHorizontal className="w-3 h-3 text-[#64748B] -mr-1" />
+                    <th className="px-5 py-3.5 text-right">
+                      <div className="text-xs text-[#94A3B8]">Total Alerts</div>
+                      <div className="h-[1px] w-full bg-[#1E293B] mt-2 relative flex justify-end items-center">
+                        <SlidersHorizontal className="w-3.5 h-3.5 text-[#64748B] bg-[#0B0F19] pl-1" />
                       </div>
                     </th>
                   </tr>
                 </thead>
                 <tbody>
-                  {lowestAccuracyList.length === 0 && (
+                  {highestAlertsList.length === 0 ? (
                     <tr>
-                      <td colSpan={4} className="px-4 py-8 text-center text-text-muted italic">
+                      <td colSpan={4} className="px-5 py-8 text-center text-[#94A3B8] italic">
                         No rules found matching the active filters.
                       </td>
                     </tr>
-                  )}
-
-                  {top10Tab === 'lowest_accuracy' &&
-                    lowestAccuracyList.map((item, index) => (
-                      <tr key={item.id} className="border-b border-[#1E293B] hover:bg-bg-panel/40 transition-colors">
-                        <td className="px-4 py-3.5 font-semibold text-[#94A3B8]">#{index + 1}</td>
-                        <td className="px-4 py-3.5 font-medium text-text-primary">{item.ruleName}</td>
-                        <td className="px-4 py-3.5 text-[#94A3B8]">{item.equipmentCode}</td>
-                        <td className="px-4 py-3.5 text-right font-bold text-[#3B82F6]">{item.accuracy}%</td>
-                      </tr>
-                    ))}
-
-                  {top10Tab === 'highest_fp' &&
-                    highestFpList.map((item, index) => (
-                      <tr key={item.id} className="border-b border-[#1E293B] hover:bg-bg-panel/40 transition-colors">
-                        <td className="px-4 py-3.5 font-semibold text-[#94A3B8]">#{index + 1}</td>
-                        <td className="px-4 py-3.5 font-medium text-text-primary">{item.ruleName}</td>
-                        <td className="px-4 py-3.5 text-[#94A3B8]">{item.equipmentCode}</td>
-                        <td className="px-4 py-3.5 text-right font-bold text-[#F59E0B]">{item.falsePositives}</td>
-                      </tr>
-                    ))}
-
-                  {top10Tab === 'highest_alerts' &&
+                  ) : (
                     highestAlertsList.map((item, index) => (
-                      <tr key={item.id} className="border-b border-[#1E293B] hover:bg-bg-panel/40 transition-colors">
-                        <td className="px-4 py-3.5 font-semibold text-[#94A3B8]">#{index + 1}</td>
-                        <td className="px-4 py-3.5 font-medium text-text-primary">{item.ruleName}</td>
-                        <td className="px-4 py-3.5 text-[#94A3B8]">{item.equipmentCode}</td>
-                        <td className="px-4 py-3.5 text-right font-bold text-[#22C55E]">{item.alertsCount}</td>
+                      <tr key={item.id} className="border-b border-[#1E293B]/60 hover:bg-[#1E293B]/20 transition-colors">
+                        <td className="px-5 py-4 font-normal text-[#64748B]">#{index + 1}</td>
+                        <td className="px-5 py-4 font-medium text-[#E2E8F0]">{item.ruleName}</td>
+                        <td className="px-5 py-4 text-[#94A3B8]">{item.equipmentCode}</td>
+                        <td className="px-5 py-4 text-right font-semibold text-[#60A5FA]">{item.alertsCount}</td>
                       </tr>
-                    ))}
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>

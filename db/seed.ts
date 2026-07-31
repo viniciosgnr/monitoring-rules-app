@@ -148,7 +148,7 @@ async function seed() {
     })
   ).returning();
 
-  // Alerts — 245 records dynamically distributed across 180 days (Jan - Jun) with progressive monthly growth
+  // Alerts — Rich dataset dynamically distributed across 365 days (1 Year / All time)
   const typePool = [
     'Compressor Performance', 'Turbine Temp Deviation', 'Pump Vibration Threshold', 'Surge Margin Alert', 'HX Fouling Index Alert', 'Turbine Lube Oil Drift'
   ];
@@ -156,51 +156,46 @@ async function seed() {
   const alertsValues = [];
   const nowMs = Date.now();
 
-  // Generate alerts across past 180 days with progressive monthly growth
-  for (let day = 0; day < 180; day++) {
+  // Generate alerts across past 365 days with dense daily frequency
+  for (let day = 0; day < 365; day++) {
     let alertsPerDay = 0;
-    if (day < 30) {
-      // Month 1 (June): ~65 alerts total (~2-3/day)
-      alertsPerDay = (day % 2 === 0) ? 2 : 3;
-    } else if (day < 60) {
-      // Month 2 (May): ~50 alerts total (~1-2/day)
-      alertsPerDay = (day % 3 === 0) ? 2 : 1;
-    } else if (day < 90) {
-      // Month 3 (April): ~40 alerts total (~1-2/day)
-      alertsPerDay = (day % 3 === 0) ? 2 : 1;
-    } else if (day < 120) {
-      // Month 4 (March): ~35 alerts total (~1/day)
-      alertsPerDay = (day % 4 === 0) ? 2 : 1;
-    } else if (day < 150) {
-      // Month 5 (February): ~30 alerts total (~1/day)
-      alertsPerDay = (day % 5 === 0) ? 2 : (day % 2 === 0 ? 1 : 0);
+    if (day < 7) {
+      // Recent 7 Days (Last Week): 18-25 alerts/day (~150 alerts in last week)
+      alertsPerDay = 18 + ((day * 7 + 3) % 8);
+    } else if (day < 30) {
+      // Days 7-30 (Last Month): 12-18 alerts/day
+      alertsPerDay = 12 + ((day * 5 + 2) % 7);
+    } else if (day < 180) {
+      // Days 30-180 (Last 6 Months): 8-14 alerts/day
+      alertsPerDay = 8 + ((day * 3 + 1) % 7);
     } else {
-      // Month 6 (January): ~25 alerts total (~0-1/day)
-      alertsPerDay = (day % 2 === 0) ? 1 : 0;
+      // Days 180-365 (1 Year / All time): 5-10 alerts/day
+      alertsPerDay = 5 + ((day * 2) % 6);
     }
 
     for (let j = 0; j < alertsPerDay; j++) {
-      const idx = day * 7 + j;
+      const idx = day * 13 + j;
       const inst = instances[idx % instances.length];
       const type = typePool[idx % typePool.length];
 
-      // Weighted status distribution: ~87% true positive (validated/closed), ~9% rejected (FP), ~4% pending
+      // Weighted status distribution: ~80% true positive (validated/closed), ~12% rejected (FP), ~8% pending
       let status = 'validated';
-      const randMod = (idx * 37 + day * 13) % 100;
-      if (randMod < 55) {
+      const randMod = (idx * 37 + day * 13 + j * 7) % 100;
+      if (randMod < 48) {
         status = 'validated';
-      } else if (randMod < 87) {
+      } else if (randMod < 80) {
         status = 'closed';
-      } else if (randMod < 96) {
+      } else if (randMod < 92) {
         status = 'rejected'; // False positive
-      } else if (randMod < 98) {
+      } else if (randMod < 96) {
         status = 'validation_in_progress';
       } else {
         status = 'to_be_validated';
       }
 
-      const hoursOffset = (j * 6 + (day * 5) % 6) % 24;
-      const triggeredAt = new Date(nowMs - day * 24 * 60 * 60 * 1000 - hoursOffset * 60 * 60 * 1000);
+      const hoursOffset = (j * 2 + (day * 3) % 4) % 24;
+      const minutesOffset = (j * 17) % 60;
+      const triggeredAt = new Date(nowMs - day * 24 * 60 * 60 * 1000 - hoursOffset * 60 * 60 * 1000 - minutesOffset * 60 * 1000);
       const endDate = new Date(triggeredAt.getTime() + 12 * 60 * 60 * 1000);
       const reviewedAt = status !== 'to_be_validated' && status !== 'validation_in_progress'
         ? new Date(triggeredAt.getTime() + 2 * 60 * 60 * 1000)
