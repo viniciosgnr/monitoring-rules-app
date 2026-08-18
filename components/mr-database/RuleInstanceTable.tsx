@@ -7,7 +7,7 @@ import Pagination from '@/components/ui/Pagination';
 import ColumnFilterDropdown from '@/components/ui/ColumnFilterDropdown';
 import EditRuleModal from './EditRuleModal';
 import { toggleInstance, toggleInstancesBulk } from '@/app/actions/ruleInstances';
-import { ChevronDown, ChevronRight, Download, X } from 'lucide-react';
+import { ChevronDown, ChevronRight, Download, Filter, X } from 'lucide-react';
 import { useUserRole } from '@/components/context/UserRoleContext';
 import { exportBrandedExcel } from '@/lib/excelExportUtils';
 
@@ -32,12 +32,113 @@ interface InstanceRow {
 function getFriendlyRuleName(ruleName: string): string {
   const name = ruleName.toUpperCase();
   if (name.includes('SPK') || name.includes('SPIKE')) return 'Spike';
-  if (name.includes('SURG') || name.includes('THR') || name.includes('VIB_THR')) return 'Surge (Threshold)';
+  if (name.includes('SURG') || name.includes('THR') || name.includes('VIB_THR') || name.includes('MGN')) return 'Surge (Threshold)';
   if (name.includes('TRND') || name.includes('TREND') || name.includes('DEV') || name.includes('TEMP_DEV')) return 'Trend';
-  if (name.includes('FOUL') || name.includes('DP') || name.includes('HTEX')) return 'Normalized dP ( step change, spike, trend)';
+  if (name.includes('FOUL') || name.includes('DP') || name.includes('HTEX') || name.includes('NORM')) return 'Normalized dP ( step change, spike, trend)';
   if (name.includes('DRFT') || name.includes('DRIFT')) return 'Drift';
   if (name.includes('ML') || name.includes('AI')) return 'AI/ML';
   return ruleName;
+}
+
+function CategoryFilterDropdown({
+  categories,
+  selectedCategories,
+  onChange,
+}: {
+  categories: string[];
+  selectedCategories: string[];
+  onChange: (cats: string[]) => void;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isOpen]);
+
+  const allSelected = selectedCategories.length === 0 || selectedCategories.length === categories.length;
+
+  function handleToggleAll() {
+    if (allSelected) {
+      onChange([]);
+    } else {
+      onChange([...categories]);
+    }
+  }
+
+  function handleToggleOne(cat: string) {
+    if (selectedCategories.length === 0) {
+      onChange([cat]);
+      return;
+    }
+    if (selectedCategories.includes(cat)) {
+      const next = selectedCategories.filter(c => c !== cat);
+      onChange(next);
+    } else {
+      onChange([...selectedCategories, cat]);
+    }
+  }
+
+  const label = selectedCategories.length === 0 || selectedCategories.length === categories.length
+    ? 'All Categories'
+    : `Category (${selectedCategories.length})`;
+
+  return (
+    <div className="relative" ref={dropdownRef}>
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex items-center gap-2 px-3.5 py-1.5 text-xs font-normal rounded-full bg-[#0B0F19] border border-[#1E293B] text-white hover:border-[#3B82F6] transition-colors cursor-pointer"
+      >
+        <Filter size={13} className="text-[#3B82F6]" />
+        <span>{label}</span>
+        <ChevronDown size={13} className="text-[#94A3B8]" />
+      </button>
+
+      {isOpen && (
+        <div className="absolute right-0 mt-2 w-64 bg-[#111827] border border-[#1E293B] rounded-2xl shadow-2xl z-50 p-3 select-none">
+          <div className="flex items-center justify-between border-b border-[#1E293B] pb-2 mb-2">
+            <span className="text-xs font-medium text-white">Filter Category</span>
+            <button
+              onClick={handleToggleAll}
+              className="text-[11px] text-[#3B82F6] hover:underline cursor-pointer"
+            >
+              {allSelected ? 'Clear' : 'Select All'}
+            </button>
+          </div>
+          <div className="space-y-1 max-h-48 overflow-y-auto">
+            {categories.map(cat => {
+              const isChecked = selectedCategories.length === 0 || selectedCategories.includes(cat);
+              return (
+                <label
+                  key={cat}
+                  onClick={() => handleToggleOne(cat)}
+                  className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-[#1E293B]/50 cursor-pointer text-xs text-[#E2E8F0]"
+                >
+                  <input
+                    type="checkbox"
+                    checked={isChecked}
+                    readOnly
+                    className="rounded border-[#1E293B] bg-[#0B0F19] text-[#3B82F6] focus:ring-0 cursor-pointer"
+                  />
+                  <span className="truncate">{cat}</span>
+                </label>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function RuleInstanceTable({ rows }: { rows: InstanceRow[] }) {
@@ -47,8 +148,13 @@ export default function RuleInstanceTable({ rows }: { rows: InstanceRow[] }) {
   const [data, setData]                 = useState(rows);
   const [page, setPage]                 = useState(1);
   const [pageSize, setPageSize]         = useState(5);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedFilters, setSelectedFilters] = useState<Record<string, string[]>>({});
   const [editRow, setEditRow]           = useState<InstanceRow | null>(null);
+
+  const allCategories = useMemo(() => {
+    return Array.from(new Set(data.map(r => getFriendlyRuleName(r.ruleName)))).filter(Boolean).sort();
+  }, [data]);
 
   // Dynamic distinct options per column
   const columnOptions = useMemo(() => {
@@ -58,7 +164,7 @@ export default function RuleInstanceTable({ rows }: { rows: InstanceRow[] }) {
       timeseries: Array.from(new Set(data.map(r => r.timeseries))).filter(Boolean).sort(),
       system: Array.from(new Set(data.map(r => r.system))).filter(Boolean).sort(),
       subsystem: Array.from(new Set(data.map(r => r.subsystem))).filter(Boolean).sort(),
-      ruleName: Array.from(new Set(data.map(r => getFriendlyRuleName(r.ruleName)))).filter(Boolean).sort(),
+      ruleName: Array.from(new Set(data.map(r => r.ruleName))).filter(Boolean).sort(),
       schedule: Array.from(new Set(data.map(r => r.schedule))).filter(Boolean).sort(),
       lastRunAt: Array.from(new Set(data.map(r => r.lastRunAt ? new Date(r.lastRunAt).toLocaleDateString('pt-BR') : ''))).filter(Boolean).sort(),
       nextRunAt: Array.from(new Set(data.map(r => r.nextRunAt ? new Date(r.nextRunAt).toLocaleDateString('pt-BR') : ''))).filter(Boolean).sort(),
@@ -103,16 +209,21 @@ export default function RuleInstanceTable({ rows }: { rows: InstanceRow[] }) {
     });
   }
 
-  const filtered = data.filter(r =>
-    Object.entries(selectedFilters).every(([colKey, selectedList]) => {
+  const filtered = data.filter(r => {
+    // 1. Category Filter
+    if (selectedCategories.length > 0 && selectedCategories.length < allCategories.length) {
+      const cat = getFriendlyRuleName(r.ruleName);
+      if (!selectedCategories.includes(cat)) return false;
+    }
+
+    // 2. Column Filters
+    return Object.entries(selectedFilters).every(([colKey, selectedList]) => {
       if (!selectedList || selectedList.length === 0) return true;
       const options = columnOptions[colKey] || [];
       if (selectedList.length === options.length) return true;
 
       let val = '';
-      if (colKey === 'ruleName') {
-        val = getFriendlyRuleName(r.ruleName);
-      } else if (colKey === 'lastRunAt' || colKey === 'nextRunAt' || colKey === 'deactivatedUntil') {
+      if (colKey === 'lastRunAt' || colKey === 'nextRunAt' || colKey === 'deactivatedUntil') {
         const raw = r[colKey] as string | null;
         val = raw ? new Date(raw).toLocaleDateString('pt-BR') : '';
       } else {
@@ -120,8 +231,8 @@ export default function RuleInstanceTable({ rows }: { rows: InstanceRow[] }) {
       }
 
       return selectedList.includes(val);
-    })
-  );
+    });
+  });
 
   const paginatedInstances = useMemo(() => {
     const startIndex = (page - 1) * pageSize;
@@ -327,16 +438,26 @@ function formatModalParamsJson(ruleName: string, steps: unknown): string {
 
   return (
     <div className="bg-[#111827] border border-[#1E293B] rounded-2xl overflow-hidden shadow-sm">
-      <div className="px-5 py-4 border-b border-[#1E293B] flex items-center justify-between">
+      <div className="px-5 py-4 border-b border-[#1E293B] flex items-center justify-between flex-wrap gap-3">
         <h2 className="text-sm font-semibold text-white">Monitoring rule instance catalog</h2>
-        {/* Export Button */}
-        <button
-          onClick={() => setShowExportModal(true)}
-          className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-normal rounded-full bg-transparent border border-[#1E293B] text-white hover:border-[#3B82F6] hover:text-[#3B82F6] transition-colors cursor-pointer"
-        >
-          <Download size={13} />
-          Export to excel
-        </button>
+        <div className="flex items-center gap-3">
+          <CategoryFilterDropdown
+            categories={allCategories}
+            selectedCategories={selectedCategories}
+            onChange={(newCategories) => {
+              setSelectedCategories(newCategories);
+              setPage(1);
+            }}
+          />
+          {/* Export Button */}
+          <button
+            onClick={() => setShowExportModal(true)}
+            className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-normal rounded-full bg-transparent border border-[#1E293B] text-white hover:border-[#3B82F6] hover:text-[#3B82F6] transition-colors cursor-pointer"
+          >
+            <Download size={13} />
+            Export to excel
+          </button>
+        </div>
       </div>
 
       <div className="overflow-x-auto">
