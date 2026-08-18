@@ -358,33 +358,30 @@ export default function EditRuleModal({
         <Dialog.Overlay className="fixed inset-0 bg-black/70 z-50 backdrop-blur-sm" />
         <Dialog.Content className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[820px] max-h-[88vh] overflow-y-auto bg-[#111827] rounded-2xl border border-[#1E293B] p-6 shadow-2xl select-none">
 
-          {/* ── Header ── */}
+          {/* ── Header matching Figma Specs ── */}
           <div className="flex items-start justify-between mb-4">
             <div>
-              <Dialog.Title className="text-base font-semibold text-white mb-2">
-                {isViewer
-                  ? category === 'surge'
-                    ? 'View Surge Margin Parameters'
+              <div className="flex items-center gap-3 flex-wrap">
+                <Dialog.Title className="text-base font-semibold text-white">
+                  {isViewer
+                    ? category === 'surge'
+                      ? 'View Surge Margin Parameters'
+                      : category === 'spike'
+                      ? 'View Spike Detection Parameters'
+                      : 'Monitoring Rule — Details'
+                    : category === 'surge'
+                    ? 'Surge Margin Parameters'
                     : category === 'spike'
-                    ? 'View Spike Detection Parameters'
-                    : 'Monitoring Rule — Details'
-                  : category === 'surge'
-                  ? 'Surge Margin Parameters'
-                  : category === 'spike'
-                  ? 'Spike Detection Parameters'
-                  : 'Monitoring Rule — Details'}
-              </Dialog.Title>
-              {/* Selected rule identity badge matching Figma */}
-              <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                <span className="px-2.5 py-0.5 rounded-md border border-[#3B82F6]/40 bg-[#3B82F6]/10 text-[#3B82F6] font-mono text-xs font-medium">
+                    ? 'Spike Detection Parameters'
+                    : 'Monitoring Rule — Details'}
+                </Dialog.Title>
+                <span className="px-2.5 py-0.5 rounded-md bg-[#1E293B] border border-[#334155]/40 text-[#94A3B8] font-mono text-xs font-medium">
                   {equipmentCode}
                 </span>
-                <span className="text-xs font-normal text-white">
-                  {getFriendlyRuleName(ruleName)}
-                </span>
-                <span className="text-xs font-mono text-[#94A3B8]">({ruleName})</span>
-                <span className="text-xs text-[#64748B]">· {category === 'generic' ? 'Data Processing Steps' : 'Rule Config'}</span>
               </div>
+              <p className="text-xs font-normal text-[#94A3B8] mt-1">
+                {getFriendlyRuleName(ruleName)} ({ruleName}) · {category === 'generic' ? 'Data Processing Steps' : 'Rule Config'}
+              </p>
             </div>
             <Dialog.Close className="text-[#64748B] hover:text-white transition-colors cursor-pointer mt-0.5">
               <X size={18} />

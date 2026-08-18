@@ -53,6 +53,7 @@ export default function RuleInstanceTable({ rows }: { rows: InstanceRow[] }) {
   // Dynamic distinct options per column
   const columnOptions = useMemo(() => {
     const opts: Record<string, string[]> = {
+      fpso: Array.from(new Set(data.map(r => r.fpso))).filter(Boolean).sort(),
       equipmentCode: Array.from(new Set(data.map(r => r.equipmentCode))).filter(Boolean).sort(),
       timeseries: Array.from(new Set(data.map(r => r.timeseries))).filter(Boolean).sort(),
       system: Array.from(new Set(data.map(r => r.system))).filter(Boolean).sort(),
@@ -236,6 +237,7 @@ function formatModalParamsJson(ruleName: string, steps: unknown): string {
 
   function downloadExcel() {
     const headers = [
+      'FPSO',
       'Asset',
       'Timeseries',
       'System',
@@ -264,6 +266,7 @@ function formatModalParamsJson(ruleName: string, steps: unknown): string {
       const paramsJson = formatModalParamsJson(row.ruleName, row.processingSteps);
 
       return [
+        row.fpso || '',
         row.equipmentCode || '',
         row.timeseries || '',
         row.system || '',
@@ -310,6 +313,7 @@ function formatModalParamsJson(ruleName: string, steps: unknown): string {
   }
 
   const cols: [string, string][] = [
+    ['fpso', 'FPSO'],
     ['equipmentCode', 'Asset'],
     ['timeseries', 'Timeseries'],
     ['system', 'System'],
@@ -379,7 +383,7 @@ function formatModalParamsJson(ruleName: string, steps: unknown): string {
                         </span>
                       </div>
                     </td>
-                    {/* Group Switch */}
+                    {/* Group Switch + Enable all label */}
                     <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
                       <div className="flex items-center gap-2">
                         <Switch.Root
@@ -391,6 +395,7 @@ function formatModalParamsJson(ruleName: string, steps: unknown): string {
                         >
                           <Switch.Thumb className="block w-4 h-4 bg-white rounded-full shadow-sm translate-x-0.5 data-[state=checked]:translate-x-4 transition-transform" />
                         </Switch.Root>
+                        <span className="text-xs text-[#94A3B8] font-normal whitespace-nowrap">Enable all</span>
                       </div>
                     </td>
                     <td className="px-4 py-3" />
@@ -402,6 +407,7 @@ function formatModalParamsJson(ruleName: string, steps: unknown): string {
                       <td className="px-3 py-3">
                         <div className="w-px h-4 bg-[#1E293B] mx-auto" />
                       </td>
+                      <td className="px-4 py-3 text-white font-medium text-xs font-mono">{row.fpso}</td>
                       <td className="px-4 py-3">
                         <EquipmentBadge code={row.equipmentCode} />
                       </td>
@@ -571,15 +577,15 @@ function formatModalParamsJson(ruleName: string, steps: unknown): string {
             <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-[#1E293B]">
               <button
                 onClick={() => setDisableRow(null)}
-                className="px-4 py-2 text-xs rounded-full border border-[#1E293B] text-white hover:bg-[#1E293B] transition-colors cursor-pointer"
+                className="px-5 py-2 text-xs rounded-full border border-[#1E293B] text-white hover:bg-[#1E293B]/40 transition-colors cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 onClick={confirmDisable}
-                className="px-4 py-2 text-xs rounded-full bg-[#EF4444] text-white font-medium hover:bg-[#DC2626] transition-colors cursor-pointer"
+                className="px-5 py-2 text-xs rounded-full bg-[#3B82F6] text-white font-medium hover:bg-[#2563EB] transition-colors cursor-pointer"
               >
-                Confirm Disable
+                Disable
               </button>
             </div>
           </Dialog.Content>
@@ -677,15 +683,15 @@ function formatModalParamsJson(ruleName: string, steps: unknown): string {
             <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-[#1E293B]">
               <button
                 onClick={() => setDisableGroupData(null)}
-                className="px-4 py-2 text-xs rounded-full border border-[#1E293B] text-white hover:bg-[#1E293B] transition-colors cursor-pointer"
+                className="px-5 py-2 text-xs rounded-full border border-[#1E293B] text-white hover:bg-[#1E293B]/40 transition-colors cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 onClick={confirmGroupDisable}
-                className="px-4 py-2 text-xs rounded-full bg-[#EF4444] text-white font-medium hover:bg-[#DC2626] transition-colors cursor-pointer"
+                className="px-5 py-2 text-xs rounded-full bg-[#3B82F6] text-white font-medium hover:bg-[#2563EB] transition-colors cursor-pointer"
               >
-                Confirm Disable All
+                Disable All
               </button>
             </div>
           </Dialog.Content>

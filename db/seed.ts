@@ -18,29 +18,33 @@ async function seed() {
   await db.delete(equipment);
   await db.delete(fpsos);
 
-  // FPSOs
-  const [uny] = await db.insert(fpsos).values([
+  // FPSOs (SBM Offshore Trigrams)
+  const [uny, cdi, sep, adg, atd] = await db.insert(fpsos).values([
     { code: 'UNY', name: 'FPSO Unity' },
+    { code: 'CDI', name: 'FPSO Cidade de Ilhabela' },
+    { code: 'SEP', name: 'FPSO Sepetiba' },
+    { code: 'ADG', name: 'FPSO Alexandre de Gusmão' },
+    { code: 'ATD', name: 'FPSO Almirante Tamandaré' },
   ]).returning();
 
   // Equipment
   const equipList = await db.insert(equipment).values([
     { fpsoId: uny.id, code: 'UNY-775-COCE-0220', name: 'Compressor COCE 0220' }, // 0
-    { fpsoId: uny.id, code: 'MMA-100-PUM-0420',  name: 'Pump 0420' },              // 1
-    { fpsoId: uny.id, code: 'PIO-310-HX-0145',   name: 'Heat Exchanger 0145' },    // 2
+    { fpsoId: cdi.id, code: 'CDI-100-PUM-0420',  name: 'Pump 0420' },              // 1
+    { fpsoId: sep.id, code: 'SEP-310-HX-0145',   name: 'Heat Exchanger 0145' },    // 2
     { fpsoId: uny.id, code: 'UNY-775-COCE-0221', name: 'Compressor COCE 0221' }, // 3
-    { fpsoId: uny.id, code: 'PIO-220-TRB-0312',  name: 'Turbine 0312' },           // 4
+    { fpsoId: adg.id, code: 'ADG-220-TRB-0312',  name: 'Turbine 0312' },           // 4
     { fpsoId: uny.id, code: 'UNY-775-COCE-0222', name: 'Compressor COCE 0222' }, // 5
-    { fpsoId: uny.id, code: 'UNY-775-COCE-0223', name: 'Compressor COCE 0223' }, // 6
-    { fpsoId: uny.id, code: 'UNY-775-COCE-0224', name: 'Compressor COCE 0224' }, // 7
-    { fpsoId: uny.id, code: 'MMA-100-PUM-0421',  name: 'Pump 0421' },              // 8
-    { fpsoId: uny.id, code: 'MMA-100-PUM-0422',  name: 'Pump 0422' },              // 9
-    { fpsoId: uny.id, code: 'MMA-100-PUM-0423',  name: 'Pump 0423' },              // 10
-    { fpsoId: uny.id, code: 'PIO-310-HX-0146',   name: 'Heat Exchanger 0146' },    // 11
-    { fpsoId: uny.id, code: 'PIO-220-TRB-0313',  name: 'Turbine 0313' },           // 12
-    { fpsoId: uny.id, code: 'SEP-500-VES-0101',  name: 'Separator Vessel 0101' },  // 13
-    { fpsoId: uny.id, code: 'SEP-500-VES-0102',  name: 'Separator Vessel 0102' },  // 14
-    { fpsoId: uny.id, code: 'GEN-600-ALT-0201',  name: 'Generator Alternator 0201' },// 15
+    { fpsoId: cdi.id, code: 'CDI-775-COCE-0223', name: 'Compressor COCE 0223' }, // 6
+    { fpsoId: atd.id, code: 'ATD-775-COCE-0224', name: 'Compressor COCE 0224' }, // 7
+    { fpsoId: cdi.id, code: 'CDI-100-PUM-0421',  name: 'Pump 0421' },              // 8
+    { fpsoId: sep.id, code: 'SEP-100-PUM-0422',  name: 'Pump 0422' },              // 9
+    { fpsoId: adg.id, code: 'ADG-100-PUM-0423',  name: 'Pump 0423' },              // 10
+    { fpsoId: sep.id, code: 'SEP-310-HX-0146',   name: 'Heat Exchanger 0146' },    // 11
+    { fpsoId: atd.id, code: 'ATD-220-TRB-0313',  name: 'Turbine 0313' },           // 12
+    { fpsoId: sep.id, code: 'SEP-500-VES-0101',  name: 'Separator Vessel 0101' },  // 13
+    { fpsoId: adg.id, code: 'ADG-500-VES-0102',  name: 'Separator Vessel 0102' },  // 14
+    { fpsoId: atd.id, code: 'ATD-600-ALT-0201',  name: 'Generator Alternator 0201' },// 15
   ]).returning();
 
 
