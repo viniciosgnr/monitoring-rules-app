@@ -12,16 +12,18 @@ export const dynamic = 'force-dynamic';
 export default async function AlertReviewPage() {
   const rows = await db
     .select({
-      id:            alerts.id,
-      fpso:          fpsos.code,
-      equipmentCode: equipment.code,
-      ruleName:      monitoringRules.name,
-      type:          alerts.type,
-      endDate:       alerts.endDate,
-      triggeredAt:   alerts.triggeredAt,
-      reviewedAt:    alerts.reviewedAt,
-      reviewedBy:    alerts.reviewedBy,
-      status:        alerts.status,
+      id:              alerts.id,
+      fpso:            fpsos.code,
+      equipmentCode:   equipment.code,
+      ruleName:        monitoringRules.name,
+      ruleDescription: monitoringRules.description,
+      timeseries:      ruleInstances.timeseries,
+      type:            alerts.type,
+      endDate:         alerts.endDate,
+      triggeredAt:     alerts.triggeredAt,
+      reviewedAt:      alerts.reviewedAt,
+      reviewedBy:      alerts.reviewedBy,
+      status:          alerts.status,
     })
     .from(alerts)
     .innerJoin(ruleInstances,   eq(alerts.instanceId,      ruleInstances.id))
