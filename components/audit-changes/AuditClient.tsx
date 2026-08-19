@@ -3,6 +3,7 @@ import AuditHistoryTable from './AuditHistoryTable';
 
 interface AuditEntry {
   id: number;
+  fpso: string;
   timestamp: string;
   userEmail: string;
   equipmentCode: string;

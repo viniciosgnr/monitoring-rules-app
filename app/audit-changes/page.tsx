@@ -130,6 +130,7 @@ export default async function AuditChangesPage() {
   const rows = await db
     .select({
       id:            auditLog.id,
+      fpso:          fpsos.code,
       timestamp:     auditLog.createdAt,
       userEmail:     auditLog.userEmail,
       equipmentCode: equipment.code,
