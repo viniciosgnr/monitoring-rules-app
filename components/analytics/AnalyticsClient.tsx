@@ -239,11 +239,12 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
     });
   }, [filteredInstances, fpRuleSelected, fpRuleOpts, fpEquipSelected, fpEquipOpts, fpSortField, fpSortDir]);
 
-  // Calculate Top 10 list by highest alerts
-  const highestAlertsList = useMemo(() => {
+  // Calculate Bad Actors List (up to 30) by highest alerts count
+  const badActorsList = useMemo(() => {
     return [...filteredInstances]
+      .filter(inst => inst.alertsCount > 0)
       .sort((a, b) => b.alertsCount - a.alertsCount)
-      .slice(0, 10);
+      .slice(0, 30);
   }, [filteredInstances]);
 
   // Calculate KPI card values dynamically
@@ -694,12 +695,12 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
             </div>
           </div>
 
-          {/* Top 10 Bad Actors Card - Matching Optisite mockup */}
+          {/* Bad Actors List Card - Matching Optisite mockup */}
           <div className="bg-[#0B0F19] border border-[#1E293B] rounded-xl overflow-hidden mt-3 shadow-sm">
             <div className="px-5 py-4 border-b border-[#1E293B] flex flex-col md:flex-row md:items-center justify-between gap-4 bg-[#0F172A]/30">
               <div>
-                <h3 className="text-sm font-semibold text-white tracking-wide">Top 10 Bad Actors</h3>
-                <p className="text-xs text-[#94A3B8] mt-0.5">Global rankings of rule configurations across all FPSOs (unaffected by filters)</p>
+                <h3 className="text-sm font-semibold text-white tracking-wide">Bad Actors List</h3>
+                <p className="text-xs text-[#94A3B8] mt-0.5">Most active rule configurations across FPSOs filtered by active criteria</p>
               </div>
             </div>
 
@@ -708,12 +709,6 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
                   <tr className="border-b border-[#1E293B] text-[#94A3B8] text-xs font-medium select-none bg-[#0B0F19]">
-                    <th className="px-5 py-3.5 w-24">
-                      <div className="text-xs text-[#94A3B8]">Rank</div>
-                      <div className="h-[1px] w-full bg-[#1E293B] mt-2 relative flex justify-end items-center">
-                        <SlidersHorizontal className="w-3.5 h-3.5 text-[#64748B] bg-[#0B0F19] pl-1" />
-                      </div>
-                    </th>
                     <th className="px-5 py-3.5">
                       <div className="text-xs text-[#94A3B8]">Monitoring Rule</div>
                       <div className="h-[1px] w-full bg-[#1E293B] mt-2 relative flex justify-end items-center">
@@ -735,18 +730,17 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
                   </tr>
                 </thead>
                 <tbody>
-                  {highestAlertsList.length === 0 ? (
+                  {badActorsList.length === 0 ? (
                     <tr>
-                      <td colSpan={4} className="px-5 py-8 text-center text-[#94A3B8] italic">
+                      <td colSpan={3} className="px-5 py-8 text-center text-[#94A3B8] italic">
                         No rules found matching the active filters.
                       </td>
                     </tr>
                   ) : (
-                    highestAlertsList.map((item, index) => (
+                    badActorsList.map(item => (
                       <tr key={item.id} className="border-b border-[#1E293B]/60 hover:bg-[#1E293B]/20 transition-colors">
-                        <td className="px-5 py-4 font-normal text-[#64748B]">#{index + 1}</td>
                         <td className="px-5 py-4 font-medium text-[#E2E8F0]">{item.ruleName}</td>
-                        <td className="px-5 py-4 text-[#94A3B8]">{item.equipmentCode}</td>
+                        <td className="px-5 py-4 text-[#94A3B8] font-mono">{item.equipmentCode}</td>
                         <td className="px-5 py-4 text-right font-semibold text-[#60A5FA]">{item.alertsCount}</td>
                       </tr>
                     ))
