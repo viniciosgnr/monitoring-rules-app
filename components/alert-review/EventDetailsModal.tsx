@@ -1,8 +1,8 @@
 'use client';
-import React, { useState } from 'react';
+import React from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
-import { X, FileText, ExternalLink, Calendar, Info } from 'lucide-react';
-import StatusBadge, { Status } from '@/components/ui/StatusBadge';
+import { X, FileText, ExternalLink, Info, Wrench } from 'lucide-react';
+import type { Status } from '@/components/ui/StatusBadge';
 
 interface AlertRow {
   id: number;
@@ -26,18 +26,14 @@ interface EventDetailsModalProps {
   open: boolean;
   onClose: () => void;
   alert: AlertRow | null;
-  onStatusChange: (id: number, newStatus: Status, comment?: string) => Promise<void>;
+  onStatusChange?: (id: number, newStatus: Status, comment?: string) => Promise<void>;
 }
 
 export default function EventDetailsModal({
   open,
   onClose,
   alert,
-  onStatusChange,
 }: EventDetailsModalProps) {
-  const [comment, setComment] = useState('Alert verified by surveillance engineer.');
-  const [updating, setUpdating] = useState(false);
-
   if (!alert) return null;
 
   const eventRef = alert.eventId || `UNY26-MA${alert.id}`;
@@ -46,22 +42,6 @@ export default function EventDetailsModal({
   const failureMode = alert.ruleDescription || 'HH vibration or HH temperatures on gearbox component';
   const startDate = alert.triggeredAt ? alert.triggeredAt.split(',')[0] : '2026-05-13';
   const endDateStr = alert.endDate ? alert.endDate.split(',')[0] : '2026-05-15';
-
-  async function handleValidate() {
-    if (!alert) return;
-    setUpdating(true);
-    await onStatusChange(alert.id, 'validated', comment);
-    setUpdating(false);
-    onClose();
-  }
-
-  async function handleCloseEvent() {
-    if (!alert) return;
-    setUpdating(true);
-    await onStatusChange(alert.id, 'closed', comment);
-    setUpdating(false);
-    onClose();
-  }
 
   // Generate mock SVG path for timeseries line chart matching Figma Image 1
   const chartPoints = [
@@ -86,7 +66,9 @@ export default function EventDetailsModal({
               <Dialog.Title className="text-base font-semibold text-white">
                 Event Details: <span className="font-mono text-blue-400">{eventRef}</span> - Monitoring alert triggered
               </Dialog.Title>
-              <StatusBadge status={alert.status} />
+              <span className="px-2.5 py-1 rounded bg-[#1E293B] border border-[#334155]/40 text-[#E2E8F0] text-xs font-medium">
+                {alert.status === 'to_be_validated' ? 'To Be Validated' : alert.status === 'validation_in_progress' ? 'Validation in Progress' : alert.status === 'validated' ? 'Validated (New)' : alert.status === 'rejected' ? 'Rejected' : 'Closed'}
+              </span>
             </div>
             <Dialog.Close className="text-[#64748B] hover:text-white transition-colors cursor-pointer">
               <X size={18} />
@@ -100,7 +82,18 @@ export default function EventDetailsModal({
             <div className="col-span-2 space-y-5">
               
               {/* Metadata Grid */}
-              <div className="bg-[#0B0F19] border border-[#1E293B] rounded-xl p-4 space-y-3 text-xs">
+              <div className="bg-[#0B0F19] border border-[#1E293B] rounded-xl p-4 space-y-2.5 text-xs">
+                <h3 className="text-xs font-semibold text-white mb-2">Monitoring Alert</h3>
+                <div className="grid grid-cols-3 py-1.5 border-b border-[#1E293B]/60">
+                  <span className="text-[#94A3B8]">Alert type</span>
+                  <span className="col-span-2 text-white font-medium">{alert.type || 'Spike, step change'}</span>
+                </div>
+                <div className="grid grid-cols-3 py-1.5 border-b border-[#1E293B]/60">
+                  <span className="text-[#94A3B8]">Alert description</span>
+                  <span className="col-span-2 text-[#E2E8F0] leading-relaxed">
+                    Seal Gas Duplex Coalescent Filter Differential Pressure, External Seal Gas line 2 Temperature, Seal Gas Heater 3 Temperature, Seal Gas Heater Temperature
+                  </span>
+                </div>
                 <div className="grid grid-cols-3 py-1.5 border-b border-[#1E293B]/60">
                   <span className="text-[#94A3B8]">Monitoring rule ID</span>
                   <span className="col-span-2 font-mono text-white">{ruleId}</span>
@@ -114,7 +107,7 @@ export default function EventDetailsModal({
                   <span className="col-span-2 font-mono text-white">{endDateStr}</span>
                 </div>
                 <div className="grid grid-cols-3 py-1.5">
-                  <span className="text-[#94A3B8]">Failure Mode</span>
+                  <span className="text-[#94A3B8]">Recommendations</span>
                   <span className="col-span-2 text-[#E2E8F0] leading-relaxed">{failureMode}</span>
                 </div>
               </div>
@@ -173,19 +166,15 @@ export default function EventDetailsModal({
                 </div>
                 <div>
                   <span className="text-[#64748B] block text-[11px] mb-0.5">Validation Date</span>
-                  <span className="font-mono text-[#94A3B8]">{alert.reviewedAt || '2026-07-21 12:03:50'}</span>
+                  <span className="font-mono text-[#94A3B8]">{alert.reviewedAt || '—'}</span>
                 </div>
                 <div>
                   <span className="text-[#64748B] block text-[11px] mb-0.5">Validated by</span>
-                  <span className="text-blue-400 font-mono">{alert.reviewedBy || 'operator@slb.com'}</span>
+                  <span className="text-[#94A3B8] font-mono">{alert.reviewedBy || '—'}</span>
                 </div>
                 <div>
-                  <span className="text-[#64748B] block text-[11px] mb-1">Comment</span>
-                  <textarea
-                    value={comment}
-                    onChange={e => setComment(e.target.value)}
-                    className="w-full bg-[#0B0F19] border border-[#1E293B] rounded-lg p-2 text-xs text-white placeholder-[#64748B] outline-none focus:border-[#3B82F6] transition-colors h-16 resize-none"
-                  />
+                  <span className="text-[#64748B] block text-[11px] mb-0.5">Comment</span>
+                  <span className="text-[#94A3B8] text-xs font-mono">{alert.reviewedBy ? 'Alert verified by surveillance engineer.' : '—'}</span>
                 </div>
                 <div>
                   <span className="text-[#64748B] block text-[11px] mb-0.5">Closure Date</span>
@@ -193,7 +182,7 @@ export default function EventDetailsModal({
                 </div>
               </div>
 
-              {/* Action Buttons Column matching Figma Image 1 */}
+              {/* Action Buttons Column matching SLB FAST design */}
               <div className="space-y-2.5 pt-6 border-t border-[#1E293B]">
                 <button
                   type="button"
@@ -213,27 +202,14 @@ export default function EventDetailsModal({
                   Analyze in Canvas
                 </button>
 
-                {alert.status !== 'closed' && alert.status !== 'validated' ? (
-                  <button
-                    type="button"
-                    disabled={updating}
-                    onClick={handleValidate}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-2 text-xs font-medium rounded-full bg-[#3B82F6] text-white hover:bg-[#2563EB] disabled:opacity-50 transition-colors cursor-pointer"
-                  >
-                    <Calendar size={13} />
-                    {updating ? 'Validating…' : 'Validate Event'}
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    disabled={updating}
-                    onClick={handleCloseEvent}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-2 text-xs font-medium rounded-full bg-[#3B82F6] text-white hover:bg-[#2563EB] disabled:opacity-50 transition-colors cursor-pointer"
-                  >
-                    <Calendar size={13} />
-                    {updating ? 'Closing…' : 'Close Event'}
-                  </button>
-                )}
+                <button
+                  type="button"
+                  onClick={() => window.alert('Opening Workbench...')}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2 text-xs font-normal rounded-full border border-[#1E293B] text-white hover:border-[#3B82F6] hover:text-[#3B82F6] transition-colors cursor-pointer"
+                >
+                  <Wrench size={13} />
+                  Open Workbench
+                </button>
               </div>
 
             </div>

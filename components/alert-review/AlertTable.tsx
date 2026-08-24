@@ -6,7 +6,7 @@ import StatusBadge from '@/components/ui/StatusBadge';
 import ColumnFilterDropdown from '@/components/ui/ColumnFilterDropdown';
 import EventDetailsModal from '@/components/alert-review/EventDetailsModal';
 import { updateAlertStatus } from '@/app/actions/alerts';
-import { ChevronDown, ChevronRight, Filter, MoreHorizontal } from 'lucide-react';
+import { ChevronDown, ChevronRight, Filter, MoreHorizontal, Check } from 'lucide-react';
 import type { Status } from '@/components/ui/StatusBadge';
 
 interface AlertRow {
@@ -42,7 +42,7 @@ const ALL_STATUSES: Status[] = [
   'closed',
 ];
 
-const PERIODS = ['All Time', 'Last Week', 'Last Month', 'Last 3 Months'];
+const PERIODS = ['All Time', 'Last Week', 'Last Month', 'Last 3 Months', 'Last 6 months'];
 
 export function getFriendlyRuleName(ruleName: string): string {
   const name = ruleName.toUpperCase();
@@ -168,7 +168,7 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
   const [period, setPeriod]                   = useState('All Time');
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedFilters, setSelectedFilters] = useState<Record<string, string[]>>({});
-  const [statusScope, setStatusScope]         = useState<'pending' | 'reviewed' | 'all'>('all');
+  const [statusScope, setStatusScope]         = useState<'events_list' | 'event_validation'>('event_validation');
   const [selectedAlertDetails, setSelectedAlertDetails] = useState<AlertRow | null>(null);
 
   const allCategories = useMemo(() => {
@@ -207,32 +207,11 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
     }));
   }, [data]);
 
-  const columnOptions = useMemo(() => {
-    const opts: Record<string, string[]> = {
-      fpso: Array.from(new Set(enrichedRows.map(r => r.fpso))).filter(Boolean).sort(),
-      eventId: Array.from(new Set(enrichedRows.map(r => r.eventId))).filter(Boolean).sort(),
-      equipmentCode: Array.from(new Set(enrichedRows.map(r => r.equipmentCode))).filter(Boolean).sort(),
-      ruleName: Array.from(new Set(enrichedRows.map(r => getFriendlyRuleName(r.ruleName)))).filter(Boolean).sort(),
-      type: Array.from(new Set(enrichedRows.map(r => r.type))).filter(Boolean).sort(),
-      triggeredAt: Array.from(new Set(enrichedRows.map(r => r.triggeredAt))).filter(Boolean).sort(),
-      status: Array.from(new Set(enrichedRows.map(r => r.status))).filter(Boolean).sort(),
-    };
-    return opts;
-  }, [enrichedRows]);
-
-  const filtered = useMemo(() => {
+  const scopedRows = useMemo(() => {
     return enrichedRows.filter(r => {
-      if (selectedCategories.length > 0 && selectedCategories.length < allCategories.length) {
-        const cat = getFriendlyRuleName(r.ruleName);
-        if (!selectedCategories.includes(cat)) return false;
-      }
-
-      if (statusScope === 'pending') {
+      if (statusScope === 'event_validation') {
         const isPending = r.status === 'to_be_validated' || r.status === 'validation_in_progress';
         if (!isPending) return false;
-      } else if (statusScope === 'reviewed') {
-        const isReviewed = r.status === 'validated' || r.status === 'rejected' || r.status === 'closed';
-        if (!isReviewed) return false;
       }
 
       if (period !== 'All Time' && r.triggeredAtRaw) {
@@ -243,6 +222,31 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
         if (period === 'Last Week' && diffMs > oneDay * 7) return false;
         if (period === 'Last Month' && diffMs > oneDay * 30) return false;
         if (period === 'Last 3 Months' && diffMs > oneDay * 90) return false;
+        if (period === 'Last 6 months' && diffMs > oneDay * 180) return false;
+      }
+      return true;
+    });
+  }, [enrichedRows, statusScope, period]);
+
+  const columnOptions = useMemo(() => {
+    const opts: Record<string, string[]> = {
+      fpso: Array.from(new Set(scopedRows.map(r => r.fpso))).filter(Boolean).sort(),
+      eventId: Array.from(new Set(scopedRows.map(r => r.eventId))).filter(Boolean).sort(),
+      equipmentCode: Array.from(new Set(scopedRows.map(r => r.equipmentCode))).filter(Boolean).sort(),
+      ruleName: Array.from(new Set(scopedRows.map(r => getFriendlyRuleName(r.ruleName)))).filter(Boolean).sort(),
+      type: Array.from(new Set(scopedRows.map(r => r.type))).filter(Boolean).sort(),
+      triggeredAt: Array.from(new Set(scopedRows.map(r => r.triggeredAt ? r.triggeredAt.split(',')[0].trim() : ''))).filter(Boolean).sort(),
+      status: Array.from(new Set(scopedRows.map(r => r.status))).filter(Boolean).sort(),
+      reviewedBy: Array.from(new Set(scopedRows.map(r => (r.status === 'to_be_validated' || !r.reviewedBy ? '-' : r.reviewedBy)))).filter(Boolean).sort(),
+    };
+    return opts;
+  }, [scopedRows]);
+
+  const filtered = useMemo(() => {
+    return scopedRows.filter(r => {
+      if (selectedCategories.length > 0 && selectedCategories.length < allCategories.length) {
+        const cat = getFriendlyRuleName(r.ruleName);
+        if (!selectedCategories.includes(cat)) return false;
       }
 
       const colMatch = Object.entries(selectedFilters).every(([colKey, selectedList]) => {
@@ -250,12 +254,17 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
         const options = columnOptions[colKey] || [];
         if (selectedList.length === options.length) return true;
 
-        const val = String((r as Record<string, unknown>)[colKey] ?? '');
+        let val = String((r as Record<string, unknown>)[colKey] ?? '');
+        if (colKey === 'reviewedBy') {
+          val = r.status === 'to_be_validated' || !r.reviewedBy ? '-' : String(r.reviewedBy);
+        } else if (colKey === 'triggeredAt') {
+          val = r.triggeredAt ? r.triggeredAt.split(',')[0].trim() : '';
+        }
         return selectedList.includes(val);
       });
       return colMatch;
     });
-  }, [enrichedRows, selectedCategories, allCategories, selectedFilters, columnOptions, period, statusScope]);
+  }, [scopedRows, selectedCategories, allCategories, selectedFilters, columnOptions]);
 
   const groups = useMemo(() => {
     const map = new Map<string, typeof enrichedRows[0][]>();
@@ -304,6 +313,7 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
     ['type', 'Type'],
     ['triggeredAt', 'Creation Date'],
     ['status', 'Status'],
+    ['reviewedBy', 'Validation By'],
   ];
 
   return (
@@ -313,44 +323,34 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
         {/* ── Table header bar ── */}
         <div className="flex items-center justify-between gap-4 px-5 py-4 border-b border-[#1E293B] flex-wrap">
           <div className="flex items-center gap-4 flex-wrap">
-            <h2 className="text-sm font-semibold text-white">
-              Event Validation
-              <span className="ml-2 text-xs font-normal text-[#94A3B8]">({totalRows} events)</span>
-            </h2>
+            {/* Status Scope Selector Tabs matching SLB Figma design */}
+            <div className="flex bg-[#0B0F19] border border-[#1E293B] rounded-full p-1 text-xs select-none font-sans">
+              <button
+                onClick={() => setStatusScope('event_validation')}
+                className={`flex items-center gap-1.5 px-3.5 py-1 rounded-full transition-all cursor-pointer font-semibold ${
+                  statusScope === 'event_validation'
+                    ? 'bg-[#1E293B] text-[#3B82F6] shadow-sm'
+                    : 'text-[#E2E8F0] hover:text-white'
+                }`}
+              >
+                {statusScope === 'event_validation' && <Check size={13} className="text-[#3B82F6] stroke-[3]" />}
+                <span>Event Validation</span>
+              </button>
 
-            {/* Status Scope Selector Tabs */}
-            <div className="flex bg-[#0B0F19] border border-[#1E293B] rounded-full p-0.5 text-xs">
               <button
-                onClick={() => setStatusScope('all')}
-                className={`px-3 py-1 rounded-full transition-colors cursor-pointer ${
-                  statusScope === 'all'
-                    ? 'bg-[#3B82F6] text-white font-medium'
-                    : 'text-[#94A3B8] hover:text-white'
+                onClick={() => setStatusScope('events_list')}
+                className={`flex items-center gap-1.5 px-3.5 py-1 rounded-full transition-all cursor-pointer font-semibold ${
+                  statusScope === 'events_list'
+                    ? 'bg-[#1E293B] text-[#3B82F6] shadow-sm'
+                    : 'text-[#E2E8F0] hover:text-white'
                 }`}
               >
-                All Events
-              </button>
-              <button
-                onClick={() => setStatusScope('pending')}
-                className={`px-3 py-1 rounded-full transition-colors cursor-pointer ${
-                  statusScope === 'pending'
-                    ? 'bg-[#3B82F6] text-white font-medium'
-                    : 'text-[#94A3B8] hover:text-white'
-                }`}
-              >
-                To Be Validated
-              </button>
-              <button
-                onClick={() => setStatusScope('reviewed')}
-                className={`px-3 py-1 rounded-full transition-colors cursor-pointer ${
-                  statusScope === 'reviewed'
-                    ? 'bg-[#3B82F6] text-white font-medium'
-                    : 'text-[#94A3B8] hover:text-white'
-                }`}
-              >
-                Validated / History
+                {statusScope === 'events_list' && <Check size={13} className="text-[#3B82F6] stroke-[3]" />}
+                <span>Events List</span>
               </button>
             </div>
+
+            <span className="text-xs font-normal text-[#94A3B8]">({totalRows} events)</span>
           </div>
 
           <div className="flex items-center gap-3 flex-wrap">
@@ -453,33 +453,40 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
                           <StatusBadge status={row.status} />
                         </td>
 
-                        {/* Action Column: Change Status ▾ Dropdown Button & ... Options */}
+                        {/* Validation By */}
+                        <td className="px-4 py-3 text-[#94A3B8] font-mono text-xs whitespace-nowrap">
+                          {row.status === 'to_be_validated' || !row.reviewedBy ? '-' : row.reviewedBy}
+                        </td>
+
+                        {/* Action Column: Change Status ▾ Dropdown Button (only on Event Validation tab) & ... Options */}
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-2">
-                            <DropdownMenu.Root>
-                              <DropdownMenu.Trigger asChild>
-                                <button className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#1E293B] border border-[#334155]/60 text-white text-xs font-normal hover:border-[#3B82F6] hover:text-[#3B82F6] transition-colors cursor-pointer">
-                                  <span>Change Status</span>
-                                  <ChevronDown size={12} className="text-[#94A3B8]" />
-                                </button>
-                              </DropdownMenu.Trigger>
-                              <DropdownMenu.Portal>
-                                <DropdownMenu.Content
-                                  className="z-50 bg-[#111827] border border-[#1E293B] rounded-2xl shadow-2xl p-1.5 min-w-[210px] select-none"
-                                  sideOffset={4}
-                                >
-                                  {ALL_STATUSES.map(s => (
-                                    <DropdownMenu.Item
-                                      key={s}
-                                      onSelect={() => handleStatus(row.id, s)}
-                                      className="px-3 py-2 rounded-xl cursor-pointer hover:bg-[#1E293B] outline-none transition-colors"
-                                    >
-                                      <StatusBadge status={s} />
-                                    </DropdownMenu.Item>
-                                  ))}
-                                </DropdownMenu.Content>
-                              </DropdownMenu.Portal>
-                            </DropdownMenu.Root>
+                            {statusScope === 'event_validation' && (
+                              <DropdownMenu.Root>
+                                <DropdownMenu.Trigger asChild>
+                                  <button className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#1E293B] border border-[#334155]/60 text-white text-xs font-normal hover:border-[#3B82F6] hover:text-[#3B82F6] transition-colors cursor-pointer">
+                                    <span>Change Status</span>
+                                    <ChevronDown size={12} className="text-[#94A3B8]" />
+                                  </button>
+                                </DropdownMenu.Trigger>
+                                <DropdownMenu.Portal>
+                                  <DropdownMenu.Content
+                                    className="z-50 bg-[#111827] border border-[#1E293B] rounded-2xl shadow-2xl p-1.5 min-w-[210px] select-none"
+                                    sideOffset={4}
+                                  >
+                                    {ALL_STATUSES.map(s => (
+                                      <DropdownMenu.Item
+                                        key={s}
+                                        onSelect={() => handleStatus(row.id, s)}
+                                        className="px-3 py-2 rounded-xl cursor-pointer hover:bg-[#1E293B] outline-none transition-colors"
+                                      >
+                                        <StatusBadge status={s} />
+                                      </DropdownMenu.Item>
+                                    ))}
+                                  </DropdownMenu.Content>
+                                </DropdownMenu.Portal>
+                              </DropdownMenu.Root>
+                            )}
 
                             {/* More options button (...) */}
                             <button

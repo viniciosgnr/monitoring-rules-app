@@ -201,10 +201,13 @@ async function seed() {
       const minutesOffset = (j * 17) % 60;
       const triggeredAt = new Date(nowMs - day * 24 * 60 * 60 * 1000 - hoursOffset * 60 * 60 * 1000 - minutesOffset * 60 * 1000);
       const endDate = new Date(triggeredAt.getTime() + 12 * 60 * 60 * 1000);
-      const reviewedAt = status !== 'to_be_validated' && status !== 'validation_in_progress'
+      const reviewedAt = status !== 'to_be_validated'
         ? new Date(triggeredAt.getTime() + 2 * 60 * 60 * 1000)
         : null;
-      const reviewedBy = reviewedAt ? 'Jon Doe' : null;
+      const operatorEmails = ['smetzner@slb.com', 'jdoe@slb.com', 'mrodrigues@slb.com', 'icaro.zelioli@sbmoffshore.com'];
+      const reviewedBy = status !== 'to_be_validated'
+        ? operatorEmails[j % operatorEmails.length]
+        : null;
 
       alertsValues.push({
         instanceId: inst.id,
