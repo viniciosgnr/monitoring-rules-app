@@ -191,7 +191,7 @@ export default function EventDetailsModal({
                 <button
                   type="button"
                   onClick={() => window.alert('Generating Event Report PDF...')}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-2 text-xs font-normal rounded-full border border-[#1E293B] text-white hover:border-[#3B82F6] hover:text-[#3B82F6] transition-colors cursor-pointer"
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-full bg-[#0B0F19] border border-[#1E293B] text-white text-xs font-medium hover:border-[#3B82F6] transition-colors cursor-pointer"
                 >
                   <FileText size={13} />
                   Generate Event Report
@@ -200,7 +200,7 @@ export default function EventDetailsModal({
                 <button
                   type="button"
                   onClick={() => window.alert('Opening in Canvas...')}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-2 text-xs font-normal rounded-full border border-[#1E293B] text-white hover:border-[#3B82F6] hover:text-[#3B82F6] transition-colors cursor-pointer"
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-full bg-[#0B0F19] border border-[#1E293B] text-white text-xs font-medium hover:border-[#3B82F6] transition-colors cursor-pointer"
                 >
                   <ExternalLink size={13} />
                   Analyze in Canvas
@@ -209,7 +209,7 @@ export default function EventDetailsModal({
                 <button
                   type="button"
                   onClick={() => window.alert('Opening Workbench...')}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-2 text-xs font-normal rounded-full border border-[#1E293B] text-white hover:border-[#3B82F6] hover:text-[#3B82F6] transition-colors cursor-pointer"
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-full bg-[#0B0F19] border border-[#1E293B] text-white text-xs font-medium hover:border-[#3B82F6] transition-colors cursor-pointer"
                 >
                   <Wrench size={13} />
                   Open Workbench
@@ -219,7 +219,7 @@ export default function EventDetailsModal({
                 {onStatusChange && (
                   <DropdownMenu.Root>
                     <DropdownMenu.Trigger asChild>
-                      <button className="w-full flex items-center justify-center gap-1.5 px-4 py-2 rounded-full bg-[#0B0F19] border border-[#1E293B] text-white text-xs font-medium hover:border-[#3B82F6] transition-colors cursor-pointer">
+                      <button className="w-full flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-full bg-[#0B0F19] border border-[#1E293B] text-white text-xs font-medium hover:border-[#3B82F6] transition-colors cursor-pointer">
                         <span>Change Status</span>
                         <ChevronDown size={12} className="text-[#94A3B8]" />
                       </button>
