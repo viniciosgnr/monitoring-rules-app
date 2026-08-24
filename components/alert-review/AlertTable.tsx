@@ -464,7 +464,7 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
                             {statusScope === 'event_validation' && (
                               <DropdownMenu.Root>
                                 <DropdownMenu.Trigger asChild>
-                                  <button className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#1E293B] border border-[#334155]/60 text-white text-xs font-normal hover:border-[#3B82F6] hover:text-[#3B82F6] transition-colors cursor-pointer">
+                                  <button className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#0B0F19] border border-[#1E293B] text-white text-xs font-medium hover:border-[#3B82F6] transition-colors cursor-pointer">
                                     <span>Change Status</span>
                                     <ChevronDown size={12} className="text-[#94A3B8]" />
                                   </button>

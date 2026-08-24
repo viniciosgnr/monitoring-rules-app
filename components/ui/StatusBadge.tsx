@@ -11,10 +11,9 @@ const MAP: Record<Status, { dot: string; label: string }> = {
 export type { Status };
 
 export default function StatusBadge({ status }: { status: Status }) {
-  const { dot, label } = MAP[status] ?? MAP.closed;
+  const { label } = MAP[status] ?? MAP.closed;
   return (
-    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#1E293B] border border-[#334155]/40 text-[#E2E8F0] text-xs font-normal whitespace-nowrap">
-      <span className={`w-1.5 h-1.5 rounded-full ${dot} flex-shrink-0`} />
+    <span className="inline-flex items-center px-3 py-1 rounded-md bg-[#1E293B] border border-[#334155]/40 text-[#E2E8F0] text-xs font-semibold whitespace-nowrap">
       {label}
     </span>
   );

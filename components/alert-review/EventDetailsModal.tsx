@@ -1,8 +1,11 @@
 'use client';
 import React from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
-import { X, FileText, ExternalLink, Info, Wrench } from 'lucide-react';
-import type { Status } from '@/components/ui/StatusBadge';
+import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
+import { X, FileText, ExternalLink, Info, Wrench, ChevronDown } from 'lucide-react';
+import StatusBadge, { Status } from '@/components/ui/StatusBadge';
+
+const ALL_STATUSES: Status[] = ['to_be_validated', 'validation_in_progress', 'validated', 'rejected', 'closed'];
 
 interface AlertRow {
   id: number;
@@ -33,6 +36,7 @@ export default function EventDetailsModal({
   open,
   onClose,
   alert,
+  onStatusChange,
 }: EventDetailsModalProps) {
   if (!alert) return null;
 
@@ -210,6 +214,38 @@ export default function EventDetailsModal({
                   <Wrench size={13} />
                   Open Workbench
                 </button>
+
+                {/* Change Status Dropdown Button matching SLB OptiSite black pill design */}
+                {onStatusChange && (
+                  <DropdownMenu.Root>
+                    <DropdownMenu.Trigger asChild>
+                      <button className="w-full flex items-center justify-center gap-1.5 px-4 py-2 rounded-full bg-[#0B0F19] border border-[#1E293B] text-white text-xs font-medium hover:border-[#3B82F6] transition-colors cursor-pointer">
+                        <span>Change Status</span>
+                        <ChevronDown size={12} className="text-[#94A3B8]" />
+                      </button>
+                    </DropdownMenu.Trigger>
+                    <DropdownMenu.Portal>
+                      <DropdownMenu.Content
+                        className="z-[100] bg-[#111827] border border-[#1E293B] rounded-2xl shadow-2xl p-1.5 min-w-[210px] select-none"
+                        sideOffset={4}
+                      >
+                        {ALL_STATUSES.map(s => (
+                          <DropdownMenu.Item
+                            key={s}
+                            onSelect={async () => {
+                              if (alert) {
+                                await onStatusChange(alert.id, s);
+                              }
+                            }}
+                            className="px-3 py-2 rounded-xl cursor-pointer hover:bg-[#1E293B] outline-none transition-colors"
+                          >
+                            <StatusBadge status={s} />
+                          </DropdownMenu.Item>
+                        ))}
+                      </DropdownMenu.Content>
+                    </DropdownMenu.Portal>
+                  </DropdownMenu.Root>
+                )}
               </div>
 
             </div>
