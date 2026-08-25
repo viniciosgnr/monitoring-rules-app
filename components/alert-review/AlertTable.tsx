@@ -320,7 +320,7 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
   const cols: [string, string][] = [
     ['fpso', 'FPSO'],
     ['equipmentCode', 'Assets'],
-    ['eventId', 'Event Ref.'],
+    ['eventId', 'Alarm Ref.'],
     ['type', 'Type'],
     ['triggeredAt', 'Creation Date'],
     ['status', 'Status'],
@@ -345,7 +345,7 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
                 }`}
               >
                 {statusScope === 'event_validation' && <Check size={13} className="text-[#3B82F6] stroke-[3]" />}
-                <span>Event Validation</span>
+                <span>Alarm Validation</span>
               </button>
 
               <button
@@ -357,11 +357,11 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
                 }`}
               >
                 {statusScope === 'events_list' && <Check size={13} className="text-[#3B82F6] stroke-[3]" />}
-                <span>Events List</span>
+                <span>Alarm List</span>
               </button>
             </div>
 
-            <span className="text-xs font-normal text-[#94A3B8]">({totalRows} events)</span>
+            <span className="text-xs font-normal text-[#94A3B8]">({totalRows} alarms)</span>
           </div>
 
           <div className="flex items-center gap-3 flex-wrap">
@@ -509,7 +509,7 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
                             {/* More options button (...) */}
                             <button
                               onClick={() => setSelectedAlertDetails(row)}
-                              title="View Event Details"
+                              title="View Alarm Details"
                               className="p-1.5 rounded-full text-[#94A3B8] hover:text-white hover:bg-[#1E293B] transition-colors cursor-pointer"
                             >
                               <MoreHorizontal size={15} />
@@ -525,7 +525,7 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
               {groups.length === 0 && (
                 <tr>
                   <td colSpan={cols.length + 2} className="px-4 py-8 text-center text-[#64748B] text-xs">
-                    No events found matching selected criteria
+                    No alarms found matching selected criteria
                   </td>
                 </tr>
               )}
