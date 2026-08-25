@@ -74,16 +74,16 @@ export default function ColumnFilterDropdown({
         <button
           type="button"
           onClick={() => setIsOpen(!isOpen)}
-          className={`flex items-center justify-between gap-2 px-3 py-1.5 text-xs rounded border transition-colors cursor-pointer ${
+          className={`flex items-center justify-between gap-2 px-3.5 py-1.5 text-xs rounded-full border transition-colors cursor-pointer ${
             isFiltered
-              ? 'bg-bg-panel border-accent-blue text-accent-blue font-medium'
-              : 'bg-bg-panel border-border-panel text-text-primary hover:border-accent-blue'
+              ? 'bg-[#0B0F19] border-[#3B82F6] text-[#3B82F6] font-medium'
+              : 'bg-[#0B0F19] border-[#1E293B] text-white hover:border-[#3B82F6]'
           }`}
         >
           <span className="truncate max-w-[140px]" title={summaryText || placeholder}>
             {summaryText || placeholder}
           </span>
-          <ChevronDown size={14} className={`flex-shrink-0 transition-transform ${isOpen ? 'rotate-180 text-accent-blue' : 'text-text-muted'}`} />
+          <ChevronDown size={13} className={`flex-shrink-0 transition-transform ${isOpen ? 'rotate-180 text-[#3B82F6]' : 'text-[#94A3B8]'}`} />
         </button>
       ) : (
         <button

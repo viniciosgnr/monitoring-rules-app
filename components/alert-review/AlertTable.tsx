@@ -163,13 +163,20 @@ function CategoryFilterDropdown({
   );
 }
 
+import FpsosFilterDropdown from '@/components/ui/FpsosFilterDropdown';
+
 export default function AlertTable({ rows }: { rows: AlertRow[] }) {
   const [data, setData]                       = useState(rows);
   const [period, setPeriod]                   = useState('All Time');
+  const [selectedFpsos, setSelectedFpsos]     = useState<string[]>([]);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedFilters, setSelectedFilters] = useState<Record<string, string[]>>({});
   const [statusScope, setStatusScope]         = useState<'events_list' | 'event_validation'>('event_validation');
   const [selectedAlertDetails, setSelectedAlertDetails] = useState<AlertRow | null>(null);
+
+  const allFpsos = useMemo(() => {
+    return Array.from(new Set(rows.map(r => r.fpso))).filter(Boolean).sort();
+  }, [rows]);
 
   const allCategories = useMemo(() => {
     return Array.from(new Set(rows.map(r => getFriendlyRuleName(r.ruleName)))).filter(Boolean).sort();
@@ -209,6 +216,10 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
 
   const scopedRows = useMemo(() => {
     return enrichedRows.filter(r => {
+      if (selectedFpsos.length > 0 && selectedFpsos.length < allFpsos.length && !selectedFpsos.includes(r.fpso)) {
+        return false;
+      }
+
       if (statusScope === 'event_validation') {
         const isPending = r.status === 'to_be_validated' || r.status === 'validation_in_progress';
         if (!isPending) return false;
@@ -226,7 +237,7 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
       }
       return true;
     });
-  }, [enrichedRows, statusScope, period]);
+  }, [enrichedRows, statusScope, period, selectedFpsos, allFpsos]);
 
   const columnOptions = useMemo(() => {
     const opts: Record<string, string[]> = {
@@ -354,6 +365,13 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
           </div>
 
           <div className="flex items-center gap-3 flex-wrap">
+            {/* FPSO Filter */}
+            <FpsosFilterDropdown
+              fpsos={allFpsos}
+              selectedFpsos={selectedFpsos}
+              onChange={(newFpsos) => setSelectedFpsos(newFpsos)}
+            />
+
             {/* Time period filter */}
             <select
               value={period}

@@ -136,13 +136,20 @@ function CategoryFilterDropdown({
   );
 }
 
+import FpsosFilterDropdown from '@/components/ui/FpsosFilterDropdown';
+
 export default function AuditHistoryTable({ rows }: { rows: AuditEntry[] }) {
   const [page, setPage]                         = useState(1);
   const [pageSize, setPageSize]                 = useState(5);
+  const [selectedFpsos, setSelectedFpsos]       = useState<string[]>([]);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedFilters, setSelectedFilters] = useState<Record<string, string[]>>({});
   const [showExportModal, setShowExportModal]   = useState(false);
   const [period, setPeriod]                     = useState('All Time');
+
+  const allFpsos = useMemo(() => {
+    return Array.from(new Set(rows.map(r => r.fpso))).filter(Boolean).sort();
+  }, [rows]);
 
   const allCategories = useMemo(() => {
     return Array.from(new Set(rows.map(r => getFriendlyRuleName(r.ruleName)))).filter(Boolean).sort();
@@ -205,6 +212,10 @@ export default function AuditHistoryTable({ rows }: { rows: AuditEntry[] }) {
 
   const filtered = useMemo(() => {
     return rows.filter(r => {
+      if (selectedFpsos.length > 0 && selectedFpsos.length < allFpsos.length && !selectedFpsos.includes(r.fpso)) {
+        return false;
+      }
+
       if (selectedCategories.length > 0 && selectedCategories.length < allCategories.length) {
         const cat = getFriendlyRuleName(r.ruleName);
         if (!selectedCategories.includes(cat)) return false;
@@ -228,7 +239,7 @@ export default function AuditHistoryTable({ rows }: { rows: AuditEntry[] }) {
         return selectedList.includes(val);
       });
     });
-  }, [rows, selectedCategories, allCategories, selectedFilters, columnOptions, period]);
+  }, [rows, selectedCategories, allCategories, selectedFilters, columnOptions, period, selectedFpsos, allFpsos]);
 
   const paged = filtered.slice((page - 1) * pageSize, page * pageSize);
 
@@ -282,6 +293,16 @@ export default function AuditHistoryTable({ rows }: { rows: AuditEntry[] }) {
         <div className="px-5 py-4 border-b border-[#1E293B] flex items-center justify-between flex-wrap gap-3">
           <h2 className="text-sm font-semibold text-white">Audit history</h2>
           <div className="flex items-center gap-3">
+            {/* FPSO Filter Dropdown */}
+            <FpsosFilterDropdown
+              fpsos={allFpsos}
+              selectedFpsos={selectedFpsos}
+              onChange={(newFpsos) => {
+                setSelectedFpsos(newFpsos);
+                setPage(1);
+              }}
+            />
+
             {/* Time period filter */}
             <div className="flex items-center gap-1.5">
               <select

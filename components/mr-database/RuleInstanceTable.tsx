@@ -7,6 +7,7 @@ import Pagination from '@/components/ui/Pagination';
 import ColumnFilterDropdown from '@/components/ui/ColumnFilterDropdown';
 import EditRuleModal from './EditRuleModal';
 import { toggleInstance, toggleInstancesBulk } from '@/app/actions/ruleInstances';
+import FpsosFilterDropdown from '@/components/ui/FpsosFilterDropdown';
 import { ChevronDown, ChevronRight, Download, Filter, X } from 'lucide-react';
 import { useUserRole } from '@/components/context/UserRoleContext';
 import { exportBrandedExcel } from '@/lib/excelExportUtils';
@@ -148,9 +149,14 @@ export default function RuleInstanceTable({ rows }: { rows: InstanceRow[] }) {
   const [data, setData]                 = useState(rows);
   const [page, setPage]                 = useState(1);
   const [pageSize, setPageSize]         = useState(5);
+  const [selectedFpsos, setSelectedFpsos] = useState<string[]>([]);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedFilters, setSelectedFilters] = useState<Record<string, string[]>>({});
   const [editRow, setEditRow]           = useState<InstanceRow | null>(null);
+
+  const allFpsos = useMemo(() => {
+    return Array.from(new Set(data.map(r => r.fpso))).filter(Boolean).sort();
+  }, [data]);
 
   const allCategories = useMemo(() => {
     return Array.from(new Set(data.map(r => getFriendlyRuleName(r.ruleName)))).filter(Boolean).sort();
@@ -210,6 +216,11 @@ export default function RuleInstanceTable({ rows }: { rows: InstanceRow[] }) {
   }
 
   const filtered = data.filter(r => {
+    // 0. Global FPSO Filter
+    if (selectedFpsos.length > 0 && selectedFpsos.length < allFpsos.length) {
+      if (!selectedFpsos.includes(r.fpso)) return false;
+    }
+
     // 1. Category Filter
     if (selectedCategories.length > 0 && selectedCategories.length < allCategories.length) {
       const cat = getFriendlyRuleName(r.ruleName);
@@ -441,6 +452,14 @@ function formatModalParamsJson(ruleName: string, steps: unknown): string {
       <div className="px-5 py-4 border-b border-[#1E293B] flex items-center justify-between flex-wrap gap-3">
         <h2 className="text-sm font-semibold text-white">Monitoring rule instance catalog</h2>
         <div className="flex items-center gap-3">
+          <FpsosFilterDropdown
+            fpsos={allFpsos}
+            selectedFpsos={selectedFpsos}
+            onChange={(newFpsos) => {
+              setSelectedFpsos(newFpsos);
+              setPage(1);
+            }}
+          />
           <CategoryFilterDropdown
             categories={allCategories}
             selectedCategories={selectedCategories}
