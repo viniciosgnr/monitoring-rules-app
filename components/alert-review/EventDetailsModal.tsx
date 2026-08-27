@@ -33,6 +33,21 @@ interface EventDetailsModalProps {
   onStatusChange?: (id: number, newStatus: Status, comment?: string) => Promise<void>;
 }
 
+export function getAlertType(alert: AlertRow): string {
+  if (alert.source === 'Seeq') return 'Seeq Analytics Alert';
+  if (alert.source === 'Pre Warnings Ops' || alert.source === 'PreWarningOps') return 'Pre-Warning Operational Alert';
+
+  const name = (alert.ruleName || '').toUpperCase();
+  if (name.includes('SPK') || name.includes('SPIKE')) return 'Spike Detection Alert';
+  if (name.includes('SURG') || name.includes('THR') || name.includes('VIB_THR') || name.includes('MGN')) return 'Surge Margin Alert';
+  if (name.includes('TRND') || name.includes('TREND') || name.includes('DEV') || name.includes('TEMP_DEV')) return 'Trend Analysis Alert';
+  if (name.includes('FOUL') || name.includes('DP') || name.includes('HTEX') || name.includes('NORM')) return 'Normalized dP Alert';
+  if (name.includes('DRFT') || name.includes('DRIFT')) return 'Drift Detection Alert';
+  if (name.includes('ML') || name.includes('AI')) return 'AI/ML Anomaly Alert';
+
+  return (alert.type && alert.type !== 'Surge Margin Alert') ? alert.type : 'Monitoring Alert';
+}
+
 export default function EventDetailsModal({
   open,
   onClose,
@@ -57,10 +72,10 @@ export default function EventDetailsModal({
     [105, 35], [120, 60], [135, 48], [150, 72], [165, 40], [180, 50],
     [195, 30], [210, 42], [225, 25], [240, 38], [255, 30], [270, 40],
     [285, 22], [300, 35], [315, 48], [330, 30], [345, 62], [360, 40],
-    [375, 52], [390, 38], [405, 45], [420, 32], [435, 58], [450, 42],
-    [465, 50], [480, 45], [495, 65], [510, 35], [525, 48], [540, 40]
+    [375, 28], [390, 35], [405, 20], [420, 30], [435, 25], [450, 35],
+    [465, 28], [480, 42], [495, 30], [510, 25], [525, 32], [540, 28]
   ];
-  const pathD = chartPoints.reduce((acc, [x, y], idx) => `${acc} ${idx === 0 ? 'M' : 'L'} ${x} ${y}`, '');
+  const pathD = chartPoints.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p[0]} ${p[1]}`).join(' ');
 
   return (
     <Dialog.Root open={open} onOpenChange={v => !v && onClose()}>
@@ -83,10 +98,10 @@ export default function EventDetailsModal({
             </Dialog.Close>
           </div>
 
-          {/* ── Main 2-Column Body Layout ── */}
+          {/* ── Modal Body Grid: 2 Cols Main Content + 1 Col Right Sidebar ── */}
           <div className="grid grid-cols-3 gap-6">
             
-            {/* Left Section (2 Cols): Metadata Table + Time Series Chart */}
+            {/* Left Main Section (2 Cols): Metadata Grid + Time Series Chart */}
             <div className="col-span-2 space-y-5">
               
               {/* Metadata Grid */}
@@ -94,7 +109,7 @@ export default function EventDetailsModal({
                 <h3 className="text-xs font-semibold text-white mb-2">Monitoring Alert</h3>
                 <div className="grid grid-cols-3 py-1.5 border-b border-[#1E293B]/60">
                   <span className="text-[#94A3B8]">Alert type</span>
-                  <span className="col-span-2 text-white font-medium">{alert.type || 'Spike, step change'}</span>
+                  <span className="col-span-2 text-white font-medium">{getAlertType(alert)}</span>
                 </div>
                 <div className="grid grid-cols-3 py-1.5 border-b border-[#1E293B]/60">
                   <span className="text-[#94A3B8]">Alert description</span>

@@ -55,6 +55,12 @@ export function getFriendlyRuleName(ruleName: string): string {
   return ruleName;
 }
 
+export function getCategory(row: AlertRow): string {
+  if (row.source === 'Seeq') return 'Seeq';
+  if (row.source === 'Pre Warnings Ops' || row.source === 'PreWarningOps') return 'PreWarningOps';
+  return getFriendlyRuleName(row.ruleName);
+}
+
 const SOURCES = ['Monitoring Rules Engine', 'Seeq', 'Pre Warnings Ops'];
 
 function getSource(row: AlertRow): string {
@@ -187,12 +193,17 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
   }, [rows]);
 
   const allCategories = useMemo(() => {
-    return Array.from(new Set(rows.map(r => getFriendlyRuleName(r.ruleName)))).filter(Boolean).sort();
-  }, [rows]);
+    const cats = new Set<string>();
+    data.forEach(r => cats.add(getCategory(r)));
+    ['Drift', 'Normalized dP ( step change, spike, trend)', 'Spike', 'Surge (Threshold)', 'Trend', 'AI/ML', 'Seeq', 'PreWarningOps'].forEach(c => cats.add(c));
+    return Array.from(cats).filter(Boolean).sort();
+  }, [data]);
 
   const [expandedRules, setExpandedRules] = useState<Set<string>>(() => {
     const s = new Set<string>();
-    rows.forEach(r => s.add(getFriendlyRuleName(r.ruleName)));
+    rows.forEach(r => s.add(getCategory(r)));
+    s.add('Seeq');
+    s.add('PreWarningOps');
     return s;
   });
 
@@ -253,7 +264,7 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
       fpso: Array.from(new Set(scopedRows.map(r => r.fpso))).filter(Boolean).sort(),
       eventId: Array.from(new Set(scopedRows.map(r => r.eventId))).filter(Boolean).sort(),
       equipmentCode: Array.from(new Set(scopedRows.map(r => r.equipmentCode))).filter(Boolean).sort(),
-      ruleName: Array.from(new Set(scopedRows.map(r => getFriendlyRuleName(r.ruleName)))).filter(Boolean).sort(),
+      ruleName: Array.from(new Set(scopedRows.map(r => getCategory(r)))).filter(Boolean).sort(),
       source: Array.from(new Set(scopedRows.map(r => r.source))).filter(Boolean).sort(),
       triggeredAt: Array.from(new Set(scopedRows.map(r => r.triggeredAt ? r.triggeredAt.split(',')[0].trim() : ''))).filter(Boolean).sort(),
       status: Array.from(new Set(scopedRows.map(r => r.status))).filter(Boolean).sort(),
@@ -265,7 +276,7 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
   const filtered = useMemo(() => {
     return scopedRows.filter(r => {
       if (selectedCategories.length > 0 && selectedCategories.length < allCategories.length) {
-        const cat = getFriendlyRuleName(r.ruleName);
+        const cat = getCategory(r);
         if (!selectedCategories.includes(cat)) return false;
       }
 
@@ -279,6 +290,8 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
           val = r.status === 'to_be_validated' || !r.reviewedBy ? '-' : String(r.reviewedBy);
         } else if (colKey === 'triggeredAt') {
           val = r.triggeredAt ? r.triggeredAt.split(',')[0].trim() : '';
+        } else if (colKey === 'ruleName') {
+          val = getCategory(r);
         }
         return selectedList.includes(val);
       });
@@ -289,7 +302,7 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
   const groups = useMemo(() => {
     const map = new Map<string, typeof enrichedRows[0][]>();
     for (const row of filtered) {
-      const friendlyName = getFriendlyRuleName(row.ruleName);
+      const friendlyName = getCategory(row);
       const arr = map.get(friendlyName) ?? [];
       arr.push(row);
       map.set(friendlyName, arr);
