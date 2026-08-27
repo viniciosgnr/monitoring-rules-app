@@ -68,7 +68,7 @@ export default function EventDetailsModal({
           <div className="flex items-center justify-between border-b border-[#1E293B] pb-4 mb-5">
             <div className="flex items-center gap-3">
               <Dialog.Title className="text-base font-semibold text-white">
-                Alarm Details: <span className="font-mono text-blue-400">{eventRef}</span> - Monitoring alert triggered
+                Alert Details: <span className="font-mono text-blue-400">{eventRef}</span> - Monitoring alert triggered
               </Dialog.Title>
               <span className="px-2.5 py-1 rounded bg-[#1E293B] border border-[#334155]/40 text-[#E2E8F0] text-xs font-medium">
                 {alert.status === 'to_be_validated' ? 'To Be Validated' : alert.status === 'validation_in_progress' ? 'Validation in Progress' : alert.status === 'validated' ? 'Validated (New)' : alert.status === 'rejected' ? 'Rejected' : 'Closed'}
@@ -190,11 +190,11 @@ export default function EventDetailsModal({
               <div className="space-y-2.5 pt-6 border-t border-[#1E293B]">
                 <button
                   type="button"
-                  onClick={() => window.alert('Generating Alarm Report PDF...')}
+                  onClick={() => window.alert('Generating Alert Report PDF...')}
                   className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-full bg-[#0B0F19] border border-[#1E293B] text-white text-xs font-medium hover:border-[#3B82F6] transition-colors cursor-pointer"
                 >
                   <FileText size={13} />
-                  Generate Alarm Report
+                  Generate Alert Report
                 </button>
 
                 <button
