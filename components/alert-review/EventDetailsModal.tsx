@@ -5,7 +5,7 @@ import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { X, FileText, ExternalLink, Info, Wrench, ChevronDown } from 'lucide-react';
 import StatusBadge, { Status } from '@/components/ui/StatusBadge';
 
-const ALL_STATUSES: Status[] = ['to_be_validated', 'validation_in_progress', 'validated', 'rejected', 'closed'];
+const ALL_STATUSES: Status[] = ['to_be_validated', 'validation_in_progress', 'validated', 'rejected'];
 
 interface AlertRow {
   id: number;
@@ -71,7 +71,7 @@ export default function EventDetailsModal({
                 Alert Details: <span className="font-mono text-blue-400">{eventRef}</span> - Monitoring alert triggered
               </Dialog.Title>
               <span className="px-2.5 py-1 rounded bg-[#1E293B] border border-[#334155]/40 text-[#E2E8F0] text-xs font-medium">
-                {alert.status === 'to_be_validated' ? 'To Be Validated' : alert.status === 'validation_in_progress' ? 'Validation in Progress' : alert.status === 'validated' ? 'Validated (New)' : alert.status === 'rejected' ? 'Rejected' : 'Closed'}
+                {alert.status === 'to_be_validated' ? 'To Be Validated' : alert.status === 'validation_in_progress' ? 'Validation in Progress' : alert.status === 'validated' ? 'Validated' : alert.status === 'rejected' ? 'Rejected' : 'Closed'}
               </span>
             </div>
             <Dialog.Close className="text-[#64748B] hover:text-white transition-colors cursor-pointer">

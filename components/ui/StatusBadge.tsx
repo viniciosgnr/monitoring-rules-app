@@ -3,7 +3,7 @@ type Status = 'to_be_validated' | 'validation_in_progress' | 'validated' | 'reje
 const MAP: Record<Status, { dot: string; label: string }> = {
   to_be_validated:        { dot: 'bg-amber-400',       label: 'To Be Validated'        },
   validation_in_progress: { dot: 'bg-[#3B82F6]',       label: 'Validation in Progress' },
-  validated:              { dot: 'bg-emerald-400',     label: 'Validated (New)'        },
+  validated:              { dot: 'bg-emerald-400',     label: 'Validated'              },
   rejected:               { dot: 'bg-red-400',         label: 'Rejected'               },
   closed:                 { dot: 'bg-gray-400',        label: 'Closed'                 },
 };

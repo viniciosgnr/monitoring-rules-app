@@ -39,7 +39,6 @@ const ALL_STATUSES: Status[] = [
   'validation_in_progress',
   'validated',
   'rejected',
-  'closed',
 ];
 
 const PERIODS = ['All Time', 'Last Week', 'Last Month', 'Last 3 Months', 'Last 6 months'];
