@@ -14,7 +14,8 @@ interface AlertRow {
   ruleName: string;
   ruleDescription?: string | null;
   timeseries?: string;
-  type: string;
+  type?: string;
+  source?: string;
   endDate: string;
   triggeredAt: string;
   triggeredAtRaw?: string;
@@ -71,7 +72,7 @@ export default function EventDetailsModal({
           <div className="flex items-center justify-between border-b border-[#1E293B] pb-4 mb-5">
             <div className="flex items-center gap-3">
               <Dialog.Title className="text-base font-semibold text-white">
-                Alert Details: <span className="font-mono text-blue-400">{eventRef}</span> - Monitoring alert triggered
+                Alert Details: <span className="font-mono text-blue-400">{eventRef}</span> - {alert.source || 'Monitoring Rules Engine'}
               </Dialog.Title>
               <span className="px-2.5 py-1 rounded bg-[#1E293B] border border-[#334155]/40 text-[#E2E8F0] text-xs font-medium">
                 {alert.status === 'to_be_validated' ? 'To Be Validated' : alert.status === 'validation_in_progress' ? 'Validation in Progress' : alert.status === 'validated' ? 'Validated' : alert.status === 'rejected' ? 'Rejected' : 'Closed'}

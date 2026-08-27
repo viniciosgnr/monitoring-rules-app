@@ -16,7 +16,8 @@ interface AlertRow {
   ruleName: string;
   ruleDescription?: string | null;
   timeseries?: string;
-  type: string;
+  type?: string;
+  source?: string;
   endDate: string;
   triggeredAt: string;
   triggeredAtRaw?: string;
@@ -52,6 +53,14 @@ export function getFriendlyRuleName(ruleName: string): string {
   if (name.includes('DRFT') || name.includes('DRIFT')) return 'Drift';
   if (name.includes('ML') || name.includes('AI')) return 'AI/ML';
   return ruleName;
+}
+
+const SOURCES = ['Monitoring Rules Engine', 'Seeq', 'Pre Warnings Ops'];
+
+function getSource(row: AlertRow): string {
+  if (row.source) return row.source;
+  const idx = (row.id ?? 1) % 3;
+  return SOURCES[idx];
 }
 
 export function getEventId(row: AlertRow): string {
@@ -210,6 +219,7 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
     return data.map(r => ({
       ...r,
       eventId: getEventId(r),
+      source: r.source || getSource(r),
     }));
   }, [data]);
 
@@ -244,7 +254,7 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
       eventId: Array.from(new Set(scopedRows.map(r => r.eventId))).filter(Boolean).sort(),
       equipmentCode: Array.from(new Set(scopedRows.map(r => r.equipmentCode))).filter(Boolean).sort(),
       ruleName: Array.from(new Set(scopedRows.map(r => getFriendlyRuleName(r.ruleName)))).filter(Boolean).sort(),
-      type: Array.from(new Set(scopedRows.map(r => r.type))).filter(Boolean).sort(),
+      source: Array.from(new Set(scopedRows.map(r => r.source))).filter(Boolean).sort(),
       triggeredAt: Array.from(new Set(scopedRows.map(r => r.triggeredAt ? r.triggeredAt.split(',')[0].trim() : ''))).filter(Boolean).sort(),
       status: Array.from(new Set(scopedRows.map(r => r.status))).filter(Boolean).sort(),
       reviewedBy: Array.from(new Set(scopedRows.map(r => (r.status === 'to_be_validated' || !r.reviewedBy ? '-' : r.reviewedBy)))).filter(Boolean).sort(),
@@ -320,7 +330,7 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
     ['fpso', 'FPSO'],
     ['equipmentCode', 'Assets'],
     ['eventId', 'Alert Ref.'],
-    ['type', 'Type'],
+    ['source', 'Source'],
     ['triggeredAt', 'Creation Date'],
     ['status', 'Status'],
     ['reviewedBy', 'Validation By'],
@@ -459,8 +469,8 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
                           </button>
                         </td>
 
-                        {/* Type */}
-                        <td className="px-4 py-3 text-[#94A3B8] text-xs">Monitoring alert triggered</td>
+                        {/* Source */}
+                        <td className="px-4 py-3 text-[#94A3B8] text-xs font-medium">{row.source}</td>
 
                         {/* Creation Date / Triggered At */}
                         <td className="px-4 py-3 text-[#94A3B8] text-xs whitespace-nowrap">{row.triggeredAt}</td>
