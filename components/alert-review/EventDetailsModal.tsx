@@ -38,6 +38,9 @@ export default function EventDetailsModal({
   alert,
   onStatusChange,
 }: EventDetailsModalProps) {
+  const [selectedTier, setSelectedTier] = React.useState<string>('Select tier');
+  const [showTierTooltip, setShowTierTooltip] = React.useState<boolean>(false);
+
   if (!alert) return null;
 
   const eventRef = alert.eventId || `UNY26-MA${alert.id}`;
@@ -167,6 +170,66 @@ export default function EventDetailsModal({
                 <div>
                   <span className="text-[#64748B] block text-[11px] mb-0.5">LOD</span>
                   <span className="font-semibold text-white tracking-wider">PREDICT</span>
+                </div>
+
+                {/* Surveillance Tier Input with English Criteria Tooltip */}
+                <div>
+                  <div className="flex items-center gap-1.5 mb-1.5">
+                    <span className="text-[#64748B] text-[11px]">Tier</span>
+                    <span className="text-red-400 text-[11px] font-bold">*</span>
+                    <div className="relative inline-block">
+                      <button
+                        type="button"
+                        onClick={() => setShowTierTooltip(!showTierTooltip)}
+                        className="text-[#64748B] hover:text-[#3B82F6] transition-colors cursor-pointer p-0.5"
+                        title="Surveillance Tier Criteria Info"
+                      >
+                        <Info size={13} />
+                      </button>
+
+                      {showTierTooltip && (
+                        <div className="absolute right-0 top-6 w-[320px] bg-[#0F172A] border border-[#1E293B] rounded-2xl shadow-2xl p-3.5 z-50 select-none text-left">
+                          <div className="flex items-center justify-between border-b border-[#1E293B] pb-2 mb-2.5">
+                            <span className="text-xs font-semibold text-white">Surveillance Tier Criteria</span>
+                            <button
+                              type="button"
+                              onClick={() => setShowTierTooltip(false)}
+                              className="text-[#64748B] hover:text-white transition-colors cursor-pointer"
+                            >
+                              <X size={14} />
+                            </button>
+                          </div>
+                          
+                          <div className="space-y-2 text-xs leading-relaxed text-[#94A3B8]">
+                            <div>
+                              <span className="font-semibold text-white">Tier 4:</span> No abnormality detected; no deviation from monitored parameters
+                            </div>
+                            <div>
+                              <span className="font-semibold text-white">Tier 3:</span> Slight deviation observed; trends not yet significant
+                            </div>
+                            <div>
+                              <span className="font-semibold text-white">Tier 2:</span> Confirmed anomaly; equipment operable in degraded mode
+                            </div>
+                            <div>
+                              <span className="font-semibold text-white">Tier 1:</span> Confirmed anomaly close to failure limits
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <select
+                    value={selectedTier}
+                    onChange={e => setSelectedTier(e.target.value)}
+                    className="w-full bg-[#0B0F19] border border-[#1E293B] rounded-xl px-3 py-2 text-xs text-white outline-none cursor-pointer hover:border-[#3B82F6] transition-colors"
+                  >
+                    <option value="Select tier" disabled className="bg-[#111827] text-[#64748B]">Select tier</option>
+                    <option value="Good - Tier 4" className="bg-[#111827] text-white">Good - Tier 4</option>
+                    <option value="Good - Tier 3" className="bg-[#111827] text-white">Good - Tier 3</option>
+                    <option value="Degraded - Tier 2" className="bg-[#111827] text-white">Degraded - Tier 2</option>
+                    <option value="Critical - Tier 1" className="bg-[#111827] text-white">Critical - Tier 1</option>
+                  </select>
                 </div>
                 <div>
                   <span className="text-[#64748B] block text-[11px] mb-0.5">Validation Date</span>
