@@ -5,6 +5,7 @@ import EquipmentBadge from '@/components/ui/EquipmentBadge';
 import StatusBadge from '@/components/ui/StatusBadge';
 import ColumnFilterDropdown from '@/components/ui/ColumnFilterDropdown';
 import EventDetailsModal from '@/components/alert-review/EventDetailsModal';
+import RejectEventModal from '@/components/alert-review/RejectEventModal';
 import { updateAlertStatus } from '@/app/actions/alerts';
 import { ChevronDown, ChevronRight, Filter, MoreHorizontal, Check } from 'lucide-react';
 import type { Status } from '@/components/ui/StatusBadge';
@@ -187,6 +188,7 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
   const [selectedFilters, setSelectedFilters] = useState<Record<string, string[]>>({});
   const [statusScope, setStatusScope]         = useState<'events_list' | 'event_validation'>('event_validation');
   const [selectedAlertDetails, setSelectedAlertDetails] = useState<AlertRow | null>(null);
+  const [pendingRejectAlertId, setPendingRejectAlertId]   = useState<number | null>(null);
 
   const allFpsos = useMemo(() => {
     return Array.from(new Set(rows.map(r => r.fpso))).filter(Boolean).sort();
@@ -220,10 +222,26 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
   }
 
   async function handleStatus(id: number, status: Status) {
+    if (status === 'rejected') {
+      setPendingRejectAlertId(id);
+      return;
+    }
     const reviewedBy = 'smetzner@slb.com';
     const reviewedAt = new Date().toLocaleString('pt-BR');
     setData(d => d.map(r => r.id === id ? { ...r, status, reviewedBy, reviewedAt } : r));
     await updateAlertStatus(id, status);
+  }
+
+  async function handleConfirmRejection(reasons: string[], comment: string) {
+    if (!pendingRejectAlertId) return;
+    const targetId = pendingRejectAlertId;
+    const reviewedBy = 'smetzner@slb.com';
+    const reviewedAt = new Date().toLocaleString('pt-BR');
+    const fullComment = reasons.length > 0 ? `${reasons.join(', ')}${comment ? ` - ${comment}` : ''}` : comment;
+
+    setData(d => d.map(r => r.id === targetId ? { ...r, status: 'rejected' as Status, reviewedBy, reviewedAt, comment: fullComment } : r));
+    await updateAlertStatus(targetId, 'rejected');
+    setPendingRejectAlertId(null);
   }
 
   const enrichedRows = useMemo(() => {
@@ -561,7 +579,15 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
         open={!!selectedAlertDetails}
         onClose={() => setSelectedAlertDetails(null)}
         alert={selectedAlertDetails}
+        statusScope={statusScope}
         onStatusChange={handleStatus}
+      />
+
+      {/* Reject Event Modal */}
+      <RejectEventModal
+        open={pendingRejectAlertId !== null}
+        onClose={() => setPendingRejectAlertId(null)}
+        onSubmit={handleConfirmRejection}
       />
     </>
   );

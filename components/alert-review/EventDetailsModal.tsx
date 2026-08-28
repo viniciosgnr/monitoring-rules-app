@@ -30,6 +30,7 @@ interface EventDetailsModalProps {
   open: boolean;
   onClose: () => void;
   alert: AlertRow | null;
+  statusScope?: 'event_validation' | 'events_list';
   onStatusChange?: (id: number, newStatus: Status, comment?: string) => Promise<void>;
 }
 
@@ -52,6 +53,7 @@ export default function EventDetailsModal({
   open,
   onClose,
   alert,
+  statusScope = 'event_validation',
   onStatusChange,
 }: EventDetailsModalProps) {
   const [selectedTier, setSelectedTier] = React.useState<string>('Select tier');
@@ -294,8 +296,8 @@ export default function EventDetailsModal({
                   Open Workbench
                 </button>
 
-                {/* Change Status Dropdown Button matching SLB OptiSite black pill design */}
-                {onStatusChange && (
+                {/* Change Status Dropdown Button (only visible on Alert Validation tab) */}
+                {onStatusChange && statusScope !== 'events_list' && (
                   <DropdownMenu.Root>
                     <DropdownMenu.Trigger asChild>
                       <button className="w-full flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-full bg-[#0B0F19] border border-[#1E293B] text-white text-xs font-medium hover:border-[#3B82F6] transition-colors cursor-pointer">
