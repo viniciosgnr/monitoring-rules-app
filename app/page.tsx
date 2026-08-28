@@ -101,7 +101,9 @@ export default async function MRDatabasePage() {
     system:          getSystemFromTimeseries(r.timeseries),
     subsystem:       getSubsystem(r.timeseries, r.equipmentCode),
     lastRunAt:       r.lastRunAt?.toLocaleString('pt-BR') ?? '—',
+    lastRunAtRaw:    r.lastRunAt ? r.lastRunAt.toISOString() : null,
     nextRunAt:       r.nextRunAt?.toLocaleString('pt-BR') ?? '—',
+    nextRunAtRaw:    r.nextRunAt ? r.nextRunAt.toISOString() : null,
     processingSteps: (r.processingSteps as object) ?? {},
     deactivatedUntil: r.deactivatedUntil ? r.deactivatedUntil.toISOString() : null,
   }));

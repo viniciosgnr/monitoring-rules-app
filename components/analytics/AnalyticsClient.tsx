@@ -1,5 +1,5 @@
 'use client';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import KpiCard from '@/components/ui/KpiCard';
 import ColumnFilterDropdown from '@/components/ui/ColumnFilterDropdown';
 import FpsosFilterDropdown from '@/components/ui/FpsosFilterDropdown';
@@ -62,20 +62,25 @@ function Sel({ value, onChange, options }: { value: string; onChange: (v: string
 export default function AnalyticsClient({ equipments, ruleInstances, alertsList }: Props) {
   const [activeTab, setActiveTab] = useState<'overview' | 'bad_actors'>('overview');
   const [period, setPeriod] = useState('Last Week');
-  const [selectedFpsos, setSelectedFpsos] = useState<string[]>([]);
+  const allFpsos = useMemo(() => Array.from(new Set(ruleInstances.map(i => i.fpsoCode))).filter(Boolean).sort(), [ruleInstances]);
+  const [selectedFpso, setSelectedFpso] = useState<string>('UNY');
+
+  useEffect(() => {
+    if (allFpsos.length > 0 && (!selectedFpso || !allFpsos.includes(selectedFpso))) {
+      setSelectedFpso(allFpsos[0]);
+    }
+  }, [allFpsos, selectedFpso]);
+
   const [selectedEquipments, setSelectedEquipments] = useState<string[]>([]);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
 
   // Local column filters for Overview breakdown tables
-  const [accFpsoSelected, setAccFpsoSelected] = useState<string[]>([]);
   const [accuracyRuleSelected, setAccuracyRuleSelected] = useState<string[]>([]);
   const [accuracyEquipSelected, setAccuracyEquipSelected] = useState<string[]>([]);
-  const [fpFpsoSelected, setFpFpsoSelected] = useState<string[]>([]);
   const [fpRuleSelected, setFpRuleSelected] = useState<string[]>([]);
   const [fpEquipSelected, setFpEquipSelected] = useState<string[]>([]);
 
   // Local column filters for Bad Actors List
-  const [badFpsoSelected, setBadFpsoSelected] = useState<string[]>([]);
   const [badRuleSelected, setBadRuleSelected] = useState<string[]>([]);
   const [badEquipSelected, setBadEquipSelected] = useState<string[]>([]);
 
@@ -187,11 +192,9 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
     });
   }, [ruleInstances, alertsList, periodBoundaries]);
 
-  const allFpsos = useMemo(() => Array.from(new Set(ruleInstances.map(i => i.fpsoCode))).filter(Boolean).sort(), [ruleInstances]);
-
   const filteredInstances = useMemo(() => {
     return processedInstances.filter(inst => {
-      if (selectedFpsos.length > 0 && selectedFpsos.length < allFpsos.length && !selectedFpsos.includes(inst.fpsoCode)) {
+      if (selectedFpso && inst.fpsoCode !== selectedFpso) {
         return false;
       }
 
@@ -206,26 +209,22 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
 
       return true;
     });
-  }, [processedInstances, selectedFpsos, allFpsos, selectedEquipments, selectedCategories, equipments]);
+  }, [processedInstances, selectedFpso, selectedEquipments, selectedCategories, equipments]);
 
-  const accFpsoOpts = useMemo(() => Array.from(new Set(filteredInstances.map(i => i.fpsoCode))).filter(Boolean).sort(), [filteredInstances]);
   const accuracyRuleOpts = useMemo(() => Array.from(new Set(filteredInstances.map(i => i.ruleName))).filter(Boolean).sort(), [filteredInstances]);
   const accuracyEquipOpts = useMemo(() => Array.from(new Set(filteredInstances.map(i => i.equipmentCode))).filter(Boolean).sort(), [filteredInstances]);
   
-  const fpFpsoOpts = useMemo(() => Array.from(new Set(filteredInstances.map(i => i.fpsoCode))).filter(Boolean).sort(), [filteredInstances]);
   const fpRuleOpts = useMemo(() => Array.from(new Set(filteredInstances.map(i => i.ruleName))).filter(Boolean).sort(), [filteredInstances]);
   const fpEquipOpts = useMemo(() => Array.from(new Set(filteredInstances.map(i => i.equipmentCode))).filter(Boolean).sort(), [filteredInstances]);
 
-  const badFpsoOpts = useMemo(() => Array.from(new Set(filteredInstances.map(i => i.fpsoCode))).filter(Boolean).sort(), [filteredInstances]);
   const badRuleOpts = useMemo(() => Array.from(new Set(filteredInstances.map(i => i.ruleName))).filter(Boolean).sort(), [filteredInstances]);
   const badEquipOpts = useMemo(() => Array.from(new Set(filteredInstances.map(i => i.equipmentCode))).filter(Boolean).sort(), [filteredInstances]);
 
   const filteredAccuracyRows = useMemo(() => {
     const rows = filteredInstances.filter(inst => {
-      const matchFpso = accFpsoSelected.length === 0 || accFpsoSelected.length === accFpsoOpts.length || accFpsoSelected.includes(inst.fpsoCode);
       const matchRule = accuracyRuleSelected.length === 0 || accuracyRuleSelected.length === accuracyRuleOpts.length || accuracyRuleSelected.includes(inst.ruleName);
       const matchEquip = accuracyEquipSelected.length === 0 || accuracyEquipSelected.length === accuracyEquipOpts.length || accuracyEquipSelected.includes(inst.equipmentCode);
-      return matchFpso && matchRule && matchEquip;
+      return matchRule && matchEquip;
     });
 
     if (!accSortField) return rows;
@@ -238,14 +237,13 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
       else if (accSortField === 'accuracy') { valA = a.accuracy; valB = b.accuracy; }
       return accSortDir === 'asc' ? valA - valB : valB - valA;
     });
-  }, [filteredInstances, accFpsoSelected, accFpsoOpts, accuracyRuleSelected, accuracyRuleOpts, accuracyEquipSelected, accuracyEquipOpts, accSortField, accSortDir]);
+  }, [filteredInstances, accuracyRuleSelected, accuracyRuleOpts, accuracyEquipSelected, accuracyEquipOpts, accSortField, accSortDir]);
 
   const filteredFpRows = useMemo(() => {
     const rows = filteredInstances.filter(inst => {
-      const matchFpso = fpFpsoSelected.length === 0 || fpFpsoSelected.length === fpFpsoOpts.length || fpFpsoSelected.includes(inst.fpsoCode);
       const matchRule = fpRuleSelected.length === 0 || fpRuleSelected.length === fpRuleOpts.length || fpRuleSelected.includes(inst.ruleName);
       const matchEquip = fpEquipSelected.length === 0 || fpEquipSelected.length === fpEquipOpts.length || fpEquipSelected.includes(inst.equipmentCode);
-      return matchFpso && matchRule && matchEquip;
+      return matchRule && matchEquip;
     });
 
     if (!fpSortField) return rows;
@@ -261,21 +259,20 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
       }
       return fpSortDir === 'asc' ? valA - valB : valB - valA;
     });
-  }, [filteredInstances, fpFpsoSelected, fpFpsoOpts, fpRuleSelected, fpRuleOpts, fpEquipSelected, fpEquipOpts, fpSortField, fpSortDir]);
+  }, [filteredInstances, fpRuleSelected, fpRuleOpts, fpEquipSelected, fpEquipOpts, fpSortField, fpSortDir]);
 
   // Calculate Bad Actors List (up to 30) by highest alerts count
   const badActorsList = useMemo(() => {
     return [...filteredInstances]
       .filter(inst => {
         if (inst.alertsCount === 0) return false;
-        const matchFpso = badFpsoSelected.length === 0 || badFpsoSelected.length === badFpsoOpts.length || badFpsoSelected.includes(inst.fpsoCode);
         const matchRule = badRuleSelected.length === 0 || badRuleSelected.length === badRuleOpts.length || badRuleSelected.includes(inst.ruleName);
         const matchEquip = badEquipSelected.length === 0 || badEquipSelected.length === badEquipOpts.length || badEquipSelected.includes(inst.equipmentCode);
-        return matchFpso && matchRule && matchEquip;
+        return matchRule && matchEquip;
       })
       .sort((a, b) => b.alertsCount - a.alertsCount)
       .slice(0, 30);
-  }, [filteredInstances, badFpsoSelected, badFpsoOpts, badRuleSelected, badRuleOpts, badEquipSelected, badEquipOpts]);
+  }, [filteredInstances, badRuleSelected, badRuleOpts, badEquipSelected, badEquipOpts]);
 
   // Calculate KPI card values dynamically
   const coveredAssets = useMemo(() => {
@@ -321,6 +318,10 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
     return buckets.map(({ label, start, end }) => {
       // 1. Isolated interval alerts (for stacked bar chart distributions per bucket)
       const intervalAlerts = alertsList.filter(a => {
+        if (selectedFpso && a.fpsoCode !== selectedFpso) {
+          return false;
+        }
+
         if (selectedEquipments.length > 0 && selectedEquipments.length < equipments.length && !selectedEquipments.includes(a.equipmentCode)) {
           return false;
         }
@@ -336,6 +337,10 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
 
       // 2. Cumulative alerts (from periodStart up to bucket end) for smooth trend line charts
       const cumulativeAlerts = alertsList.filter(a => {
+        if (selectedFpso && a.fpsoCode !== selectedFpso) {
+          return false;
+        }
+
         if (selectedEquipments.length > 0 && selectedEquipments.length < equipments.length && !selectedEquipments.includes(a.equipmentCode)) {
           return false;
         }
@@ -373,7 +378,7 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
         closedCount: intervalAlerts.filter(a => a.status === 'closed').length,
       };
     });
-  }, [alertsList, periodBoundaries, selectedEquipments, selectedCategories, equipments]);
+  }, [alertsList, periodBoundaries, selectedFpso, selectedEquipments, selectedCategories, equipments]);
 
   const accuracyChartData = useMemo(() => {
     return trendData.map(d => ({ label: d.label, accuracy: d.accuracy }));
@@ -437,8 +442,8 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
         <div className="flex flex-wrap gap-2.5 items-center">
           <FpsosFilterDropdown
             fpsos={allFpsos}
-            selectedFpsos={selectedFpsos}
-            onChange={setSelectedFpsos}
+            selectedFpso={selectedFpso}
+            onChange={setSelectedFpso}
           />
           <Sel value={period} onChange={setPeriod} options={PERIODS} />
           <ColumnFilterDropdown
@@ -526,12 +531,6 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
                     <tr className="border-b border-border-panel bg-bg-panel/40 select-none">
                       <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary whitespace-nowrap">
                         FPSO
-                        <ColumnFilterDropdown
-                          title="FPSO"
-                          options={accFpsoOpts}
-                          selectedValues={accFpsoSelected.length === 0 ? accFpsoOpts : accFpsoSelected}
-                          onChange={setAccFpsoSelected}
-                        />
                       </th>
                       <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary whitespace-nowrap">
                         Rule / Instance
@@ -627,12 +626,6 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
                     <tr className="border-b border-border-panel bg-bg-panel/40 select-none">
                       <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary whitespace-nowrap">
                         FPSO
-                        <ColumnFilterDropdown
-                          title="FPSO"
-                          options={fpFpsoOpts}
-                          selectedValues={fpFpsoSelected.length === 0 ? fpFpsoOpts : fpFpsoSelected}
-                          onChange={setFpFpsoSelected}
-                        />
                       </th>
                       <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary whitespace-nowrap">
                         Rule / Instance
@@ -766,12 +759,6 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
                   <tr className="border-b border-[#1E293B] text-[#94A3B8] text-xs font-medium select-none bg-[#0B0F19]">
                     <th className="px-5 py-3.5 whitespace-nowrap">
                       <span>FPSO</span>
-                      <ColumnFilterDropdown
-                        title="FPSO"
-                        options={badFpsoOpts}
-                        selectedValues={badFpsoSelected.length === 0 ? badFpsoOpts : badFpsoSelected}
-                        onChange={setBadFpsoSelected}
-                      />
                     </th>
                     <th className="px-5 py-3.5 whitespace-nowrap">
                       <span>Monitoring Rule</span>

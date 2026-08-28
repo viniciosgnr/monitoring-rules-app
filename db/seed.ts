@@ -139,14 +139,37 @@ async function seed() {
       } else if (i === 10) {
         deactivatedUntil = new Date('2026-10-01T00:00:00');
       }
+
+      // Generate realistic, diversified execution dates based on schedule and index
+      const baseNow = new Date('2026-08-28T10:00:00Z').getTime();
+      let lastRunDate: Date;
+      let nextRunDate: Date;
+
+      if (data.schedule === 'Hourly') {
+        const hoursAgo = (i % 6) + 1;
+        const minutesOffset = (i * 13) % 60;
+        lastRunDate = new Date(baseNow - hoursAgo * 3600000 - minutesOffset * 60000);
+        nextRunDate = new Date(lastRunDate.getTime() + 3600000);
+      } else if (data.schedule === 'Daily') {
+        const daysAgo = (i % 5) + 1;
+        const hoursOffset = (i * 7) % 24;
+        lastRunDate = new Date(baseNow - daysAgo * 86400000 - hoursOffset * 3600000);
+        nextRunDate = new Date(lastRunDate.getTime() + 86400000);
+      } else {
+        // Weekly
+        const daysAgo = (i % 3 + 1) * 7;
+        lastRunDate = new Date(baseNow - daysAgo * 86400000);
+        nextRunDate = new Date(lastRunDate.getTime() + 7 * 86400000);
+      }
+
       return {
         ruleId:      data.ruleId,
         equipmentId: data.equipmentId,
         timeseries:  `UNY:FPSO:771-VI-181${(i % 20) + 1}_X`,
         schedule:    data.schedule,
         enabled,
-        lastRunAt:   lastRun,
-        nextRunAt:   nextRun,
+        lastRunAt:   lastRunDate,
+        nextRunAt:   nextRunDate,
         deactivatedUntil,
       };
     })

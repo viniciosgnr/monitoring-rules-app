@@ -7,7 +7,7 @@ import ColumnFilterDropdown from '@/components/ui/ColumnFilterDropdown';
 import EventDetailsModal from '@/components/alert-review/EventDetailsModal';
 import RejectEventModal from '@/components/alert-review/RejectEventModal';
 import { updateAlertStatus } from '@/app/actions/alerts';
-import { ChevronDown, ChevronRight, Filter, MoreHorizontal, Check } from 'lucide-react';
+import { ChevronDown, ChevronRight, Filter, MoreHorizontal, Check, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import type { Status } from '@/components/ui/StatusBadge';
 
 interface AlertRow {
@@ -183,16 +183,38 @@ import FpsosFilterDropdown from '@/components/ui/FpsosFilterDropdown';
 export default function AlertTable({ rows }: { rows: AlertRow[] }) {
   const [data, setData]                       = useState(rows);
   const [period, setPeriod]                   = useState('All Time');
-  const [selectedFpsos, setSelectedFpsos]     = useState<string[]>([]);
+  const allFpsos = useMemo(() => {
+    return Array.from(new Set(rows.map(r => r.fpso))).filter(Boolean).sort();
+  }, [rows]);
+  const [selectedFpso, setSelectedFpso]       = useState<string>('UNY');
+
+  useEffect(() => {
+    if (allFpsos.length > 0 && (!selectedFpso || !allFpsos.includes(selectedFpso))) {
+      setSelectedFpso(allFpsos[0]);
+    }
+  }, [allFpsos, selectedFpso]);
+
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedFilters, setSelectedFilters] = useState<Record<string, string[]>>({});
   const [statusScope, setStatusScope]         = useState<'events_list' | 'event_validation'>('event_validation');
   const [selectedAlertDetails, setSelectedAlertDetails] = useState<AlertRow | null>(null);
   const [pendingRejectAlertId, setPendingRejectAlertId]   = useState<number | null>(null);
+  const [sortField, setSortField]       = useState<string | null>(null);
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
 
-  const allFpsos = useMemo(() => {
-    return Array.from(new Set(rows.map(r => r.fpso))).filter(Boolean).sort();
-  }, [rows]);
+  function handleSort(field: string) {
+    if (sortField === field) {
+      if (sortDirection === 'desc') {
+        setSortDirection('asc');
+      } else {
+        setSortField(null);
+        setSortDirection('desc');
+      }
+    } else {
+      setSortField(field);
+      setSortDirection('desc');
+    }
+  }
 
   const allCategories = useMemo(() => {
     const cats = new Set<string>();
@@ -255,7 +277,7 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
   const scopedRows = useMemo(() => {
     return enrichedRows.filter(r => {
       if (r.status === 'closed') return false;
-      if (selectedFpsos.length > 0 && selectedFpsos.length < allFpsos.length && !selectedFpsos.includes(r.fpso)) {
+      if (selectedFpso && r.fpso !== selectedFpso) {
         return false;
       }
 
@@ -276,7 +298,7 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
       }
       return true;
     });
-  }, [enrichedRows, statusScope, period, selectedFpsos, allFpsos]);
+  }, [enrichedRows, statusScope, period, selectedFpso]);
 
   const columnOptions = useMemo(() => {
     const opts: Record<string, string[]> = {
@@ -327,14 +349,28 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
       map.set(friendlyName, arr);
     }
     for (const arr of Array.from(map.values())) {
-      arr.sort((a, b) => STATUS_ORDER[a.status] - STATUS_ORDER[b.status]);
+      arr.sort((a, b) => {
+        if (sortField) {
+          const aVal = (a as Record<string, unknown>)[sortField];
+          const bVal = (b as Record<string, unknown>)[sortField];
+          if (sortField === 'triggeredAt') {
+            const aTime = a.triggeredAtRaw ? new Date(a.triggeredAtRaw).getTime() : 0;
+            const bTime = b.triggeredAtRaw ? new Date(b.triggeredAtRaw).getTime() : 0;
+            return sortDirection === 'asc' ? aTime - bTime : bTime - aTime;
+          }
+          const aStr = String(aVal ?? '');
+          const bStr = String(bVal ?? '');
+          return sortDirection === 'asc' ? aStr.localeCompare(bStr) : bStr.localeCompare(aStr);
+        }
+        return STATUS_ORDER[a.status] - STATUS_ORDER[b.status];
+      });
     }
     return Array.from(map.entries()).sort(([, a], [, b]) => {
       const aMin = Math.min(...a.map(r => STATUS_ORDER[r.status]));
       const bMin = Math.min(...b.map(r => STATUS_ORDER[r.status]));
       return aMin - bMin;
     });
-  }, [filtered]);
+  }, [filtered, sortField, sortDirection]);
 
   function TableColumnFilter({ field, label }: { field: string; label: string }) {
     const opts = columnOptions[field] || [];
@@ -409,8 +445,8 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
             {/* FPSO Filter */}
             <FpsosFilterDropdown
               fpsos={allFpsos}
-              selectedFpsos={selectedFpsos}
-              onChange={(newFpsos) => setSelectedFpsos(newFpsos)}
+              selectedFpso={selectedFpso}
+              onChange={(newFpso) => setSelectedFpso(newFpso)}
             />
 
             {/* Time period filter */}
@@ -438,12 +474,30 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
               <tr className="border-b border-[#1E293B] bg-[#0B0F19]/40">
                 {/* Chevron column */}
                 <th className="w-8 px-3 py-3" />
-                {cols.map(([field, label]) => (
-                  <th key={field} className="text-left px-4 py-3 text-xs font-normal text-[#94A3B8] whitespace-nowrap">
-                    {label}
-                    <TableColumnFilter field={field} label={label} />
-                  </th>
-                ))}
+                {cols.map(([field, label]) => {
+                  const isSortable = field === 'triggeredAt';
+                  const isCurrentSort = sortField === field;
+                  return (
+                    <th key={field} className="text-left px-4 py-3 text-xs font-normal text-[#94A3B8] whitespace-nowrap">
+                      <div
+                        className={`inline-flex items-center gap-1.5 ${isSortable ? 'cursor-pointer hover:text-white transition-colors select-none' : ''}`}
+                        onClick={() => isSortable && handleSort(field)}
+                      >
+                        <span>{label}</span>
+                        {isSortable && (
+                          <span className="text-[#64748B] hover:text-white">
+                            {isCurrentSort ? (
+                              sortDirection === 'asc' ? <ArrowUp size={12} className="text-[#3B82F6]" /> : <ArrowDown size={12} className="text-[#3B82F6]" />
+                            ) : (
+                              <ArrowUpDown size={12} />
+                            )}
+                          </span>
+                        )}
+                      </div>
+                      {field !== 'fpso' && <TableColumnFilter field={field} label={label} />}
+                    </th>
+                  );
+                })}
                 <th className="text-left px-4 py-3 text-xs font-normal text-[#94A3B8] whitespace-nowrap">
                   Actions
                 </th>

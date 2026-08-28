@@ -1,10 +1,10 @@
 'use client';
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import EquipmentBadge from '@/components/ui/EquipmentBadge';
 import Pagination from '@/components/ui/Pagination';
 import ColumnFilterDropdown from '@/components/ui/ColumnFilterDropdown';
 import * as Dialog from '@radix-ui/react-dialog';
-import { ChevronDown, ChevronRight, Download, Filter, X } from 'lucide-react';
+import { ChevronDown, ChevronRight, Download, Filter, X, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { exportBrandedExcel } from '@/lib/excelExportUtils';
 
 interface AuditEntry {
@@ -141,15 +141,37 @@ import FpsosFilterDropdown from '@/components/ui/FpsosFilterDropdown';
 export default function AuditHistoryTable({ rows }: { rows: AuditEntry[] }) {
   const [page, setPage]                         = useState(1);
   const [pageSize, setPageSize]                 = useState(5);
-  const [selectedFpsos, setSelectedFpsos]       = useState<string[]>([]);
-  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
-  const [selectedFilters, setSelectedFilters] = useState<Record<string, string[]>>({});
-  const [showExportModal, setShowExportModal]   = useState(false);
-  const [period, setPeriod]                     = useState('All Time');
-
   const allFpsos = useMemo(() => {
     return Array.from(new Set(rows.map(r => r.fpso))).filter(Boolean).sort();
   }, [rows]);
+  const [selectedFpso, setSelectedFpso]         = useState<string>('UNY');
+
+  useEffect(() => {
+    if (allFpsos.length > 0 && (!selectedFpso || !allFpsos.includes(selectedFpso))) {
+      setSelectedFpso(allFpsos[0]);
+    }
+  }, [allFpsos, selectedFpso]);
+
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [selectedFilters, setSelectedFilters]   = useState<Record<string, string[]>>({});
+  const [sortField, setSortField]               = useState<string | null>(null);
+  const [sortDirection, setSortDirection]       = useState<'asc' | 'desc'>('desc');
+  const [showExportModal, setShowExportModal]   = useState(false);
+  const [period, setPeriod]                     = useState('All Time');
+
+  function handleSort(field: string) {
+    if (sortField === field) {
+      if (sortDirection === 'desc') {
+        setSortDirection('asc');
+      } else {
+        setSortField(null);
+        setSortDirection('desc');
+      }
+    } else {
+      setSortField(field);
+      setSortDirection('desc');
+    }
+  }
 
   const allCategories = useMemo(() => {
     return Array.from(new Set(rows.map(r => getFriendlyRuleName(r.ruleName)))).filter(Boolean).sort();
@@ -164,7 +186,10 @@ export default function AuditHistoryTable({ rows }: { rows: AuditEntry[] }) {
   const columnOptions = useMemo(() => {
     const opts: Record<string, string[]> = {
       fpso: Array.from(new Set(rows.map(r => r.fpso))).filter(Boolean).sort(),
-      timestamp: Array.from(new Set(rows.map(r => r.timestamp))).filter(Boolean).sort(),
+      timestamp: Array.from(new Set(rows.map(r => {
+        if (!r.timestamp) return '';
+        return r.timestamp.includes(',') ? r.timestamp.split(',')[0].trim() : (r.timestampRaw ? new Date(r.timestampRaw).toLocaleDateString('pt-BR') : r.timestamp.split(' ')[0]);
+      }))).filter(Boolean).sort(),
       userEmail: Array.from(new Set(rows.map(r => r.userEmail))).filter(Boolean).sort(),
       equipmentCode: Array.from(new Set(rows.map(r => r.equipmentCode))).filter(Boolean).sort(),
       system: Array.from(new Set(rows.map(r => r.system))).filter(Boolean).sort(),
@@ -212,7 +237,7 @@ export default function AuditHistoryTable({ rows }: { rows: AuditEntry[] }) {
 
   const filtered = useMemo(() => {
     return rows.filter(r => {
-      if (selectedFpsos.length > 0 && selectedFpsos.length < allFpsos.length && !selectedFpsos.includes(r.fpso)) {
+      if (selectedFpso && r.fpso !== selectedFpso) {
         return false;
       }
 
@@ -235,13 +260,34 @@ export default function AuditHistoryTable({ rows }: { rows: AuditEntry[] }) {
         const options = columnOptions[colKey] || [];
         if (selectedList.length === options.length) return true;
 
-        const val = String((r as Record<string, unknown>)[colKey] ?? '');
+        let val = String((r as Record<string, unknown>)[colKey] ?? '');
+        if (colKey === 'timestamp') {
+          val = r.timestamp ? (r.timestamp.includes(',') ? r.timestamp.split(',')[0].trim() : (r.timestampRaw ? new Date(r.timestampRaw).toLocaleDateString('pt-BR') : r.timestamp.split(' ')[0])) : '';
+        }
         return selectedList.includes(val);
       });
     });
-  }, [rows, selectedCategories, allCategories, selectedFilters, columnOptions, period, selectedFpsos, allFpsos]);
+  }, [rows, selectedCategories, allCategories, selectedFilters, columnOptions, period, selectedFpso]);
 
-  const paged = filtered.slice((page - 1) * pageSize, page * pageSize);
+  const sorted = useMemo(() => {
+    if (!sortField) return filtered;
+    return [...filtered].sort((a, b) => {
+      const aVal = (a as Record<string, unknown>)[sortField];
+      const bVal = (b as Record<string, unknown>)[sortField];
+
+      if (sortField === 'timestamp') {
+        const aTime = a.timestampRaw ? new Date(a.timestampRaw).getTime() : 0;
+        const bTime = b.timestampRaw ? new Date(b.timestampRaw).getTime() : 0;
+        return sortDirection === 'asc' ? aTime - bTime : bTime - aTime;
+      }
+
+      const aStr = String(aVal ?? '');
+      const bStr = String(bVal ?? '');
+      return sortDirection === 'asc' ? aStr.localeCompare(bStr) : bStr.localeCompare(aStr);
+    });
+  }, [filtered, sortField, sortDirection]);
+
+  const paged = sorted.slice((page - 1) * pageSize, page * pageSize);
 
   const groups = useMemo(() => {
     const map = new Map<string, AuditEntry[]>();
@@ -296,9 +342,9 @@ export default function AuditHistoryTable({ rows }: { rows: AuditEntry[] }) {
             {/* FPSO Filter Dropdown */}
             <FpsosFilterDropdown
               fpsos={allFpsos}
-              selectedFpsos={selectedFpsos}
-              onChange={(newFpsos) => {
-                setSelectedFpsos(newFpsos);
+              selectedFpso={selectedFpso}
+              onChange={(newFpso) => {
+                setSelectedFpso(newFpso);
                 setPage(1);
               }}
             />
@@ -339,12 +385,30 @@ export default function AuditHistoryTable({ rows }: { rows: AuditEntry[] }) {
               <tr className="border-b border-[#1E293B] bg-[#0B0F19]/40">
                 {/* Chevron column */}
                 <th className="w-8 px-3 py-3" />
-                {cols.map(([field, label]) => (
-                  <th key={field} className="text-left px-4 py-3 text-xs font-normal text-[#94A3B8] whitespace-nowrap">
-                    {label}
-                    <TableColumnFilter field={field} label={label} />
-                  </th>
-                ))}
+                {cols.map(([field, label]) => {
+                  const isSortable = field === 'timestamp';
+                  const isCurrentSort = sortField === field;
+                  return (
+                    <th key={field} className="text-left px-4 py-3 text-xs font-normal text-[#94A3B8] whitespace-nowrap">
+                      <div
+                        className={`inline-flex items-center gap-1.5 ${isSortable ? 'cursor-pointer hover:text-white transition-colors select-none' : ''}`}
+                        onClick={() => isSortable && handleSort(field)}
+                      >
+                        <span>{label}</span>
+                        {isSortable && (
+                          <span className="text-[#64748B] hover:text-white">
+                            {isCurrentSort ? (
+                              sortDirection === 'asc' ? <ArrowUp size={12} className="text-[#3B82F6]" /> : <ArrowDown size={12} className="text-[#3B82F6]" />
+                            ) : (
+                              <ArrowUpDown size={12} />
+                            )}
+                          </span>
+                        )}
+                      </div>
+                      {field !== 'fpso' && <TableColumnFilter field={field} label={label} />}
+                    </th>
+                  );
+                })}
               </tr>
             </thead>
             <tbody>

@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import * as Switch from '@radix-ui/react-switch';
 import * as Dialog from '@radix-ui/react-dialog';
 import EquipmentBadge from '@/components/ui/EquipmentBadge';
@@ -8,7 +8,7 @@ import ColumnFilterDropdown from '@/components/ui/ColumnFilterDropdown';
 import EditRuleModal from './EditRuleModal';
 import { toggleInstance, toggleInstancesBulk } from '@/app/actions/ruleInstances';
 import FpsosFilterDropdown from '@/components/ui/FpsosFilterDropdown';
-import { ChevronDown, ChevronRight, Download, Filter, X } from 'lucide-react';
+import { ChevronDown, ChevronRight, Download, Filter, X, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { useUserRole } from '@/components/context/UserRoleContext';
 import { exportBrandedExcel } from '@/lib/excelExportUtils';
 
@@ -23,7 +23,9 @@ interface InstanceRow {
   ruleId: number;
   schedule: string;
   lastRunAt: string;
+  lastRunAtRaw?: string | null;
   nextRunAt: string;
+  nextRunAtRaw?: string | null;
   enabled: boolean;
   processingSteps: object;
   deactivatedUntil: string | null;
@@ -149,14 +151,36 @@ export default function RuleInstanceTable({ rows }: { rows: InstanceRow[] }) {
   const [data, setData]                 = useState(rows);
   const [page, setPage]                 = useState(1);
   const [pageSize, setPageSize]         = useState(5);
-  const [selectedFpsos, setSelectedFpsos] = useState<string[]>([]);
-  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
-  const [selectedFilters, setSelectedFilters] = useState<Record<string, string[]>>({});
-  const [editRow, setEditRow]           = useState<InstanceRow | null>(null);
-
   const allFpsos = useMemo(() => {
     return Array.from(new Set(data.map(r => r.fpso))).filter(Boolean).sort();
   }, [data]);
+  const [selectedFpso, setSelectedFpso] = useState<string>('UNY');
+
+  useEffect(() => {
+    if (allFpsos.length > 0 && (!selectedFpso || !allFpsos.includes(selectedFpso))) {
+      setSelectedFpso(allFpsos[0]);
+    }
+  }, [allFpsos, selectedFpso]);
+
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [selectedFilters, setSelectedFilters] = useState<Record<string, string[]>>({});
+  const [sortField, setSortField]       = useState<string | null>(null);
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+  const [editRow, setEditRow]           = useState<InstanceRow | null>(null);
+
+  function handleSort(field: string) {
+    if (sortField === field) {
+      if (sortDirection === 'desc') {
+        setSortDirection('asc');
+      } else {
+        setSortField(null);
+        setSortDirection('desc');
+      }
+    } else {
+      setSortField(field);
+      setSortDirection('desc');
+    }
+  }
 
   const allCategories = useMemo(() => {
     return Array.from(new Set(data.map(r => getFriendlyRuleName(r.ruleName)))).filter(Boolean).sort();
@@ -172,9 +196,18 @@ export default function RuleInstanceTable({ rows }: { rows: InstanceRow[] }) {
       subsystem: Array.from(new Set(data.map(r => r.subsystem))).filter(Boolean).sort(),
       ruleName: Array.from(new Set(data.map(r => r.ruleName))).filter(Boolean).sort(),
       schedule: Array.from(new Set(data.map(r => r.schedule))).filter(Boolean).sort(),
-      lastRunAt: Array.from(new Set(data.map(r => r.lastRunAt ? new Date(r.lastRunAt).toLocaleDateString('pt-BR') : ''))).filter(Boolean).sort(),
-      nextRunAt: Array.from(new Set(data.map(r => r.nextRunAt ? new Date(r.nextRunAt).toLocaleDateString('pt-BR') : ''))).filter(Boolean).sort(),
-      deactivatedUntil: Array.from(new Set(data.map(r => r.deactivatedUntil ? new Date(r.deactivatedUntil).toLocaleDateString('pt-BR') : ''))).filter(Boolean).sort(),
+      lastRunAt: Array.from(new Set(data.map(r => {
+        if (!r.lastRunAt || r.lastRunAt === '—') return '';
+        return r.lastRunAt.includes(',') ? r.lastRunAt.split(',')[0].trim() : (r.lastRunAtRaw ? new Date(r.lastRunAtRaw).toLocaleDateString('pt-BR') : r.lastRunAt.split(' ')[0]);
+      }))).filter(Boolean).sort(),
+      nextRunAt: Array.from(new Set(data.map(r => {
+        if (!r.nextRunAt || r.nextRunAt === '—') return '';
+        return r.nextRunAt.includes(',') ? r.nextRunAt.split(',')[0].trim() : (r.nextRunAtRaw ? new Date(r.nextRunAtRaw).toLocaleDateString('pt-BR') : r.nextRunAt.split(' ')[0]);
+      }))).filter(Boolean).sort(),
+      deactivatedUntil: Array.from(new Set(data.map(r => {
+        if (!r.deactivatedUntil) return '';
+        return new Date(r.deactivatedUntil).toLocaleDateString('pt-BR');
+      }))).filter(Boolean).sort(),
     };
     return opts;
   }, [data]);
@@ -216,9 +249,9 @@ export default function RuleInstanceTable({ rows }: { rows: InstanceRow[] }) {
   }
 
   const filtered = data.filter(r => {
-    // 0. Global FPSO Filter
-    if (selectedFpsos.length > 0 && selectedFpsos.length < allFpsos.length) {
-      if (!selectedFpsos.includes(r.fpso)) return false;
+    // 0. Global Single FPSO Filter
+    if (selectedFpso && r.fpso !== selectedFpso) {
+      return false;
     }
 
     // 1. Category Filter
@@ -234,9 +267,12 @@ export default function RuleInstanceTable({ rows }: { rows: InstanceRow[] }) {
       if (selectedList.length === options.length) return true;
 
       let val = '';
-      if (colKey === 'lastRunAt' || colKey === 'nextRunAt' || colKey === 'deactivatedUntil') {
-        const raw = r[colKey] as string | null;
-        val = raw ? new Date(raw).toLocaleDateString('pt-BR') : '';
+      if (colKey === 'lastRunAt') {
+        val = r.lastRunAt && r.lastRunAt !== '—' ? (r.lastRunAt.includes(',') ? r.lastRunAt.split(',')[0].trim() : (r.lastRunAtRaw ? new Date(r.lastRunAtRaw).toLocaleDateString('pt-BR') : r.lastRunAt.split(' ')[0])) : '';
+      } else if (colKey === 'nextRunAt') {
+        val = r.nextRunAt && r.nextRunAt !== '—' ? (r.nextRunAt.includes(',') ? r.nextRunAt.split(',')[0].trim() : (r.nextRunAtRaw ? new Date(r.nextRunAtRaw).toLocaleDateString('pt-BR') : r.nextRunAt.split(' ')[0])) : '';
+      } else if (colKey === 'deactivatedUntil') {
+        val = r.deactivatedUntil ? new Date(r.deactivatedUntil).toLocaleDateString('pt-BR') : '';
       } else {
         val = String((r as Record<string, unknown>)[colKey] ?? '');
       }
@@ -245,10 +281,37 @@ export default function RuleInstanceTable({ rows }: { rows: InstanceRow[] }) {
     });
   });
 
+  const sorted = useMemo(() => {
+    if (!sortField) return filtered;
+    return [...filtered].sort((a, b) => {
+      if (sortField === 'lastRunAt') {
+        const aTime = a.lastRunAtRaw ? new Date(a.lastRunAtRaw).getTime() : 0;
+        const bTime = b.lastRunAtRaw ? new Date(b.lastRunAtRaw).getTime() : 0;
+        return sortDirection === 'asc' ? aTime - bTime : bTime - aTime;
+      }
+      if (sortField === 'nextRunAt') {
+        const aTime = a.nextRunAtRaw ? new Date(a.nextRunAtRaw).getTime() : 0;
+        const bTime = b.nextRunAtRaw ? new Date(b.nextRunAtRaw).getTime() : 0;
+        return sortDirection === 'asc' ? aTime - bTime : bTime - aTime;
+      }
+      if (sortField === 'deactivatedUntil') {
+        const aTime = a.deactivatedUntil ? new Date(a.deactivatedUntil).getTime() : 0;
+        const bTime = b.deactivatedUntil ? new Date(b.deactivatedUntil).getTime() : 0;
+        return sortDirection === 'asc' ? aTime - bTime : bTime - aTime;
+      }
+
+      const aVal = (a as Record<string, unknown>)[sortField];
+      const bVal = (b as Record<string, unknown>)[sortField];
+      const aStr = String(aVal ?? '');
+      const bStr = String(bVal ?? '');
+      return sortDirection === 'asc' ? aStr.localeCompare(bStr) : bStr.localeCompare(aStr);
+    });
+  }, [filtered, sortField, sortDirection]);
+
   const paginatedInstances = useMemo(() => {
     const startIndex = (page - 1) * pageSize;
-    return filtered.slice(startIndex, startIndex + pageSize);
-  }, [filtered, page, pageSize]);
+    return sorted.slice(startIndex, startIndex + pageSize);
+  }, [sorted, page, pageSize]);
 
   const groups = useMemo(() => {
     const map = new Map<string, InstanceRow[]>();
@@ -454,9 +517,9 @@ function formatModalParamsJson(ruleName: string, steps: unknown): string {
         <div className="flex items-center gap-3">
           <FpsosFilterDropdown
             fpsos={allFpsos}
-            selectedFpsos={selectedFpsos}
-            onChange={(newFpsos) => {
-              setSelectedFpsos(newFpsos);
+            selectedFpso={selectedFpso}
+            onChange={(newFpso) => {
+              setSelectedFpso(newFpso);
               setPage(1);
             }}
           />
@@ -485,12 +548,30 @@ function formatModalParamsJson(ruleName: string, steps: unknown): string {
             <tr className="border-b border-[#1E293B] bg-[#0B0F19]/40">
               {/* Chevron column */}
               <th className="w-8 px-3 py-3" />
-              {cols.map(([field, label]) => (
-                <th key={field} className="text-left px-4 py-3 text-xs font-normal text-[#94A3B8] whitespace-nowrap">
-                  {label}
-                  <TableColumnFilter field={field} label={label} />
-                </th>
-              ))}
+              {cols.map(([field, label]) => {
+                const isSortable = ['lastRunAt', 'nextRunAt', 'deactivatedUntil'].includes(field);
+                const isCurrentSort = sortField === field;
+                return (
+                  <th key={field} className="text-left px-4 py-3 text-xs font-normal text-[#94A3B8] whitespace-nowrap">
+                    <div
+                      className={`inline-flex items-center gap-1.5 ${isSortable ? 'cursor-pointer hover:text-white transition-colors select-none' : ''}`}
+                      onClick={() => isSortable && handleSort(field)}
+                    >
+                      <span>{label}</span>
+                      {isSortable && (
+                        <span className="text-[#64748B] hover:text-white">
+                          {isCurrentSort ? (
+                            sortDirection === 'asc' ? <ArrowUp size={12} className="text-[#3B82F6]" /> : <ArrowDown size={12} className="text-[#3B82F6]" />
+                          ) : (
+                            <ArrowUpDown size={12} />
+                          )}
+                        </span>
+                      )}
+                    </div>
+                    {field !== 'fpso' && <TableColumnFilter field={field} label={label} />}
+                  </th>
+                );
+              })}
               <th className="px-4 py-3 w-12" />
               <th className="px-4 py-3 w-20" />
             </tr>
