@@ -206,10 +206,8 @@ async function seed() {
       // Weighted status distribution: ~80% true positive (validated/closed), ~12% rejected (FP), ~8% pending
       let status = 'validated';
       const randMod = (idx * 37 + day * 13 + j * 7) % 100;
-      if (randMod < 48) {
+      if (randMod < 80) {
         status = 'validated';
-      } else if (randMod < 80) {
-        status = 'closed';
       } else if (randMod < 92) {
         status = 'rejected'; // False positive
       } else if (randMod < 96) {

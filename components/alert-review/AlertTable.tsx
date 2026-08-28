@@ -254,6 +254,7 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
 
   const scopedRows = useMemo(() => {
     return enrichedRows.filter(r => {
+      if (r.status === 'closed') return false;
       if (selectedFpsos.length > 0 && selectedFpsos.length < allFpsos.length && !selectedFpsos.includes(r.fpso)) {
         return false;
       }
