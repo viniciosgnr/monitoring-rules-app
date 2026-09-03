@@ -3,7 +3,6 @@ import { ruleInstances, equipment, monitoringRules, fpsos, auditLog } from '@/db
 import { eq, inArray } from 'drizzle-orm';
 import Topbar from '@/components/layout/Topbar';
 import NavTabs from '@/components/layout/NavTabs';
-import KpiCard from '@/components/ui/KpiCard';
 import RuleInstanceTable from '@/components/mr-database/RuleInstanceTable';
 
 export const dynamic = 'force-dynamic';
@@ -92,10 +91,6 @@ export default async function MRDatabasePage() {
     });
   }
 
-  const total    = rows.length;
-  const enabled  = rows.filter(r => r.enabled).length;
-  const disabled = total - enabled;
-
   const serialized = rows.map(r => ({
     ...r,
     system:          getSystemFromTimeseries(r.timeseries),
@@ -113,11 +108,6 @@ export default async function MRDatabasePage() {
       <Topbar breadcrumb="MR Database" />
       <NavTabs title="MR Database" />
       <main className="px-6 py-5 space-y-5">
-        <div className="flex gap-4">
-          <KpiCard title="Monitoring rule instance" value={total} />
-          <KpiCard title="Enabled"                  value={enabled} />
-          <KpiCard title="Disabled"                 value={disabled} />
-        </div>
         <RuleInstanceTable rows={serialized} />
       </main>
     </>

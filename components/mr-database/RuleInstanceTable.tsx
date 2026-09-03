@@ -4,6 +4,7 @@ import * as Switch from '@radix-ui/react-switch';
 import * as Dialog from '@radix-ui/react-dialog';
 import EquipmentBadge from '@/components/ui/EquipmentBadge';
 import Pagination from '@/components/ui/Pagination';
+import KpiCard from '@/components/ui/KpiCard';
 import ColumnFilterDropdown from '@/components/ui/ColumnFilterDropdown';
 import EditRuleModal from './EditRuleModal';
 import { toggleInstance, toggleInstancesBulk } from '@/app/actions/ruleInstances';
@@ -248,38 +249,51 @@ export default function RuleInstanceTable({ rows }: { rows: InstanceRow[] }) {
     });
   }
 
-  const filtered = data.filter(r => {
-    // 0. Global Single FPSO Filter
-    if (selectedFpso && r.fpso !== selectedFpso) {
-      return false;
-    }
-
-    // 1. Category Filter
-    if (selectedCategories.length > 0 && selectedCategories.length < allCategories.length) {
-      const cat = getFriendlyRuleName(r.ruleName);
-      if (!selectedCategories.includes(cat)) return false;
-    }
-
-    // 2. Column Filters
-    return Object.entries(selectedFilters).every(([colKey, selectedList]) => {
-      if (!selectedList || selectedList.length === 0) return true;
-      const options = columnOptions[colKey] || [];
-      if (selectedList.length === options.length) return true;
-
-      let val = '';
-      if (colKey === 'lastRunAt') {
-        val = r.lastRunAt && r.lastRunAt !== '—' ? (r.lastRunAt.includes(',') ? r.lastRunAt.split(',')[0].trim() : (r.lastRunAtRaw ? new Date(r.lastRunAtRaw).toLocaleDateString('pt-BR') : r.lastRunAt.split(' ')[0])) : '';
-      } else if (colKey === 'nextRunAt') {
-        val = r.nextRunAt && r.nextRunAt !== '—' ? (r.nextRunAt.includes(',') ? r.nextRunAt.split(',')[0].trim() : (r.nextRunAtRaw ? new Date(r.nextRunAtRaw).toLocaleDateString('pt-BR') : r.nextRunAt.split(' ')[0])) : '';
-      } else if (colKey === 'deactivatedUntil') {
-        val = r.deactivatedUntil ? new Date(r.deactivatedUntil).toLocaleDateString('pt-BR') : '';
-      } else {
-        val = String((r as Record<string, unknown>)[colKey] ?? '');
+  const globalFiltered = useMemo(() => {
+    return data.filter(r => {
+      // 0. Global Single FPSO Filter
+      if (selectedFpso && r.fpso !== selectedFpso) {
+        return false;
       }
 
-      return selectedList.includes(val);
+      // 1. Category Filter
+      if (selectedCategories.length > 0 && selectedCategories.length < allCategories.length) {
+        const cat = getFriendlyRuleName(r.ruleName);
+        if (!selectedCategories.includes(cat)) return false;
+      }
+
+      return true;
     });
-  });
+  }, [data, selectedFpso, selectedCategories, allCategories]);
+
+  // Reactive KPIs synced with global filters (FPSO, Category)
+  const kpiTotal = globalFiltered.length;
+  const kpiEnabled = useMemo(() => globalFiltered.filter(r => r.enabled).length, [globalFiltered]);
+  const kpiDisabled = kpiTotal - kpiEnabled;
+
+  const filtered = useMemo(() => {
+    return globalFiltered.filter(r => {
+      // 2. Column Filters
+      return Object.entries(selectedFilters).every(([colKey, selectedList]) => {
+        if (!selectedList || selectedList.length === 0) return true;
+        const options = columnOptions[colKey] || [];
+        if (selectedList.length === options.length) return true;
+
+        let val = '';
+        if (colKey === 'lastRunAt') {
+          val = r.lastRunAt && r.lastRunAt !== '—' ? (r.lastRunAt.includes(',') ? r.lastRunAt.split(',')[0].trim() : (r.lastRunAtRaw ? new Date(r.lastRunAtRaw).toLocaleDateString('pt-BR') : r.lastRunAt.split(' ')[0])) : '';
+        } else if (colKey === 'nextRunAt') {
+          val = r.nextRunAt && r.nextRunAt !== '—' ? (r.nextRunAt.includes(',') ? r.nextRunAt.split(',')[0].trim() : (r.nextRunAtRaw ? new Date(r.nextRunAtRaw).toLocaleDateString('pt-BR') : r.nextRunAt.split(' ')[0])) : '';
+        } else if (colKey === 'deactivatedUntil') {
+          val = r.deactivatedUntil ? new Date(r.deactivatedUntil).toLocaleDateString('pt-BR') : '';
+        } else {
+          val = String((r as Record<string, unknown>)[colKey] ?? '');
+        }
+
+        return selectedList.includes(val);
+      });
+    });
+  }, [globalFiltered, selectedFilters, columnOptions]);
 
   const sorted = useMemo(() => {
     if (!sortField) return filtered;
@@ -511,7 +525,15 @@ function formatModalParamsJson(ruleName: string, steps: unknown): string {
   ];
 
   return (
-    <div className="bg-[#111827] border border-[#1E293B] rounded-2xl overflow-hidden shadow-sm">
+    <>
+      {/* ── Dynamic KPI Cards synced with global filters (FPSO & Category) ── */}
+      <div className="flex gap-4">
+        <KpiCard title="Monitoring rule instance" value={kpiTotal} />
+        <KpiCard title="Enabled"                  value={kpiEnabled} />
+        <KpiCard title="Disabled"                 value={kpiDisabled} />
+      </div>
+
+      <div className="bg-[#111827] border border-[#1E293B] rounded-2xl overflow-hidden shadow-sm">
       <div className="px-5 py-4 border-b border-[#1E293B] flex items-center justify-between flex-wrap gap-3">
         <h2 className="text-sm font-semibold text-white">Monitoring rule instance catalog</h2>
         <div className="flex items-center gap-3">
@@ -1023,6 +1045,7 @@ function formatModalParamsJson(ruleName: string, steps: unknown): string {
           </Dialog.Content>
         </Dialog.Portal>
       </Dialog.Root>
-    </div>
+      </div>
+    </>
   );
 }
