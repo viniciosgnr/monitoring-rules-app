@@ -3,6 +3,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import EquipmentBadge from '@/components/ui/EquipmentBadge';
 import StatusBadge from '@/components/ui/StatusBadge';
+import KpiCard from '@/components/ui/KpiCard';
 import ColumnFilterDropdown from '@/components/ui/ColumnFilterDropdown';
 import EventDetailsModal from '@/components/alert-review/EventDetailsModal';
 import RejectEventModal from '@/components/alert-review/RejectEventModal';
@@ -44,7 +45,7 @@ const ALL_STATUSES: Status[] = [
   'rejected',
 ];
 
-const PERIODS = ['All Time', 'Last Week', 'Last Month', 'Last 3 Months', 'Last 6 months'];
+const PERIODS = ['All Time', 'Last Week', 'Last Month', 'Last 3 Months', 'Last 6 months', 'Last Year'];
 
 export function getFriendlyRuleName(ruleName: string): string {
   const name = ruleName.toUpperCase();
@@ -301,16 +302,11 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
     }));
   }, [data]);
 
-  const scopedRows = useMemo(() => {
+  const globalFilteredRows = useMemo(() => {
     return enrichedRows.filter(r => {
       if (r.status === 'closed') return false;
       if (selectedFpso && r.fpso !== selectedFpso) {
         return false;
-      }
-
-      if (statusScope === 'event_validation') {
-        const isPending = r.status === 'to_be_validated' || r.status === 'validation_in_progress';
-        if (!isPending) return false;
       }
 
       if (period !== 'All Time' && r.triggeredAtRaw) {
@@ -322,10 +318,35 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
         if (period === 'Last Month' && diffMs > oneDay * 30) return false;
         if (period === 'Last 3 Months' && diffMs > oneDay * 90) return false;
         if (period === 'Last 6 months' && diffMs > oneDay * 180) return false;
+        if (period === 'Last Year' && diffMs > oneDay * 365) return false;
       }
+
+      if (selectedCategories.length > 0 && selectedCategories.length < allCategories.length) {
+        const cat = getCategory(r);
+        if (!selectedCategories.includes(cat)) return false;
+      }
+
       return true;
     });
-  }, [enrichedRows, statusScope, period, selectedFpso]);
+  }, [enrichedRows, selectedFpso, period, selectedCategories, allCategories]);
+
+  // Reactive KPIs synced with global filters (FPSO, Time, Categories) across all statuses
+  const kpiToBeValidated = useMemo(() => {
+    return globalFilteredRows.filter(r => r.status === 'to_be_validated').length;
+  }, [globalFilteredRows]);
+
+  const kpiInProgress = useMemo(() => {
+    return globalFilteredRows.filter(r => r.status === 'validation_in_progress').length;
+  }, [globalFilteredRows]);
+
+  const kpiTotal = globalFilteredRows.length;
+
+  const scopedRows = useMemo(() => {
+    if (statusScope === 'event_validation') {
+      return globalFilteredRows.filter(r => r.status === 'to_be_validated' || r.status === 'validation_in_progress');
+    }
+    return globalFilteredRows;
+  }, [globalFilteredRows, statusScope]);
 
   const columnOptions = useMemo(() => {
     const opts: Record<string, string[]> = {
@@ -343,11 +364,6 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
 
   const filtered = useMemo(() => {
     return scopedRows.filter(r => {
-      if (selectedCategories.length > 0 && selectedCategories.length < allCategories.length) {
-        const cat = getCategory(r);
-        if (!selectedCategories.includes(cat)) return false;
-      }
-
       const colMatch = Object.entries(selectedFilters).every(([colKey, selectedList]) => {
         if (!selectedList || selectedList.length === 0) return true;
         const options = columnOptions[colKey] || [];
@@ -365,7 +381,7 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
       });
       return colMatch;
     });
-  }, [scopedRows, selectedCategories, allCategories, selectedFilters, columnOptions]);
+  }, [scopedRows, selectedFilters, columnOptions]);
 
   const groups = useMemo(() => {
     const map = new Map<string, typeof enrichedRows[0][]>();
@@ -433,6 +449,28 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
 
   return (
     <>
+      {/* ── Dynamic KPI Cards synced with global filters (FPSO, Time Period, Categories) ── */}
+      <div className="flex gap-4">
+        <KpiCard
+          title="To Be Validated"
+          value={kpiToBeValidated}
+          subtitle="Requires operator action"
+          tooltip="Alerts that have been triggered and are awaiting initial review by an operator. These should be prioritised."
+        />
+        <KpiCard
+          title="Validation in Progress"
+          value={kpiInProgress}
+          subtitle="Under review"
+          tooltip="Alerts currently being reviewed by an operator. An investigation or corrective action may be in progress."
+        />
+        <KpiCard
+          title="Total Alerts"
+          value={kpiTotal}
+          subtitle="All statuses"
+          tooltip="Total number of alerts across all monitoring rules and equipment for the selected period."
+        />
+      </div>
+
       <div className="bg-[#111827] border border-[#1E293B] rounded-2xl overflow-hidden shadow-sm">
 
         {/* ── Table header bar ── */}
