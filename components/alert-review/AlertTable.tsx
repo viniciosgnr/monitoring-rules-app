@@ -25,6 +25,7 @@ interface AlertRow {
   reviewedAt: string;
   reviewedBy: string;
   status: Status;
+  tier?: string | null;
   [key: string]: unknown;
 }
 
@@ -198,6 +199,7 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
   const [selectedFilters, setSelectedFilters] = useState<Record<string, string[]>>({});
   const [statusScope, setStatusScope]         = useState<'events_list' | 'event_validation'>('event_validation');
   const [selectedAlertDetails, setSelectedAlertDetails] = useState<AlertRow | null>(null);
+  const [requireTierModal, setRequireTierModal]           = useState<boolean>(false);
   const [pendingRejectAlertId, setPendingRejectAlertId]   = useState<number | null>(null);
   const [sortField, setSortField]       = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
@@ -243,14 +245,39 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
     });
   }
 
-  async function handleStatus(id: number, status: Status) {
+  async function handleStatus(id: number, status: Status, comment?: string, tier?: string) {
     if (status === 'rejected') {
       setPendingRejectAlertId(id);
       return;
     }
+
+    const targetRow = data.find(r => r.id === id);
+    if (status === 'validated') {
+      const finalTier = tier || targetRow?.tier;
+      if (!finalTier || finalTier === 'Select tier') {
+        if (targetRow) {
+          setSelectedAlertDetails(targetRow);
+          setRequireTierModal(true);
+        }
+        return;
+      }
+      const reviewedBy = 'smetzner@slb.com';
+      const reviewedAt = new Date().toLocaleString('pt-BR');
+      setData(d => d.map(r => r.id === id ? { ...r, status, reviewedBy, reviewedAt, tier: finalTier } : r));
+      if (selectedAlertDetails?.id === id) {
+        setSelectedAlertDetails(prev => prev ? { ...prev, status, reviewedBy, reviewedAt, tier: finalTier } : null);
+      }
+      setRequireTierModal(false);
+      await updateAlertStatus(id, status, finalTier);
+      return;
+    }
+
     const reviewedBy = 'smetzner@slb.com';
     const reviewedAt = new Date().toLocaleString('pt-BR');
     setData(d => d.map(r => r.id === id ? { ...r, status, reviewedBy, reviewedAt } : r));
+    if (selectedAlertDetails?.id === id) {
+      setSelectedAlertDetails(prev => prev ? { ...prev, status, reviewedBy, reviewedAt } : null);
+    }
     await updateAlertStatus(id, status);
   }
 
@@ -548,7 +575,10 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
                         {/* Event Ref (Clickable link opening details modal) */}
                         <td className="px-4 py-3">
                           <button
-                            onClick={() => setSelectedAlertDetails(row)}
+                            onClick={() => {
+                              setRequireTierModal(false);
+                              setSelectedAlertDetails(row);
+                            }}
                             className="text-[#3B82F6] hover:underline font-mono text-xs font-medium cursor-pointer"
                           >
                             {row.eventId}
@@ -603,7 +633,10 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
 
                             {/* More options button (...) */}
                             <button
-                              onClick={() => setSelectedAlertDetails(row)}
+                              onClick={() => {
+                                setRequireTierModal(false);
+                                setSelectedAlertDetails(row);
+                              }}
                               title="View Alert Details"
                               className="p-1.5 rounded-full text-[#94A3B8] hover:text-white hover:bg-[#1E293B] transition-colors cursor-pointer"
                             >
@@ -632,10 +665,14 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
       {/* Event Details Modal */}
       <EventDetailsModal
         open={!!selectedAlertDetails}
-        onClose={() => setSelectedAlertDetails(null)}
+        onClose={() => {
+          setSelectedAlertDetails(null);
+          setRequireTierModal(false);
+        }}
         alert={selectedAlertDetails}
         statusScope={statusScope}
         onStatusChange={handleStatus}
+        initialTierRequired={requireTierModal}
       />
 
       {/* Reject Event Modal */}

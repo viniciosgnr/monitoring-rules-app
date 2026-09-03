@@ -24,6 +24,7 @@ export default async function AlertReviewPage() {
       reviewedAt:      alerts.reviewedAt,
       reviewedBy:      alerts.reviewedBy,
       status:          alerts.status,
+      tier:            alerts.tier,
     })
     .from(alerts)
     .innerJoin(ruleInstances,   eq(alerts.instanceId,      ruleInstances.id))
@@ -44,6 +45,7 @@ export default async function AlertReviewPage() {
     reviewedAt:     r.reviewedAt?.toLocaleString('pt-BR') ?? '',
     reviewedBy:     r.reviewedBy ?? '',
     status:         r.status as Status,
+    tier:           r.tier ?? null,
   }));
 
   return (

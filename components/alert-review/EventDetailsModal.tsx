@@ -22,6 +22,7 @@ interface AlertRow {
   reviewedAt: string;
   reviewedBy: string;
   status: Status;
+  tier?: string | null;
   eventId?: string;
   [key: string]: unknown;
 }
@@ -31,7 +32,8 @@ interface EventDetailsModalProps {
   onClose: () => void;
   alert: AlertRow | null;
   statusScope?: 'event_validation' | 'events_list';
-  onStatusChange?: (id: number, newStatus: Status, comment?: string) => Promise<void>;
+  onStatusChange?: (id: number, newStatus: Status, comment?: string, tier?: string) => Promise<void>;
+  initialTierRequired?: boolean;
 }
 
 export function getAlertType(alert: AlertRow): string {
@@ -55,9 +57,22 @@ export default function EventDetailsModal({
   alert,
   statusScope = 'event_validation',
   onStatusChange,
+  initialTierRequired = false,
 }: EventDetailsModalProps) {
   const [selectedTier, setSelectedTier] = React.useState<string>('Select tier');
+  const [tierError, setTierError] = React.useState<string | null>(null);
   const [showTierTooltip, setShowTierTooltip] = React.useState<boolean>(false);
+
+  React.useEffect(() => {
+    if (alert) {
+      setSelectedTier(alert.tier || 'Select tier');
+      if (initialTierRequired && (!alert.tier || alert.tier === 'Select tier')) {
+        setTierError('Please select a Surveillance Tier before validating the alert');
+      } else {
+        setTierError(null);
+      }
+    }
+  }, [alert, initialTierRequired]);
 
   if (!alert) return null;
 
@@ -237,17 +252,43 @@ export default function EventDetailsModal({
                     </div>
                   </div>
 
-                  <select
-                    value={selectedTier}
-                    onChange={e => setSelectedTier(e.target.value)}
-                    className="w-full bg-[#0B0F19] border border-[#1E293B] rounded-xl px-3 py-2 text-xs text-white outline-none cursor-pointer hover:border-[#3B82F6] transition-colors"
-                  >
-                    <option value="Select tier" disabled className="bg-[#111827] text-[#64748B]">Select tier</option>
-                    <option value="Good - Tier 4" className="bg-[#111827] text-white">Good - Tier 4</option>
-                    <option value="Good - Tier 3" className="bg-[#111827] text-white">Good - Tier 3</option>
-                    <option value="Degraded - Tier 2" className="bg-[#111827] text-white">Degraded - Tier 2</option>
-                    <option value="Critical - Tier 1" className="bg-[#111827] text-white">Critical - Tier 1</option>
-                  </select>
+                  {(() => {
+                    const isTierDisabled = alert.status === 'validated' || alert.status === 'rejected';
+                    return (
+                      <>
+                        <select
+                          value={alert.status === 'rejected' ? 'Select tier' : selectedTier}
+                          disabled={isTierDisabled}
+                          onChange={e => {
+                            setSelectedTier(e.target.value);
+                            if (e.target.value !== 'Select tier') {
+                              setTierError(null);
+                            }
+                          }}
+                          className={`w-full bg-[#0B0F19] border rounded-xl px-3 py-2 text-xs text-white outline-none transition-colors ${
+                            isTierDisabled
+                              ? 'opacity-60 cursor-not-allowed bg-[#0F172A] border-[#1E293B] text-[#94A3B8]'
+                              : tierError
+                                ? 'border-red-500 ring-1 ring-red-500/40 cursor-pointer'
+                                : 'border-[#1E293B] hover:border-[#3B82F6] cursor-pointer'
+                          }`}
+                        >
+                          <option value="Select tier" disabled className="bg-[#111827] text-[#64748B]">
+                            {alert.status === 'rejected' ? 'N/A' : 'Select tier'}
+                          </option>
+                          <option value="Good - Tier 4" className="bg-[#111827] text-white">Good - Tier 4</option>
+                          <option value="Good - Tier 3" className="bg-[#111827] text-white">Good - Tier 3</option>
+                          <option value="Degraded - Tier 2" className="bg-[#111827] text-white">Degraded - Tier 2</option>
+                          <option value="Critical - Tier 1" className="bg-[#111827] text-white">Critical - Tier 1</option>
+                        </select>
+                        {tierError && !isTierDisabled && (
+                          <p className="text-[11px] text-red-400 mt-1.5 font-medium leading-tight">
+                            {tierError}
+                          </p>
+                        )}
+                      </>
+                    );
+                  })()}
                 </div>
                 <div>
                   <span className="text-[#64748B] block text-[11px] mb-0.5">Validation Date</span>
@@ -314,8 +355,18 @@ export default function EventDetailsModal({
                           <DropdownMenu.Item
                             key={s}
                             onSelect={async () => {
-                              if (alert) {
-                                await onStatusChange(alert.id, s);
+                              if (alert && onStatusChange) {
+                                if (s === 'validated') {
+                                  if (!selectedTier || selectedTier === 'Select tier') {
+                                    setTierError('Please select a Surveillance Tier before validating the alert');
+                                    return;
+                                  }
+                                  setTierError(null);
+                                  await onStatusChange(alert.id, s, undefined, selectedTier);
+                                } else {
+                                  setTierError(null);
+                                  await onStatusChange(alert.id, s);
+                                }
                               }
                             }}
                             className="px-3 py-2 rounded-xl cursor-pointer hover:bg-[#1E293B] outline-none transition-colors"
