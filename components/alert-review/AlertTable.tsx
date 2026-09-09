@@ -70,10 +70,7 @@ function TimeseriesCell({ timeseries }: { timeseries?: string | null }) {
   }
   if (tags.length === 1) {
     return (
-      <span
-        className="inline-block max-w-[170px] truncate px-2 py-0.5 rounded bg-[#1E293B]/60 border border-[#334155]/40 text-[#38BDF8] text-[11px] font-mono"
-        title={tags[0]}
-      >
+      <span className="text-[#94A3B8] font-mono text-xs font-normal whitespace-nowrap" title={tags[0]}>
         {tags[0]}
       </span>
     );
@@ -83,15 +80,11 @@ function TimeseriesCell({ timeseries }: { timeseries?: string | null }) {
   const allTagsTooltip = tags.join(', ');
 
   return (
-    <div className="flex items-center gap-1.5" title={allTagsTooltip}>
-      <span
-        className="inline-block max-w-[130px] truncate px-2 py-0.5 rounded bg-[#1E293B]/60 border border-[#334155]/40 text-[#38BDF8] text-[11px] font-mono"
-      >
+    <div className="flex items-center gap-1.5 whitespace-nowrap" title={allTagsTooltip}>
+      <span className="text-[#94A3B8] font-mono text-xs font-normal">
         {firstTag}
       </span>
-      <span
-        className="px-1.5 py-0.5 rounded-full bg-[#1E293B] border border-[#3B82F6]/40 text-[#93C5FD] text-[10px] font-mono cursor-pointer hover:bg-[#3B82F6]/20 transition-colors"
-      >
+      <span className="px-1 py-0.5 rounded text-[10px] font-mono text-[#94A3B8] bg-[#1E293B]/60 border border-[#334155]/40 cursor-pointer hover:text-white">
         +{remainingCount}
       </span>
     </div>
@@ -584,6 +577,65 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
 
   return (
     <>
+      {/* ── Global Controls Header (Subtabs & Filters above KPIs) ── */}
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div className="flex items-center gap-4 flex-wrap">
+          {/* Status Scope Selector Tabs matching SLB Figma design */}
+          <div className="flex bg-[#0B0F19] border border-[#1E293B] rounded-full p-1 text-xs select-none font-sans">
+            <button
+              onClick={() => setStatusScope('for_validation')}
+              className={`flex items-center gap-1.5 px-3.5 py-1 rounded-full transition-all cursor-pointer font-semibold ${
+                statusScope === 'for_validation'
+                  ? 'bg-[#1E293B] text-[#3B82F6] shadow-sm'
+                  : 'text-[#E2E8F0] hover:text-white'
+              }`}
+            >
+              {statusScope === 'for_validation' && <Check size={13} className="text-[#3B82F6] stroke-[3]" />}
+              <span>For Validation</span>
+            </button>
+
+            <button
+              onClick={() => setStatusScope('validated_alerts')}
+              className={`flex items-center gap-1.5 px-3.5 py-1 rounded-full transition-all cursor-pointer font-semibold ${
+                statusScope === 'validated_alerts'
+                  ? 'bg-[#1E293B] text-[#3B82F6] shadow-sm'
+                  : 'text-[#E2E8F0] hover:text-white'
+              }`}
+            >
+              {statusScope === 'validated_alerts' && <Check size={13} className="text-[#3B82F6] stroke-[3]" />}
+              <span>Validated Alerts</span>
+            </button>
+          </div>
+
+          <span className="text-xs font-normal text-[#94A3B8]">({totalRows} alerts)</span>
+        </div>
+
+        <div className="flex items-center gap-3 flex-wrap">
+          {/* FPSO Filter */}
+          <FpsosFilterDropdown
+            fpsos={allFpsos}
+            selectedFpso={selectedFpso}
+            onChange={(newFpso) => setSelectedFpso(newFpso)}
+          />
+
+          {/* Time period filter */}
+          <select
+            value={period}
+            onChange={e => setPeriod(e.target.value)}
+            className="bg-[#0B0F19] border border-[#1E293B] rounded-full px-3.5 py-1.5 text-xs text-white outline-none cursor-pointer hover:border-[#3B82F6] transition-colors"
+          >
+            {PERIODS.map(p => <option key={p} value={p}>{p}</option>)}
+          </select>
+
+          {/* Category Filter Dropdown */}
+          <CategoryFilterDropdown
+            categories={allCategories}
+            selectedCategories={selectedCategories}
+            onChange={(newCats) => setSelectedCategories(newCats)}
+          />
+        </div>
+      </div>
+
       {/* ── Dynamic KPI Cards synced with global filters (FPSO, Time Period, Categories) ── */}
       <div className="flex gap-4">
         <KpiCard
@@ -607,80 +659,33 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
       </div>
 
       <div className="bg-[#111827] border border-[#1E293B] rounded-2xl overflow-hidden shadow-sm">
-
-        {/* ── Table header bar ── */}
-        <div className="flex items-center justify-between gap-4 px-5 py-4 border-b border-[#1E293B] flex-wrap">
-          <div className="flex items-center gap-4 flex-wrap">
-            {/* Status Scope Selector Tabs matching SLB Figma design */}
-            <div className="flex bg-[#0B0F19] border border-[#1E293B] rounded-full p-1 text-xs select-none font-sans">
-              <button
-                onClick={() => setStatusScope('for_validation')}
-                className={`flex items-center gap-1.5 px-3.5 py-1 rounded-full transition-all cursor-pointer font-semibold ${
-                  statusScope === 'for_validation'
-                    ? 'bg-[#1E293B] text-[#3B82F6] shadow-sm'
-                    : 'text-[#E2E8F0] hover:text-white'
-                }`}
-              >
-                {statusScope === 'for_validation' && <Check size={13} className="text-[#3B82F6] stroke-[3]" />}
-                <span>For Validation</span>
-              </button>
-
-              <button
-                onClick={() => setStatusScope('validated_alerts')}
-                className={`flex items-center gap-1.5 px-3.5 py-1 rounded-full transition-all cursor-pointer font-semibold ${
-                  statusScope === 'validated_alerts'
-                    ? 'bg-[#1E293B] text-[#3B82F6] shadow-sm'
-                    : 'text-[#E2E8F0] hover:text-white'
-                }`}
-              >
-                {statusScope === 'validated_alerts' && <Check size={13} className="text-[#3B82F6] stroke-[3]" />}
-                <span>Validated Alerts</span>
-              </button>
-            </div>
-
-            <span className="text-xs font-normal text-[#94A3B8]">({totalRows} alerts)</span>
-
-            {statusScope === 'validated_alerts' && (
-              <button
-                type="button"
-                disabled={selectedAlertIds.size === 0}
-                onClick={() => setShowGroupModal(true)}
-                className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-semibold transition-all ${
-                  selectedAlertIds.size > 0
-                    ? 'bg-[#3B82F6] hover:bg-[#2563EB] text-white cursor-pointer shadow-sm'
-                    : 'bg-[#1E293B]/60 text-[#64748B] border border-[#1E293B] cursor-not-allowed opacity-60'
-                }`}
-              >
-                <Layers size={13} />
-                <span>Group Alerts {selectedAlertIds.size > 0 ? `(${selectedAlertIds.size})` : ''}</span>
-              </button>
+        {/* Table Card Header Toolbar */}
+        <div className="flex items-center justify-between px-5 py-3.5 border-b border-[#1E293B] bg-[#0B0F19]/40 flex-wrap gap-3">
+          <div className="flex items-center gap-3">
+            <span className="text-xs font-semibold text-white">
+              {statusScope === 'for_validation' ? 'For Validation' : 'Validated Alerts'}
+            </span>
+            {statusScope === 'validated_alerts' && selectedAlertIds.size > 0 && (
+              <span className="text-xs text-[#94A3B8]">
+                ({selectedAlertIds.size} alert{selectedAlertIds.size !== 1 ? 's' : ''} selected)
+              </span>
             )}
           </div>
-
-          <div className="flex items-center gap-3 flex-wrap">
-            {/* FPSO Filter */}
-            <FpsosFilterDropdown
-              fpsos={allFpsos}
-              selectedFpso={selectedFpso}
-              onChange={(newFpso) => setSelectedFpso(newFpso)}
-            />
-
-            {/* Time period filter */}
-            <select
-              value={period}
-              onChange={e => setPeriod(e.target.value)}
-              className="bg-[#0B0F19] border border-[#1E293B] rounded-full px-3.5 py-1.5 text-xs text-white outline-none cursor-pointer hover:border-[#3B82F6] transition-colors"
+          {statusScope === 'validated_alerts' && (
+            <button
+              type="button"
+              disabled={selectedAlertIds.size === 0}
+              onClick={() => setShowGroupModal(true)}
+              className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-semibold transition-all ${
+                selectedAlertIds.size > 0
+                  ? 'bg-[#3B82F6] hover:bg-[#2563EB] text-white cursor-pointer shadow-sm'
+                  : 'bg-[#1E293B]/60 text-[#64748B] border border-[#1E293B] cursor-not-allowed opacity-60'
+              }`}
             >
-              {PERIODS.map(p => <option key={p} value={p}>{p}</option>)}
-            </select>
-
-            {/* Category Filter Dropdown */}
-            <CategoryFilterDropdown
-              categories={allCategories}
-              selectedCategories={selectedCategories}
-              onChange={(newCats) => setSelectedCategories(newCats)}
-            />
-          </div>
+              <Layers size={13} />
+              <span>Group Alerts {selectedAlertIds.size > 0 ? `(${selectedAlertIds.size})` : ''}</span>
+            </button>
+          )}
         </div>
 
         {/* ── Table ── */}
