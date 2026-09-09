@@ -45,12 +45,12 @@ export default function RejectEventModal({
           
           {/* Header Title */}
           <Dialog.Title className="text-base font-semibold text-white mb-2.5">
-            Reject Event
+            Reject Alert
           </Dialog.Title>
 
           {/* Warning & Description */}
           <p className="text-xs text-[#A0AEC0] leading-relaxed mb-4">
-            Are you sure you want to reject this event? This action cannot be undone. Please provide a reason for rejection
+            Are you sure you want to reject this alert? This action cannot be undone. Please provide a reason for rejection
           </p>
 
           <form onSubmit={handleFormSubmit} className="space-y-4">
