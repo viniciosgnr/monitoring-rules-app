@@ -2,7 +2,7 @@
 import React from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
-import { X, FileText, ExternalLink, Info, Wrench, ChevronDown } from 'lucide-react';
+import { X, Info, Wrench, ChevronDown } from 'lucide-react';
 import StatusBadge, { Status } from '@/components/ui/StatusBadge';
 
 const ALL_STATUSES: Status[] = ['to_be_validated', 'validation_in_progress', 'validated', 'rejected'];
@@ -17,13 +17,15 @@ interface AlertRow {
   type?: string;
   source?: string;
   endDate: string;
+  endDateRaw?: string;
   triggeredAt: string;
   triggeredAtRaw?: string;
   reviewedAt: string;
   reviewedBy: string;
   status: Status;
   tier?: string | null;
-  eventId?: string;
+  eventId?: string | null;
+  eventDescription?: string | null;
   [key: string]: unknown;
 }
 
@@ -31,7 +33,7 @@ interface EventDetailsModalProps {
   open: boolean;
   onClose: () => void;
   alert: AlertRow | null;
-  statusScope?: 'event_validation' | 'events_list';
+  statusScope?: 'for_validation' | 'validated_alerts';
   onStatusChange?: (id: number, newStatus: Status, comment?: string, tier?: string) => Promise<void>;
   initialTierRequired?: boolean;
 }
@@ -51,11 +53,18 @@ export function getAlertType(alert: AlertRow): string {
   return (alert.type && alert.type !== 'Surge Margin Alert') ? alert.type : 'Monitoring Alert';
 }
 
+export function formatUtcDateTime(raw?: string | null): string {
+  if (!raw) return '—';
+  const d = new Date(raw);
+  if (isNaN(d.getTime())) return raw;
+  return d.toISOString().replace('T', ' ').slice(0, 19) + ' UTC';
+}
+
 export default function EventDetailsModal({
   open,
   onClose,
   alert,
-  statusScope = 'event_validation',
+  statusScope = 'for_validation',
   onStatusChange,
   initialTierRequired = false,
 }: EventDetailsModalProps) {
@@ -76,12 +85,14 @@ export default function EventDetailsModal({
 
   if (!alert) return null;
 
-  const eventRef = alert.eventId || `UNY26-MA${alert.id}`;
+  const eventRef = alert.eventId || '—';
   const ruleId = alert.ruleName || 'COCE_GEN_SPK_01';
   const timeseriesTag = alert.timeseries ? `pi:${alert.timeseries}` : `pi:${alert.fpso}:FPSO:771-PI-1868_A`;
   const failureMode = alert.ruleDescription || 'HH vibration or HH temperatures on gearbox component';
   const startDate = alert.triggeredAt ? alert.triggeredAt.split(',')[0] : '2026-05-13';
   const endDateStr = alert.endDate ? alert.endDate.split(',')[0] : '2026-05-15';
+  const formattedStartDate = formatUtcDateTime(alert.triggeredAtRaw || alert.triggeredAt);
+  const formattedEndDate = formatUtcDateTime(alert.endDateRaw || alert.endDate);
 
   // Generate mock SVG path for timeseries line chart matching Figma Image 1
   const chartPoints = [
@@ -140,11 +151,11 @@ export default function EventDetailsModal({
                 </div>
                 <div className="grid grid-cols-3 py-1.5 border-b border-[#1E293B]/60">
                   <span className="text-[#94A3B8]">Start date</span>
-                  <span className="col-span-2 font-mono text-white">{startDate}</span>
+                  <span className="col-span-2 font-mono text-white">{formattedStartDate}</span>
                 </div>
                 <div className="grid grid-cols-3 py-1.5 border-b border-[#1E293B]/60">
                   <span className="text-[#94A3B8]">End date</span>
-                  <span className="col-span-2 font-mono text-white">{endDateStr}</span>
+                  <span className="col-span-2 font-mono text-white">{formattedEndDate}</span>
                 </div>
                 <div className="grid grid-cols-3 py-1.5">
                   <span className="text-[#94A3B8]">Recommendations</span>
@@ -192,7 +203,7 @@ export default function EventDetailsModal({
               <div className="space-y-4">
                 <div>
                   <span className="text-[#64748B] block text-[11px] mb-0.5">Created On</span>
-                  <span className="font-mono text-white text-xs">{alert.triggeredAt || '2026-07-10 22:36:33'}</span>
+                  <span className="font-mono text-white text-xs">{formattedStartDate}</span>
                 </div>
                 <div>
                   <span className="text-[#64748B] block text-[11px] mb-0.5">Description</span>
@@ -253,7 +264,7 @@ export default function EventDetailsModal({
                   </div>
 
                   {(() => {
-                    const isTierDisabled = alert.status === 'validated' || alert.status === 'rejected';
+                    const isTierDisabled = statusScope === 'validated_alerts' || alert.status === 'validated' || alert.status === 'rejected';
                     return (
                       <>
                         <select
@@ -300,7 +311,7 @@ export default function EventDetailsModal({
                 </div>
                 <div>
                   <span className="text-[#64748B] block text-[11px] mb-0.5">Comment</span>
-                  <span className="text-[#94A3B8] text-xs font-mono">{alert.reviewedBy ? 'Alert verified by surveillance engineer.' : '—'}</span>
+                  <span className="text-[#94A3B8] text-xs font-mono">{alert.eventDescription || (alert.reviewedBy ? 'Alert verified by surveillance engineer.' : '—')}</span>
                 </div>
                 <div>
                   <span className="text-[#64748B] block text-[11px] mb-0.5">Closure Date</span>
@@ -310,23 +321,7 @@ export default function EventDetailsModal({
 
               {/* Action Buttons Column matching SLB FAST design */}
               <div className="space-y-2.5 pt-6 border-t border-[#1E293B]">
-                <button
-                  type="button"
-                  onClick={() => window.alert('Generating Alert Report PDF...')}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-full bg-[#0B0F19] border border-[#1E293B] text-white text-xs font-medium hover:border-[#3B82F6] transition-colors cursor-pointer"
-                >
-                  <FileText size={13} />
-                  Generate Alert Report
-                </button>
 
-                <button
-                  type="button"
-                  onClick={() => window.alert('Opening in Canvas...')}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-full bg-[#0B0F19] border border-[#1E293B] text-white text-xs font-medium hover:border-[#3B82F6] transition-colors cursor-pointer"
-                >
-                  <ExternalLink size={13} />
-                  Analyze in Canvas
-                </button>
 
                 <button
                   type="button"
@@ -337,8 +332,8 @@ export default function EventDetailsModal({
                   Open Workbench
                 </button>
 
-                {/* Change Status Dropdown Button (only visible on Alert Validation tab) */}
-                {onStatusChange && statusScope !== 'events_list' && (
+                {/* Change Status Dropdown Button (only visible on For Validation tab) */}
+                {onStatusChange && statusScope === 'for_validation' && (
                   <DropdownMenu.Root>
                     <DropdownMenu.Trigger asChild>
                       <button className="w-full flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-full bg-[#0B0F19] border border-[#1E293B] text-white text-xs font-medium hover:border-[#3B82F6] transition-colors cursor-pointer">

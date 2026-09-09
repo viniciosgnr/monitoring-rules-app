@@ -46,6 +46,8 @@ export const alerts = pgTable('alerts', {
   reviewedBy:  text('reviewed_by'),
   status:      varchar('status', { length: 30 }).notNull().default('to_be_validated'),
   tier:        text('tier'),
+  eventId:     text('event_id'),
+  eventDescription: text('event_description'),
 });
 
 export const auditLog = pgTable('audit_log', {

@@ -24,6 +24,8 @@ export default async function AlertReviewPage() {
       reviewedBy:      alerts.reviewedBy,
       status:          alerts.status,
       tier:            alerts.tier,
+      eventId:         alerts.eventId,
+      eventDescription: alerts.eventDescription,
     })
     .from(alerts)
     .innerJoin(ruleInstances,   eq(alerts.instanceId,      ruleInstances.id))
@@ -34,12 +36,15 @@ export default async function AlertReviewPage() {
   const serialized = rows.map(r => ({
     ...r,
     endDate:        r.endDate.toLocaleString('pt-BR'),
+    endDateRaw:     r.endDate.toISOString(),
     triggeredAt:    r.triggeredAt.toLocaleString('pt-BR'),
     triggeredAtRaw: r.triggeredAt.toISOString(),
     reviewedAt:     r.reviewedAt?.toLocaleString('pt-BR') ?? '',
     reviewedBy:     r.reviewedBy ?? '',
     status:         r.status as Status,
     tier:           r.tier ?? null,
+    eventId:        r.eventId ?? null,
+    eventDescription: r.eventDescription ?? null,
   }));
 
   return (

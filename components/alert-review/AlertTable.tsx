@@ -1,14 +1,14 @@
 'use client';
 import React, { useState, useMemo, useEffect } from 'react';
-import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import EquipmentBadge from '@/components/ui/EquipmentBadge';
 import StatusBadge from '@/components/ui/StatusBadge';
 import KpiCard from '@/components/ui/KpiCard';
 import ColumnFilterDropdown from '@/components/ui/ColumnFilterDropdown';
 import EventDetailsModal from '@/components/alert-review/EventDetailsModal';
 import RejectEventModal from '@/components/alert-review/RejectEventModal';
-import { updateAlertStatus } from '@/app/actions/alerts';
-import { ChevronDown, ChevronRight, Filter, MoreHorizontal, Check, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import GroupAlertsModal from '@/components/alert-review/GroupAlertsModal';
+import { updateAlertStatus, groupAlerts } from '@/app/actions/alerts';
+import { ChevronDown, ChevronRight, Filter, Check, ArrowUpDown, ArrowUp, ArrowDown, Layers } from 'lucide-react';
 import type { Status } from '@/components/ui/StatusBadge';
 
 interface AlertRow {
@@ -21,12 +21,15 @@ interface AlertRow {
   type?: string;
   source?: string;
   endDate: string;
+  endDateRaw?: string;
   triggeredAt: string;
   triggeredAtRaw?: string;
   reviewedAt: string;
   reviewedBy: string;
   status: Status;
   tier?: string | null;
+  eventId?: string | null;
+  eventDescription?: string | null;
   [key: string]: unknown;
 }
 
@@ -38,12 +41,62 @@ const STATUS_ORDER: Record<Status, number> = {
   closed:                 4,
 };
 
-const ALL_STATUSES: Status[] = [
-  'to_be_validated',
-  'validation_in_progress',
-  'validated',
-  'rejected',
-];
+export const CATEGORY_ORDER: Record<string, number> = {
+  'Spike': 1,
+  'Surge (Threshold)': 2,
+  'Trend': 3,
+  'Normalized dP ( step change, spike, trend)': 4,
+  'Drift': 5,
+  'AI/ML': 6,
+  'Seeq': 98,
+  'PreWarningOps': 99,
+  'Pre Warnings Ops': 99,
+};
+
+export function sortCategories(a: string, b: string): number {
+  const orderA = CATEGORY_ORDER[a] ?? 50;
+  const orderB = CATEGORY_ORDER[b] ?? 50;
+  if (orderA !== orderB) return orderA - orderB;
+  return a.localeCompare(b);
+}
+
+function TimeseriesCell({ timeseries }: { timeseries?: string | null }) {
+  if (!timeseries || !timeseries.trim()) {
+    return <span className="text-[#64748B] text-xs font-mono">—</span>;
+  }
+  const tags = timeseries.split(/[,;]\s*/).map(t => t.trim()).filter(Boolean);
+  if (tags.length === 0) {
+    return <span className="text-[#64748B] text-xs font-mono">—</span>;
+  }
+  if (tags.length === 1) {
+    return (
+      <span
+        className="inline-block max-w-[170px] truncate px-2 py-0.5 rounded bg-[#1E293B]/60 border border-[#334155]/40 text-[#38BDF8] text-[11px] font-mono"
+        title={tags[0]}
+      >
+        {tags[0]}
+      </span>
+    );
+  }
+  const firstTag = tags[0];
+  const remainingCount = tags.length - 1;
+  const allTagsTooltip = tags.join(', ');
+
+  return (
+    <div className="flex items-center gap-1.5" title={allTagsTooltip}>
+      <span
+        className="inline-block max-w-[130px] truncate px-2 py-0.5 rounded bg-[#1E293B]/60 border border-[#334155]/40 text-[#38BDF8] text-[11px] font-mono"
+      >
+        {firstTag}
+      </span>
+      <span
+        className="px-1.5 py-0.5 rounded-full bg-[#1E293B] border border-[#3B82F6]/40 text-[#93C5FD] text-[10px] font-mono cursor-pointer hover:bg-[#3B82F6]/20 transition-colors"
+      >
+        +{remainingCount}
+      </span>
+    </div>
+  );
+}
 
 const PERIODS = ['All Time', 'Last Week', 'Last Month', 'Last 3 Months', 'Last 6 months', 'Last Year'];
 
@@ -72,11 +125,22 @@ function getSource(row: AlertRow): string {
   return SOURCES[idx];
 }
 
-export function getEventId(row: AlertRow): string {
-  const fpso = row.fpso || 'UNY';
-  const yearTwoDigits = '26';
-  const idStr = String(row.id).padStart(2, '0');
-  return `${fpso}${yearTwoDigits}-MA${idStr}`;
+export function generateNextEventId(fpsoCode: string, existingAlerts: AlertRow[]): string {
+  const prefix = (fpsoCode || 'UNY').replace(/\s+/g, '');
+  const year = '26';
+  const regex = new RegExp(`^${prefix}${year}-EVT-(\\d+)`, 'i');
+  let maxSeq = 0;
+  for (const a of existingAlerts) {
+    if (a.eventId) {
+      const match = a.eventId.match(regex);
+      if (match) {
+        const seq = parseInt(match[1], 10);
+        if (!isNaN(seq) && seq > maxSeq) maxSeq = seq;
+      }
+    }
+  }
+  const nextSeq = String(maxSeq + 1).padStart(2, '0');
+  return `${prefix}${year}-EVT-${nextSeq}`;
 }
 
 function CategoryFilterDropdown({
@@ -198,12 +262,18 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
 
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedFilters, setSelectedFilters] = useState<Record<string, string[]>>({});
-  const [statusScope, setStatusScope]         = useState<'events_list' | 'event_validation'>('event_validation');
+  const [statusScope, setStatusScope]         = useState<'for_validation' | 'validated_alerts'>('for_validation');
   const [selectedAlertDetails, setSelectedAlertDetails] = useState<AlertRow | null>(null);
   const [requireTierModal, setRequireTierModal]           = useState<boolean>(false);
   const [pendingRejectAlertId, setPendingRejectAlertId]   = useState<number | null>(null);
+  const [selectedAlertIds, setSelectedAlertIds]           = useState<Set<number>>(new Set());
+  const [showGroupModal, setShowGroupModal]               = useState<boolean>(false);
   const [sortField, setSortField]       = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+
+  useEffect(() => {
+    setSelectedAlertIds(new Set());
+  }, [statusScope]);
 
   function handleSort(field: string) {
     if (sortField === field) {
@@ -222,8 +292,8 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
   const allCategories = useMemo(() => {
     const cats = new Set<string>();
     data.forEach(r => cats.add(getCategory(r)));
-    ['Drift', 'Normalized dP ( step change, spike, trend)', 'Spike', 'Surge (Threshold)', 'Trend', 'AI/ML', 'Seeq', 'PreWarningOps'].forEach(c => cats.add(c));
-    return Array.from(cats).filter(Boolean).sort();
+    ['Spike', 'Surge (Threshold)', 'Trend', 'Normalized dP ( step change, spike, trend)', 'Drift', 'AI/ML', 'Seeq', 'PreWarningOps'].forEach(c => cats.add(c));
+    return Array.from(cats).filter(Boolean).sort(sortCategories);
   }, [data]);
 
   const [expandedRules, setExpandedRules] = useState<Set<string>>(() => {
@@ -297,7 +367,7 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
   const enrichedRows = useMemo(() => {
     return data.map(r => ({
       ...r,
-      eventId: getEventId(r),
+      eventId: r.eventId || null,
       source: r.source || getSource(r),
     }));
   }, [data]);
@@ -342,22 +412,24 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
   const kpiTotal = globalFilteredRows.length;
 
   const scopedRows = useMemo(() => {
-    if (statusScope === 'event_validation') {
+    if (statusScope === 'for_validation') {
       return globalFilteredRows.filter(r => r.status === 'to_be_validated' || r.status === 'validation_in_progress');
     }
-    return globalFilteredRows;
+    return globalFilteredRows.filter(r => r.status === 'validated');
   }, [globalFilteredRows, statusScope]);
 
   const columnOptions = useMemo(() => {
     const opts: Record<string, string[]> = {
       fpso: Array.from(new Set(scopedRows.map(r => r.fpso))).filter(Boolean).sort(),
-      eventId: Array.from(new Set(scopedRows.map(r => r.eventId))).filter(Boolean).sort(),
       equipmentCode: Array.from(new Set(scopedRows.map(r => r.equipmentCode))).filter(Boolean).sort(),
-      ruleName: Array.from(new Set(scopedRows.map(r => getCategory(r)))).filter(Boolean).sort(),
+      timeseries: Array.from(new Set(scopedRows.map(r => r.timeseries || '—'))).filter(Boolean).sort(),
+      eventId: Array.from(new Set(scopedRows.map(r => r.eventId || '—'))).filter(Boolean).sort(),
+      ruleName: Array.from(new Set(scopedRows.map(r => r.ruleName))).filter(Boolean).sort(),
       source: Array.from(new Set(scopedRows.map(r => r.source))).filter(Boolean).sort(),
       triggeredAt: Array.from(new Set(scopedRows.map(r => r.triggeredAt ? r.triggeredAt.split(',')[0].trim() : ''))).filter(Boolean).sort(),
+      endDate: Array.from(new Set(scopedRows.map(r => r.endDate ? r.endDate.split(',')[0].trim() : ''))).filter(Boolean).sort(),
+      reviewedAt: Array.from(new Set(scopedRows.map(r => r.reviewedAt ? r.reviewedAt.split(',')[0].trim() : '—'))).filter(Boolean).sort(),
       status: Array.from(new Set(scopedRows.map(r => r.status))).filter(Boolean).sort(),
-      reviewedBy: Array.from(new Set(scopedRows.map(r => (r.status === 'to_be_validated' || !r.reviewedBy ? '-' : r.reviewedBy)))).filter(Boolean).sort(),
     };
     return opts;
   }, [scopedRows]);
@@ -370,12 +442,18 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
         if (selectedList.length === options.length) return true;
 
         let val = String((r as Record<string, unknown>)[colKey] ?? '');
-        if (colKey === 'reviewedBy') {
-          val = r.status === 'to_be_validated' || !r.reviewedBy ? '-' : String(r.reviewedBy);
-        } else if (colKey === 'triggeredAt') {
+        if (colKey === 'triggeredAt') {
           val = r.triggeredAt ? r.triggeredAt.split(',')[0].trim() : '';
+        } else if (colKey === 'endDate') {
+          val = r.endDate ? r.endDate.split(',')[0].trim() : '';
+        } else if (colKey === 'reviewedAt') {
+          val = r.reviewedAt ? r.reviewedAt.split(',')[0].trim() : '—';
+        } else if (colKey === 'eventId') {
+          val = r.eventId || '—';
+        } else if (colKey === 'timeseries') {
+          val = r.timeseries || '—';
         } else if (colKey === 'ruleName') {
-          val = getCategory(r);
+          val = r.ruleName;
         }
         return selectedList.includes(val);
       });
@@ -401,6 +479,16 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
             const bTime = b.triggeredAtRaw ? new Date(b.triggeredAtRaw).getTime() : 0;
             return sortDirection === 'asc' ? aTime - bTime : bTime - aTime;
           }
+          if (sortField === 'endDate') {
+            const aDate = a.endDate ? new Date(a.endDate).getTime() : 0;
+            const bDate = b.endDate ? new Date(b.endDate).getTime() : 0;
+            return sortDirection === 'asc' ? aDate - bDate : bDate - aDate;
+          }
+          if (sortField === 'reviewedAt') {
+            const aDate = a.reviewedAt ? new Date(a.reviewedAt).getTime() : 0;
+            const bDate = b.reviewedAt ? new Date(b.reviewedAt).getTime() : 0;
+            return sortDirection === 'asc' ? aDate - bDate : bDate - aDate;
+          }
           const aStr = String(aVal ?? '');
           const bStr = String(bVal ?? '');
           return sortDirection === 'asc' ? aStr.localeCompare(bStr) : bStr.localeCompare(aStr);
@@ -408,10 +496,8 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
         return STATUS_ORDER[a.status] - STATUS_ORDER[b.status];
       });
     }
-    return Array.from(map.entries()).sort(([, a], [, b]) => {
-      const aMin = Math.min(...a.map(r => STATUS_ORDER[r.status]));
-      const bMin = Math.min(...b.map(r => STATUS_ORDER[r.status]));
-      return aMin - bMin;
+    return Array.from(map.entries()).sort(([catA], [catB]) => {
+      return sortCategories(catA, catB);
     });
   }, [filtered, sortField, sortDirection]);
 
@@ -435,17 +521,66 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
     );
   }
 
+  const toggleSelectAlert = (id: number) => {
+    setSelectedAlertIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const allVisibleIds = useMemo(() => filtered.map(r => r.id), [filtered]);
+  const isAllSelected = allVisibleIds.length > 0 && allVisibleIds.every(id => selectedAlertIds.has(id));
+  const toggleSelectAll = () => {
+    if (isAllSelected) {
+      setSelectedAlertIds(new Set());
+    } else {
+      setSelectedAlertIds(new Set(allVisibleIds));
+    }
+  };
+
+  const selectedAlertsForGrouping = useMemo(() => {
+    return data.filter(r => selectedAlertIds.has(r.id));
+  }, [data, selectedAlertIds]);
+
+  const currentGeneratedEventId = useMemo(() => {
+    return generateNextEventId(selectedFpso, data);
+  }, [selectedFpso, data]);
+
+  const handleConfirmGrouping = async (generatedEventId: string, description: string) => {
+    const idsToGroup = Array.from(selectedAlertIds);
+    setData(prev => prev.map(r => idsToGroup.includes(r.id) ? { ...r, eventId: generatedEventId, eventDescription: description } : r));
+    await groupAlerts(idsToGroup, generatedEventId, description);
+    setSelectedAlertIds(new Set());
+  };
+
   const totalRows = filtered.length;
 
-  const cols: [string, string][] = [
-    ['fpso', 'FPSO'],
-    ['equipmentCode', 'Assets'],
-    ['eventId', 'Alert Ref.'],
-    ['source', 'Source'],
-    ['triggeredAt', 'Creation Date'],
-    ['status', 'Status'],
-    ['reviewedBy', 'Validation By'],
-  ];
+  const cols: [string, string][] = useMemo(() => {
+    if (statusScope === 'validated_alerts') {
+      return [
+        ['fpso', 'FPSO'],
+        ['equipmentCode', 'Assets'],
+        ['timeseries', 'Timeseries'],
+        ['eventId', 'Event Ref.'],
+        ['source', 'Source'],
+        ['triggeredAt', 'Start Date'],
+        ['endDate', 'End Date'],
+        ['reviewedAt', 'Validated Date'],
+        ['ruleName', 'MR ID'],
+      ];
+    }
+    return [
+      ['fpso', 'FPSO'],
+      ['equipmentCode', 'Assets'],
+      ['timeseries', 'Timeseries'],
+      ['source', 'Source'],
+      ['triggeredAt', 'Creation Date'],
+      ['status', 'Status'],
+      ['ruleName', 'MR ID'],
+    ];
+  }, [statusScope]);
 
   return (
     <>
@@ -479,31 +614,47 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
             {/* Status Scope Selector Tabs matching SLB Figma design */}
             <div className="flex bg-[#0B0F19] border border-[#1E293B] rounded-full p-1 text-xs select-none font-sans">
               <button
-                onClick={() => setStatusScope('event_validation')}
+                onClick={() => setStatusScope('for_validation')}
                 className={`flex items-center gap-1.5 px-3.5 py-1 rounded-full transition-all cursor-pointer font-semibold ${
-                  statusScope === 'event_validation'
+                  statusScope === 'for_validation'
                     ? 'bg-[#1E293B] text-[#3B82F6] shadow-sm'
                     : 'text-[#E2E8F0] hover:text-white'
                 }`}
               >
-                {statusScope === 'event_validation' && <Check size={13} className="text-[#3B82F6] stroke-[3]" />}
-                <span>Alert Validation</span>
+                {statusScope === 'for_validation' && <Check size={13} className="text-[#3B82F6] stroke-[3]" />}
+                <span>For Validation</span>
               </button>
 
               <button
-                onClick={() => setStatusScope('events_list')}
+                onClick={() => setStatusScope('validated_alerts')}
                 className={`flex items-center gap-1.5 px-3.5 py-1 rounded-full transition-all cursor-pointer font-semibold ${
-                  statusScope === 'events_list'
+                  statusScope === 'validated_alerts'
                     ? 'bg-[#1E293B] text-[#3B82F6] shadow-sm'
                     : 'text-[#E2E8F0] hover:text-white'
                 }`}
               >
-                {statusScope === 'events_list' && <Check size={13} className="text-[#3B82F6] stroke-[3]" />}
-                <span>Alert List</span>
+                {statusScope === 'validated_alerts' && <Check size={13} className="text-[#3B82F6] stroke-[3]" />}
+                <span>Validated Alerts</span>
               </button>
             </div>
 
             <span className="text-xs font-normal text-[#94A3B8]">({totalRows} alerts)</span>
+
+            {statusScope === 'validated_alerts' && (
+              <button
+                type="button"
+                disabled={selectedAlertIds.size === 0}
+                onClick={() => setShowGroupModal(true)}
+                className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-semibold transition-all ${
+                  selectedAlertIds.size > 0
+                    ? 'bg-[#3B82F6] hover:bg-[#2563EB] text-white cursor-pointer shadow-sm'
+                    : 'bg-[#1E293B]/60 text-[#64748B] border border-[#1E293B] cursor-not-allowed opacity-60'
+                }`}
+              >
+                <Layers size={13} />
+                <span>Group Alerts {selectedAlertIds.size > 0 ? `(${selectedAlertIds.size})` : ''}</span>
+              </button>
+            )}
           </div>
 
           <div className="flex items-center gap-3 flex-wrap">
@@ -537,10 +688,21 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
           <table className="w-full text-sm border-collapse">
             <thead>
               <tr className="border-b border-[#1E293B] bg-[#0B0F19]/40">
-                {/* Chevron column */}
-                <th className="w-8 px-3 py-3" />
+                {/* Chevron / Checkbox column */}
+                {statusScope === 'validated_alerts' ? (
+                  <th className="w-10 px-3 py-3 text-center">
+                    <input
+                      type="checkbox"
+                      checked={isAllSelected}
+                      onChange={toggleSelectAll}
+                      className="rounded border-[#334155] bg-[#0B0F19] text-[#3B82F6] focus:ring-0 focus:ring-offset-0 cursor-pointer accent-[#3B82F6]"
+                    />
+                  </th>
+                ) : (
+                  <th className="w-8 px-3 py-3" />
+                )}
                 {cols.map(([field, label]) => {
-                  const isSortable = field === 'triggeredAt';
+                  const isSortable = field === 'triggeredAt' || field === 'endDate' || field === 'reviewedAt';
                   const isCurrentSort = sortField === field;
                   return (
                     <th key={field} className="text-left px-4 py-3 text-xs font-normal text-[#94A3B8] whitespace-nowrap">
@@ -580,10 +742,10 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
                       className="border-b border-[#1E293B] bg-[#151D2E] cursor-pointer hover:bg-[#1A2438] transition-colors select-none"
                       onClick={() => toggleRule(ruleName)}
                     >
-                      <td className="px-3 py-3">
+                      <td className="px-3 py-3 text-center">
                         {isExpanded
-                          ? <ChevronDown size={14} className="text-[#94A3B8]" />
-                          : <ChevronRight size={14} className="text-[#94A3B8]" />
+                          ? <ChevronDown size={14} className="text-[#94A3B8] inline" />
+                          : <ChevronRight size={14} className="text-[#94A3B8] inline" />
                         }
                       </td>
                       <td colSpan={cols.length + 1} className="px-1 py-3">
@@ -599,10 +761,21 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
                     {/* ── Individual alert rows ── */}
                     {isExpanded && ruleRows.map(row => (
                       <tr key={row.id} className="border-b border-[#1E293B] bg-[#0F1623] hover:bg-[#1A2335] transition-colors">
-                        {/* Indent spacer */}
-                        <td className="px-3 py-3">
-                          <div className="w-px h-4 bg-[#1E293B] mx-auto" />
-                        </td>
+                        {/* Checkbox column on Validated Alerts, Indent spacer on For Validation */}
+                        {statusScope === 'validated_alerts' ? (
+                          <td className="px-3 py-3 text-center" onClick={e => e.stopPropagation()}>
+                            <input
+                              type="checkbox"
+                              checked={selectedAlertIds.has(row.id)}
+                              onChange={() => toggleSelectAlert(row.id)}
+                              className="rounded border-[#334155] bg-[#0B0F19] text-[#3B82F6] focus:ring-0 focus:ring-offset-0 cursor-pointer accent-[#3B82F6]"
+                            />
+                          </td>
+                        ) : (
+                          <td className="px-3 py-3">
+                            <div className="w-px h-4 bg-[#1E293B] mx-auto" />
+                          </td>
+                        )}
 
                         {/* FPSO */}
                         <td className="px-4 py-3 text-white font-medium text-xs font-mono">{row.fpso}</td>
@@ -610,77 +783,68 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
                         {/* Asset */}
                         <td className="px-4 py-3"><EquipmentBadge code={row.equipmentCode} /></td>
 
-                        {/* Event Ref (Clickable link opening details modal) */}
+                        {/* Timeseries */}
+                        <td className="px-4 py-3">
+                          <TimeseriesCell timeseries={row.timeseries} />
+                        </td>
+
+                        {/* Event Ref - only on Validated Alerts */}
+                        {statusScope === 'validated_alerts' && (
+                          <td className="px-4 py-3 font-mono text-xs whitespace-nowrap">
+                            {row.eventId ? (
+                              <span className="text-[#3B82F6] font-semibold">{row.eventId}</span>
+                            ) : (
+                              <span className="text-[#64748B]">—</span>
+                            )}
+                          </td>
+                        )}
+
+                        {/* Source */}
+                        <td className="px-4 py-3 text-[#94A3B8] text-xs font-medium">{row.source}</td>
+
+                        {/* Date & Status columns for For Validation */}
+                        {statusScope === 'for_validation' && (
+                          <>
+                            {/* Creation Date / Triggered At */}
+                            <td className="px-4 py-3 text-[#94A3B8] text-xs whitespace-nowrap">{row.triggeredAt}</td>
+
+                            {/* Status Badge */}
+                            <td className="px-4 py-3">
+                              <StatusBadge status={row.status} />
+                            </td>
+                          </>
+                        )}
+
+                        {/* Date columns for Validated Alerts */}
+                        {statusScope === 'validated_alerts' && (
+                          <>
+                            {/* Start Date */}
+                            <td className="px-4 py-3 text-[#94A3B8] text-xs whitespace-nowrap">{row.triggeredAt}</td>
+
+                            {/* End Date */}
+                            <td className="px-4 py-3 text-[#94A3B8] text-xs whitespace-nowrap">{row.endDate || '—'}</td>
+
+                            {/* Validated Date */}
+                            <td className="px-4 py-3 text-[#94A3B8] text-xs whitespace-nowrap">{row.reviewedAt || '—'}</td>
+                          </>
+                        )}
+
+                        {/* MR ID */}
+                        <td className="px-4 py-3 text-white font-mono text-xs whitespace-nowrap font-medium">
+                          {row.ruleName}
+                        </td>
+
+                        {/* Action Column: Details button */}
                         <td className="px-4 py-3">
                           <button
                             onClick={() => {
                               setRequireTierModal(false);
                               setSelectedAlertDetails(row);
                             }}
-                            className="text-[#3B82F6] hover:underline font-mono text-xs font-medium cursor-pointer"
+                            className="px-3.5 py-1 text-xs rounded-full border border-[#1E293B] text-white hover:border-[#3B82F6] hover:text-[#3B82F6] transition-colors cursor-pointer"
                           >
-                            {row.eventId}
+                            Details
                           </button>
-                        </td>
-
-                        {/* Source */}
-                        <td className="px-4 py-3 text-[#94A3B8] text-xs font-medium">{row.source}</td>
-
-                        {/* Creation Date / Triggered At */}
-                        <td className="px-4 py-3 text-[#94A3B8] text-xs whitespace-nowrap">{row.triggeredAt}</td>
-
-                        {/* Status Badge */}
-                        <td className="px-4 py-3">
-                          <StatusBadge status={row.status} />
-                        </td>
-
-                        {/* Validation By */}
-                        <td className="px-4 py-3 text-[#94A3B8] font-mono text-xs whitespace-nowrap">
-                          {row.status === 'to_be_validated' || !row.reviewedBy ? '-' : row.reviewedBy}
-                        </td>
-
-                        {/* Action Column: Change Status ▾ Dropdown Button (only on Event Validation tab) & ... Options */}
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-2">
-                            {statusScope === 'event_validation' && (
-                              <DropdownMenu.Root>
-                                <DropdownMenu.Trigger asChild>
-                                  <button className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#0B0F19] border border-[#1E293B] text-white text-xs font-medium hover:border-[#3B82F6] transition-colors cursor-pointer">
-                                    <span>Change Status</span>
-                                    <ChevronDown size={12} className="text-[#94A3B8]" />
-                                  </button>
-                                </DropdownMenu.Trigger>
-                                <DropdownMenu.Portal>
-                                  <DropdownMenu.Content
-                                    className="z-50 bg-[#111827] border border-[#1E293B] rounded-2xl shadow-2xl p-1.5 min-w-[210px] select-none"
-                                    sideOffset={4}
-                                  >
-                                    {ALL_STATUSES.map(s => (
-                                      <DropdownMenu.Item
-                                        key={s}
-                                        onSelect={() => handleStatus(row.id, s)}
-                                        className="px-3 py-2 rounded-xl cursor-pointer hover:bg-[#1E293B] outline-none transition-colors"
-                                      >
-                                        <StatusBadge status={s} />
-                                      </DropdownMenu.Item>
-                                    ))}
-                                  </DropdownMenu.Content>
-                                </DropdownMenu.Portal>
-                              </DropdownMenu.Root>
-                            )}
-
-                            {/* More options button (...) */}
-                            <button
-                              onClick={() => {
-                                setRequireTierModal(false);
-                                setSelectedAlertDetails(row);
-                              }}
-                              title="View Alert Details"
-                              className="p-1.5 rounded-full text-[#94A3B8] hover:text-white hover:bg-[#1E293B] transition-colors cursor-pointer"
-                            >
-                              <MoreHorizontal size={15} />
-                            </button>
-                          </div>
                         </td>
                       </tr>
                     ))}
@@ -699,6 +863,15 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
           </table>
         </div>
       </div>
+
+      {/* Group Alerts Modal */}
+      <GroupAlertsModal
+        open={showGroupModal}
+        onClose={() => setShowGroupModal(false)}
+        selectedAlerts={selectedAlertsForGrouping}
+        generatedEventId={currentGeneratedEventId}
+        onConfirm={handleConfirmGrouping}
+      />
 
       {/* Event Details Modal */}
       <EventDetailsModal
