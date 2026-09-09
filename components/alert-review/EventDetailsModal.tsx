@@ -309,14 +309,6 @@ export default function EventDetailsModal({
                   <span className="text-[#64748B] block text-[11px] mb-0.5">Validated by</span>
                   <span className="text-[#94A3B8] font-mono">{alert.reviewedBy || '—'}</span>
                 </div>
-                <div>
-                  <span className="text-[#64748B] block text-[11px] mb-0.5">Comment</span>
-                  <span className="text-[#94A3B8] text-xs font-mono">{alert.eventDescription || (alert.reviewedBy ? 'Alert verified by surveillance engineer.' : '—')}</span>
-                </div>
-                <div>
-                  <span className="text-[#64748B] block text-[11px] mb-0.5">Closure Date</span>
-                  <span className="text-[#94A3B8]">—</span>
-                </div>
               </div>
 
               {/* Action Buttons Column matching SLB FAST design */}
