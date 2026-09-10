@@ -85,7 +85,6 @@ export default function EventDetailsModal({
 
   if (!alert) return null;
 
-  const eventRef = alert.eventId || '—';
   const ruleId = alert.ruleName || 'COCE_GEN_SPK_01';
   const timeseriesTag = alert.timeseries ? `pi:${alert.timeseries}` : `pi:${alert.fpso}:FPSO:771-PI-1868_A`;
   const failureMode = alert.ruleDescription || 'HH vibration or HH temperatures on gearbox component';
