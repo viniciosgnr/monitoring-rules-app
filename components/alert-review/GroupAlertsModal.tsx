@@ -10,6 +10,7 @@ interface AlertRow {
   fpso: string;
   equipmentCode: string;
   ruleName: string;
+  timeseries?: string;
   [key: string]: unknown;
 }
 
@@ -31,10 +32,6 @@ export default function GroupAlertsModal({
   const [description, setDescription] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-
-  // Group unique assets and rules for summary display
-  const uniqueAssets = Array.from(new Set(selectedAlerts.map(a => a.equipmentCode))).filter(Boolean);
-  const uniqueRules = Array.from(new Set(selectedAlerts.map(a => a.ruleName))).filter(Boolean);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -65,12 +62,12 @@ export default function GroupAlertsModal({
   return (
     <Dialog.Root open={open} onOpenChange={v => !v && handleClose()}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 bg-black/80 z-[60] backdrop-blur-sm transition-opacity" />
-        <Dialog.Content className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[60] w-[520px] max-w-[94vw] bg-[#1F2436] rounded-2xl border border-[#2B3347] p-6 shadow-2xl select-none text-white outline-none font-sans">
+        <Dialog.Overlay className="fixed inset-0 bg-black/75 z-50 backdrop-blur-sm transition-opacity" />
+        <Dialog.Content className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[720px] max-w-[94vw] bg-[#111827] rounded-2xl border border-[#1E293B] p-6 shadow-2xl select-none text-white outline-none font-sans">
           
           {/* Header */}
-          <div className="flex items-center justify-between pb-3.5 border-b border-[#2B3347]">
-            <div className="flex items-center gap-2.5">
+          <div className="flex items-center justify-between pb-4 border-b border-[#1E293B]">
+            <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-full bg-[#3B82F6]/10 border border-[#3B82F6]/30 flex items-center justify-center text-[#3B82F6]">
                 <Layers size={16} />
               </div>
@@ -86,15 +83,15 @@ export default function GroupAlertsModal({
             <button
               onClick={handleClose}
               disabled={loading}
-              className="p-1 rounded-full text-[#94A3B8] hover:text-white hover:bg-[#2B3347] transition-colors cursor-pointer"
+              className="text-[#64748B] hover:text-white transition-colors cursor-pointer p-1"
             >
-              <X size={16} />
+              <X size={18} />
             </button>
           </div>
 
-          <form onSubmit={handleSubmit} className="mt-4 space-y-4">
+          <form onSubmit={handleSubmit} className="mt-5 space-y-4">
             {/* Generated Event ID preview */}
-            <div className="bg-[#111827] border border-[#2B3347] rounded-xl p-3.5 flex items-center justify-between">
+            <div className="bg-[#0B0F19] border border-[#1E293B] rounded-xl p-3.5 flex items-center justify-between">
               <div>
                 <span className="text-[10px] text-[#94A3B8] uppercase tracking-wider font-semibold block mb-0.5">
                   Generated Event ID
@@ -104,33 +101,44 @@ export default function GroupAlertsModal({
                 </span>
               </div>
               <div className="text-right">
-                <span className="px-2.5 py-1 rounded-full bg-[#3B82F6]/10 text-[#3B82F6] border border-[#3B82F6]/30 text-xs font-semibold">
+                <span className="px-2.5 py-1 rounded-full bg-[#1E293B] border border-[#334155]/40 text-[#E2E8F0] text-xs font-semibold">
                   {selectedAlerts.length} alert{selectedAlerts.length !== 1 ? 's' : ''}
                 </span>
               </div>
             </div>
 
-            {/* Selected Alerts Summary */}
-            <div className="bg-[#151D2E] border border-[#2B3347]/60 rounded-xl p-3.5 space-y-2 text-xs">
-              <div className="flex items-center gap-2">
-                <span className="text-[#94A3B8] w-20 shrink-0 font-medium">FPSO:</span>
-                <span className="text-white font-mono font-semibold">{selectedAlerts[0]?.fpso || '—'}</span>
-              </div>
-
-              <div className="flex items-start gap-2">
-                <span className="text-[#94A3B8] w-20 shrink-0 font-medium pt-0.5">Assets:</span>
-                <div className="flex flex-wrap gap-1.5">
-                  {uniqueAssets.map(code => (
-                    <EquipmentBadge key={code} code={code} />
-                  ))}
-                </div>
-              </div>
-
-              <div className="flex items-start gap-2">
-                <span className="text-[#94A3B8] w-20 shrink-0 font-medium">Rules:</span>
-                <span className="text-white font-medium">
-                  {uniqueRules.slice(0, 3).join(', ')}{uniqueRules.length > 3 ? ` +${uniqueRules.length - 3} more` : ''}
-                </span>
+            {/* Selected Alerts Mini-Table: Asset | AlertId | Time series list | Rules */}
+            <div className="space-y-1.5">
+              <span className="text-xs font-medium text-[#94A3B8]">Selected Alerts for Grouping</span>
+              <div className="bg-[#0B0F19] border border-[#1E293B] rounded-xl overflow-hidden max-h-52 overflow-y-auto">
+                <table className="w-full text-xs text-left border-collapse">
+                  <thead className="bg-[#070A10]/70 border-b border-[#1E293B] text-[#94A3B8] text-[11px] font-medium sticky top-0">
+                    <tr>
+                      <th className="px-3.5 py-2.5">Asset</th>
+                      <th className="px-3.5 py-2.5">Alert ID</th>
+                      <th className="px-3.5 py-2.5">Time series list</th>
+                      <th className="px-3.5 py-2.5">Rules</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#1E293B]/60">
+                    {selectedAlerts.map(alert => (
+                      <tr key={alert.id} className="hover:bg-[#151D2E] transition-colors">
+                        <td className="px-3.5 py-2.5 whitespace-nowrap">
+                          <EquipmentBadge code={alert.equipmentCode} />
+                        </td>
+                        <td className="px-3.5 py-2.5 whitespace-nowrap font-mono text-xs font-medium text-white">
+                          ALT-{alert.id}
+                        </td>
+                        <td className="px-3.5 py-2.5 font-mono text-xs text-[#94A3B8] max-w-[200px] truncate" title={alert.timeseries}>
+                          {alert.timeseries || '—'}
+                        </td>
+                        <td className="px-3.5 py-2.5 whitespace-nowrap font-mono text-xs text-white">
+                          {alert.ruleName}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
 
@@ -155,7 +163,7 @@ export default function GroupAlertsModal({
                 className={`w-full bg-[#0B0F19] border rounded-xl p-3 text-xs text-white placeholder-[#64748B] outline-none transition-colors resize-none ${
                   error
                     ? 'border-red-500 ring-1 ring-red-500/40'
-                    : 'border-[#2B3347] focus:border-[#3B82F6]'
+                    : 'border-[#1E293B] focus:border-[#3B82F6]'
                 }`}
               />
               {error && (
@@ -167,12 +175,12 @@ export default function GroupAlertsModal({
             </div>
 
             {/* Modal Actions */}
-            <div className="flex items-center justify-end gap-3 pt-3 border-t border-[#2B3347]">
+            <div className="flex items-center justify-end gap-3 pt-3 border-t border-[#1E293B]">
               <button
                 type="button"
                 onClick={handleClose}
                 disabled={loading}
-                className="px-4 py-2 text-xs rounded-full border border-[#2B3347] text-[#94A3B8] hover:text-white hover:border-[#475569] transition-colors cursor-pointer"
+                className="px-5 py-2 text-xs rounded-full border border-[#1E293B] text-white hover:border-[#3B82F6] hover:text-[#3B82F6] transition-colors cursor-pointer"
               >
                 Cancel
               </button>
@@ -180,7 +188,7 @@ export default function GroupAlertsModal({
               <button
                 type="submit"
                 disabled={loading}
-                className="px-5 py-2 text-xs rounded-full bg-[#3B82F6] hover:bg-[#2563EB] disabled:opacity-50 text-white font-medium transition-all shadow-sm cursor-pointer flex items-center gap-2"
+                className="px-6 py-2 text-xs rounded-full bg-[#3B82F6] hover:bg-[#2563EB] disabled:opacity-50 text-white font-medium transition-all shadow-sm cursor-pointer flex items-center gap-2"
               >
                 {loading ? 'Grouping...' : 'Confirm Grouping'}
               </button>

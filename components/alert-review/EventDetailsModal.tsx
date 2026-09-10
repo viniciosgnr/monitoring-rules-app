@@ -115,7 +115,7 @@ export default function EventDetailsModal({
           <div className="flex items-center justify-between border-b border-[#1E293B] pb-4 mb-5">
             <div className="flex items-center gap-3">
               <Dialog.Title className="text-base font-semibold text-white">
-                Alert Details: <span className="font-mono text-blue-400">{eventRef}</span> - {alert.source || 'Monitoring Rules Engine'}
+                Alert Details: <span className="font-mono text-blue-400">ALT-{alert.id}</span> - {alert.source || 'Monitoring Rules Engine'}
               </Dialog.Title>
               <span className="px-2.5 py-1 rounded bg-[#1E293B] border border-[#334155]/40 text-[#E2E8F0] text-xs font-medium">
                 {alert.status === 'to_be_validated' ? 'To Be Validated' : alert.status === 'validation_in_progress' ? 'Validation in Progress' : alert.status === 'validated' ? 'Validated' : alert.status === 'rejected' ? 'Rejected' : 'Closed'}
@@ -140,13 +140,27 @@ export default function EventDetailsModal({
                   <span className="col-span-2 text-white font-medium">{getAlertType(alert)}</span>
                 </div>
                 <div className="grid grid-cols-3 py-1.5 border-b border-[#1E293B]/60">
+                  <span className="text-[#94A3B8]">Alert ID</span>
+                  <span className="col-span-2 font-mono text-white">ALT-{alert.id}</span>
+                </div>
+                <div className="grid grid-cols-3 py-1.5 border-b border-[#1E293B]/60">
+                  <span className="text-[#94A3B8]">Event ID</span>
+                  <span className="col-span-2 font-mono">
+                    {alert.eventId ? (
+                      <span className="text-[#3B82F6] font-semibold">{alert.eventId}</span>
+                    ) : (
+                      <span className="text-[#64748B]">—</span>
+                    )}
+                  </span>
+                </div>
+                <div className="grid grid-cols-3 py-1.5 border-b border-[#1E293B]/60">
                   <span className="text-[#94A3B8]">Alert description</span>
                   <span className="col-span-2 text-[#E2E8F0] leading-relaxed">
                     Seal Gas Duplex Coalescent Filter Differential Pressure, External Seal Gas line 2 Temperature, Seal Gas Heater 3 Temperature, Seal Gas Heater Temperature
                   </span>
                 </div>
                 <div className="grid grid-cols-3 py-1.5 border-b border-[#1E293B]/60">
-                  <span className="text-[#94A3B8]">Monitoring rule ID</span>
+                  <span className="text-[#94A3B8]">Rule</span>
                   <span className="col-span-2 font-mono text-white">{ruleId}</span>
                 </div>
                 <div className="grid grid-cols-3 py-1.5 border-b border-[#1E293B]/60">

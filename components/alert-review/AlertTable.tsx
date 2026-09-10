@@ -393,7 +393,7 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
     });
   }, [enrichedRows, selectedFpso, period, selectedCategories, allCategories]);
 
-  // Reactive KPIs synced with global filters (FPSO, Time, Categories) across all statuses
+  // Reactive KPIs synced with global filters (FPSO, Time, Categories)
   const kpiToBeValidated = useMemo(() => {
     return globalFilteredRows.filter(r => r.status === 'to_be_validated').length;
   }, [globalFilteredRows]);
@@ -402,7 +402,23 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
     return globalFilteredRows.filter(r => r.status === 'validation_in_progress').length;
   }, [globalFilteredRows]);
 
-  const kpiTotal = globalFilteredRows.length;
+  const kpiTotalForValidation = useMemo(() => {
+    return kpiToBeValidated + kpiInProgress;
+  }, [kpiToBeValidated, kpiInProgress]);
+
+  const validatedAlertsList = useMemo(() => {
+    return globalFilteredRows.filter(r => r.status === 'validated');
+  }, [globalFilteredRows]);
+
+  const kpiUngrouped = useMemo(() => {
+    return validatedAlertsList.filter(r => !r.eventId).length;
+  }, [validatedAlertsList]);
+
+  const kpiGrouped = useMemo(() => {
+    return validatedAlertsList.filter(r => Boolean(r.eventId)).length;
+  }, [validatedAlertsList]);
+
+  const kpiTotalValidated = validatedAlertsList.length;
 
   const scopedRows = useMemo(() => {
     if (statusScope === 'for_validation') {
@@ -414,6 +430,7 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
   const columnOptions = useMemo(() => {
     const opts: Record<string, string[]> = {
       fpso: Array.from(new Set(scopedRows.map(r => r.fpso))).filter(Boolean).sort(),
+      alertId: Array.from(new Set(scopedRows.map(r => `ALT-${r.id}`))).filter(Boolean).sort(),
       equipmentCode: Array.from(new Set(scopedRows.map(r => r.equipmentCode))).filter(Boolean).sort(),
       timeseries: Array.from(new Set(scopedRows.map(r => r.timeseries || '—'))).filter(Boolean).sort(),
       eventId: Array.from(new Set(scopedRows.map(r => r.eventId || '—'))).filter(Boolean).sort(),
@@ -435,7 +452,9 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
         if (selectedList.length === options.length) return true;
 
         let val = String((r as Record<string, unknown>)[colKey] ?? '');
-        if (colKey === 'triggeredAt') {
+        if (colKey === 'alertId') {
+          val = `ALT-${r.id}`;
+        } else if (colKey === 'triggeredAt') {
           val = r.triggeredAt ? r.triggeredAt.split(',')[0].trim() : '';
         } else if (colKey === 'endDate') {
           val = r.endDate ? r.endDate.split(',')[0].trim() : '';
@@ -467,6 +486,14 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
         if (sortField) {
           const aVal = (a as Record<string, unknown>)[sortField];
           const bVal = (b as Record<string, unknown>)[sortField];
+          if (sortField === 'alertId') {
+            return sortDirection === 'asc' ? a.id - b.id : b.id - a.id;
+          }
+          if (sortField === 'eventId') {
+            const aVal = a.eventId || '';
+            const bVal = b.eventId || '';
+            return sortDirection === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+          }
           if (sortField === 'triggeredAt') {
             const aTime = a.triggeredAtRaw ? new Date(a.triggeredAtRaw).getTime() : 0;
             const bTime = b.triggeredAtRaw ? new Date(b.triggeredAtRaw).getTime() : 0;
@@ -554,24 +581,26 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
     if (statusScope === 'validated_alerts') {
       return [
         ['fpso', 'FPSO'],
+        ['eventId', 'Event Ref.'],
+        ['alertId', 'Alert ID'],
         ['equipmentCode', 'Assets'],
         ['timeseries', 'Timeseries'],
-        ['eventId', 'Event Ref.'],
         ['source', 'Source'],
         ['triggeredAt', 'Start Date'],
         ['endDate', 'End Date'],
         ['reviewedAt', 'Validated Date'],
-        ['ruleName', 'MR ID'],
+        ['ruleName', 'Rule'],
       ];
     }
     return [
       ['fpso', 'FPSO'],
+      ['alertId', 'Alert ID'],
       ['equipmentCode', 'Assets'],
       ['timeseries', 'Timeseries'],
       ['source', 'Source'],
       ['triggeredAt', 'Creation Date'],
       ['status', 'Status'],
-      ['ruleName', 'MR ID'],
+      ['ruleName', 'Rule'],
     ];
   }, [statusScope]);
 
@@ -636,26 +665,51 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
         </div>
       </div>
 
-      {/* ── Dynamic KPI Cards synced with global filters (FPSO, Time Period, Categories) ── */}
+      {/* ── Dynamic KPI Cards synced with global filters (FPSO, Time Period, Categories) and active subtab ── */}
       <div className="flex gap-4">
-        <KpiCard
-          title="To Be Validated"
-          value={kpiToBeValidated}
-          subtitle="Requires operator action"
-          tooltip="Alerts that have been triggered and are awaiting initial review by an operator. These should be prioritised."
-        />
-        <KpiCard
-          title="Validation in Progress"
-          value={kpiInProgress}
-          subtitle="Under review"
-          tooltip="Alerts currently being reviewed by an operator. An investigation or corrective action may be in progress."
-        />
-        <KpiCard
-          title="Total Alerts"
-          value={kpiTotal}
-          subtitle="All statuses"
-          tooltip="Total number of alerts across all monitoring rules and equipment for the selected period."
-        />
+        {statusScope === 'for_validation' ? (
+          <>
+            <KpiCard
+              title="To Be Validated"
+              value={kpiToBeValidated}
+              subtitle="Requires operator action"
+              tooltip="Alerts that have been triggered and are awaiting initial review by an operator."
+            />
+            <KpiCard
+              title="Validation in Progress"
+              value={kpiInProgress}
+              subtitle="Under review"
+              tooltip="Alerts currently being investigated or reviewed by an operator."
+            />
+            <KpiCard
+              title="Total Alerts"
+              value={kpiTotalForValidation}
+              subtitle="Pending validation"
+              tooltip="Total number of alerts awaiting validation or currently under review for the selected filters."
+            />
+          </>
+        ) : (
+          <>
+            <KpiCard
+              title="Ungrouped Alerts"
+              value={kpiUngrouped}
+              subtitle="Pending event grouping"
+              tooltip="Validated alerts that have not yet been assigned to an Event Reference ID."
+            />
+            <KpiCard
+              title="Grouped Alerts"
+              value={kpiGrouped}
+              subtitle="Linked to Event ID"
+              tooltip="Validated alerts that have been consolidated and linked to an Event Reference ID."
+            />
+            <KpiCard
+              title="Total Validated"
+              value={kpiTotalValidated}
+              subtitle="Confirmed valid"
+              tooltip="Total number of validated alerts (both grouped and ungrouped) for the selected filters."
+            />
+          </>
+        )}
       </div>
 
       <div className="bg-[#111827] border border-[#1E293B] rounded-2xl overflow-hidden shadow-sm">
@@ -707,7 +761,7 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
                   <th className="w-8 px-3 py-3" />
                 )}
                 {cols.map(([field, label]) => {
-                  const isSortable = field === 'triggeredAt' || field === 'endDate' || field === 'reviewedAt';
+                  const isSortable = field === 'alertId' || field === 'eventId' || field === 'triggeredAt' || field === 'endDate' || field === 'reviewedAt';
                   const isCurrentSort = sortField === field;
                   return (
                     <th key={field} className="text-left px-4 py-3 text-xs font-normal text-[#94A3B8] whitespace-nowrap">
@@ -785,14 +839,6 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
                         {/* FPSO */}
                         <td className="px-4 py-3 text-white font-medium text-xs font-mono">{row.fpso}</td>
 
-                        {/* Asset */}
-                        <td className="px-4 py-3"><EquipmentBadge code={row.equipmentCode} /></td>
-
-                        {/* Timeseries */}
-                        <td className="px-4 py-3">
-                          <TimeseriesCell timeseries={row.timeseries} />
-                        </td>
-
                         {/* Event Ref - only on Validated Alerts */}
                         {statusScope === 'validated_alerts' && (
                           <td className="px-4 py-3 font-mono text-xs whitespace-nowrap">
@@ -803,6 +849,19 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
                             )}
                           </td>
                         )}
+
+                        {/* Alert ID */}
+                        <td className="px-4 py-3 text-white font-mono text-xs whitespace-nowrap">
+                          ALT-{row.id}
+                        </td>
+
+                        {/* Asset */}
+                        <td className="px-4 py-3"><EquipmentBadge code={row.equipmentCode} /></td>
+
+                        {/* Timeseries */}
+                        <td className="px-4 py-3">
+                          <TimeseriesCell timeseries={row.timeseries} />
+                        </td>
 
                         {/* Source */}
                         <td className="px-4 py-3 text-[#94A3B8] text-xs font-medium">{row.source}</td>
