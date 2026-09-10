@@ -582,7 +582,7 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
       return [
         ['fpso', 'FPSO'],
         ['eventId', 'Event Ref.'],
-        ['alertId', 'Alert ID'],
+        ['alertId', 'Alert Ref.'],
         ['equipmentCode', 'Assets'],
         ['timeseries', 'Timeseries'],
         ['source', 'Source'],
@@ -594,7 +594,7 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
     }
     return [
       ['fpso', 'FPSO'],
-      ['alertId', 'Alert ID'],
+      ['alertId', 'Alert Ref.'],
       ['equipmentCode', 'Assets'],
       ['timeseries', 'Timeseries'],
       ['source', 'Source'],

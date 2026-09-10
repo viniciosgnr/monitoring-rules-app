@@ -115,7 +115,7 @@ export default function GroupAlertsModal({
                   <thead className="bg-[#070A10]/70 border-b border-[#1E293B] text-[#94A3B8] text-[11px] font-medium sticky top-0">
                     <tr>
                       <th className="px-3.5 py-2.5">Asset</th>
-                      <th className="px-3.5 py-2.5">Alert ID</th>
+                      <th className="px-3.5 py-2.5">Alert Ref.</th>
                       <th className="px-3.5 py-2.5">Time series list</th>
                       <th className="px-3.5 py-2.5">Rules</th>
                     </tr>

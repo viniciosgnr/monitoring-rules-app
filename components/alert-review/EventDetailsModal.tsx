@@ -139,7 +139,7 @@ export default function EventDetailsModal({
                   <span className="col-span-2 text-white font-medium">{getAlertType(alert)}</span>
                 </div>
                 <div className="grid grid-cols-3 py-1.5 border-b border-[#1E293B]/60">
-                  <span className="text-[#94A3B8]">Alert ID</span>
+                  <span className="text-[#94A3B8]">Alert Ref.</span>
                   <span className="col-span-2 font-mono text-white">ALT-{alert.id}</span>
                 </div>
                 <div className="grid grid-cols-3 py-1.5 border-b border-[#1E293B]/60">
