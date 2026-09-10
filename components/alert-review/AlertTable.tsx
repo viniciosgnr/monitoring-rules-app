@@ -843,7 +843,7 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
                         {statusScope === 'validated_alerts' && (
                           <td className="px-4 py-3 font-mono text-xs whitespace-nowrap">
                             {row.eventId ? (
-                              <span className="text-[#3B82F6] font-semibold">{row.eventId}</span>
+                              <span className="text-white">{row.eventId}</span>
                             ) : (
                               <span className="text-[#64748B]">—</span>
                             )}

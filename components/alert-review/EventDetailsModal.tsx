@@ -147,7 +147,7 @@ export default function EventDetailsModal({
                   <span className="text-[#94A3B8]">Event ID</span>
                   <span className="col-span-2 font-mono">
                     {alert.eventId ? (
-                      <span className="text-[#3B82F6] font-semibold">{alert.eventId}</span>
+                      <span className="text-white">{alert.eventId}</span>
                     ) : (
                       <span className="text-[#64748B]">—</span>
                     )}
