@@ -672,7 +672,7 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
             <KpiCard
               title="To Be Validated"
               value={kpiToBeValidated}
-              subtitle="Requires operator action"
+              subtitle="Requires Operator Validation"
               tooltip="Alerts that have been triggered and are awaiting initial review by an operator."
             />
             <KpiCard
@@ -693,13 +693,13 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
             <KpiCard
               title="Ungrouped Alerts"
               value={kpiUngrouped}
-              subtitle="Pending event grouping"
+              subtitle="Pending Alert Grouping"
               tooltip="Validated alerts that have not yet been assigned to an Event Reference ID."
             />
             <KpiCard
               title="Grouped Alerts"
               value={kpiGrouped}
-              subtitle="Linked to Event ID"
+              subtitle="Linked to Event Ref."
               tooltip="Validated alerts that have been consolidated and linked to an Event Reference ID."
             />
             <KpiCard
