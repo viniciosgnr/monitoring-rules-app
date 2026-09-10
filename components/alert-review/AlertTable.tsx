@@ -8,7 +8,9 @@ import EventDetailsModal from '@/components/alert-review/EventDetailsModal';
 import RejectEventModal from '@/components/alert-review/RejectEventModal';
 import GroupAlertsModal from '@/components/alert-review/GroupAlertsModal';
 import { updateAlertStatus, groupAlerts } from '@/app/actions/alerts';
-import { ChevronDown, ChevronRight, Filter, Check, ArrowUpDown, ArrowUp, ArrowDown, Layers } from 'lucide-react';
+import { ChevronDown, ChevronRight, Filter, Check, ArrowUpDown, ArrowUp, ArrowDown, Layers, Download, X } from 'lucide-react';
+import * as Dialog from '@radix-ui/react-dialog';
+import { exportBrandedExcel } from '@/lib/excelExportUtils';
 import type { Status } from '@/components/ui/StatusBadge';
 
 interface AlertRow {
@@ -261,6 +263,7 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
   const [pendingRejectAlertId, setPendingRejectAlertId]   = useState<number | null>(null);
   const [selectedAlertIds, setSelectedAlertIds]           = useState<Set<number>>(new Set());
   const [showGroupModal, setShowGroupModal]               = useState<boolean>(false);
+  const [showExportModal, setShowExportModal]             = useState<boolean>(false);
   const [sortField, setSortField]       = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
 
@@ -577,6 +580,61 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
 
   const totalRows = filtered.length;
 
+  function downloadExcel() {
+    const isValidationTab = statusScope === 'for_validation';
+    const sheetName = isValidationTab ? 'For Validation' : 'Validated Alerts';
+    const originTab = isValidationTab ? 'Alert Review - For Validation' : 'Alert Review - Validated Alerts';
+    const filename = isValidationTab ? 'alerts_for_validation.xlsx' : 'validated_alerts.xlsx';
+
+    const headers = isValidationTab
+      ? ['FPSO', 'Alert Ref.', 'Asset', 'Timeseries', 'Source', 'Creation Date', 'Status', 'Rule']
+      : ['FPSO', 'Event Ref.', 'Alert Ref.', 'Asset', 'Timeseries', 'Source', 'Start Date', 'End Date', 'Validated Date', 'Rule'];
+
+    const STATUS_TEXT: Record<string, string> = {
+      to_be_validated: 'To Be Validated',
+      validation_in_progress: 'Validation in Progress',
+      validated: 'Validated',
+      rejected: 'Rejected',
+      closed: 'Closed',
+    };
+
+    const dataRows = filtered.map(row => {
+      if (isValidationTab) {
+        return [
+          row.fpso || '',
+          `ALT-${row.id}`,
+          row.equipmentCode || '',
+          row.timeseries || '',
+          row.source || '',
+          row.triggeredAt || '',
+          STATUS_TEXT[row.status] || row.status || '',
+          row.ruleName || '',
+        ];
+      }
+      return [
+        row.fpso || '',
+        row.eventId || '—',
+        `ALT-${row.id}`,
+        row.equipmentCode || '',
+        row.timeseries || '',
+        row.source || '',
+        row.triggeredAt || '',
+        row.endDate || '—',
+        row.reviewedAt || '—',
+        row.ruleName || '',
+      ];
+    });
+
+    exportBrandedExcel({
+      sheetName,
+      title: 'Monitoring Rules Management',
+      originTab,
+      headers,
+      rows: dataRows,
+      filename,
+    });
+  }
+
   const cols: [string, string][] = useMemo(() => {
     if (statusScope === 'validated_alerts') {
       return [
@@ -662,6 +720,15 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
             selectedCategories={selectedCategories}
             onChange={(newCats) => setSelectedCategories(newCats)}
           />
+
+          {/* Export to Excel Button */}
+          <button
+            onClick={() => setShowExportModal(true)}
+            className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-normal rounded-full bg-transparent border border-[#1E293B] text-white hover:border-[#3B82F6] hover:text-[#3B82F6] transition-colors cursor-pointer"
+          >
+            <Download size={13} />
+            Export to excel
+          </button>
         </div>
       </div>
 
@@ -956,6 +1023,41 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
         onClose={() => setPendingRejectAlertId(null)}
         onSubmit={handleConfirmRejection}
       />
+
+      {/* Export Confirmation modal matching MR Database */}
+      <Dialog.Root open={showExportModal} onOpenChange={setShowExportModal}>
+        <Dialog.Portal>
+          <Dialog.Overlay className="fixed inset-0 bg-black/70 z-50 backdrop-blur-sm" />
+          <Dialog.Content className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[450px] bg-[#111827] rounded-2xl border border-[#1E293B] p-6 shadow-2xl select-none">
+            <div className="flex items-center justify-between mb-4">
+              <Dialog.Title className="text-base font-semibold text-white">
+                Export Alerts to Excel
+              </Dialog.Title>
+              <Dialog.Close className="text-[#64748B] hover:text-white transition-colors cursor-pointer">
+                <X size={18} />
+              </Dialog.Close>
+            </div>
+            <p className="text-xs text-[#94A3B8] mb-6 leading-relaxed">
+              Are you sure you want to download the current {statusScope === 'for_validation' ? 'For Validation' : 'Validated'} alerts? This will export all filtered records in Excel (.xlsx) format.
+            </p>
+
+            <div className="flex justify-end gap-3 pt-4 border-t border-[#1E293B]">
+              <button
+                onClick={() => setShowExportModal(false)}
+                className="px-4 py-2 text-xs rounded-full border border-[#1E293B] text-white hover:bg-[#1E293B] transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => { downloadExcel(); setShowExportModal(false); }}
+                className="px-4 py-2 text-xs rounded-full bg-[#3B82F6] text-white font-medium hover:bg-[#2563EB] transition-colors cursor-pointer"
+              >
+                Download
+              </button>
+            </div>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
     </>
   );
 }
