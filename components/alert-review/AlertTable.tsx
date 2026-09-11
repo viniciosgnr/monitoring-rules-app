@@ -247,13 +247,13 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
   const allFpsos = useMemo(() => {
     return Array.from(new Set(rows.map(r => r.fpso))).filter(Boolean).sort();
   }, [rows]);
-  const [selectedFpso, setSelectedFpso]       = useState<string>('UNY');
+  const [selectedFpsos, setSelectedFpsos]     = useState<string[]>(['UNY']);
 
   useEffect(() => {
-    if (allFpsos.length > 0 && (!selectedFpso || !allFpsos.includes(selectedFpso))) {
-      setSelectedFpso(allFpsos[0]);
+    if (allFpsos.length > 0 && selectedFpsos.length === 0) {
+      setSelectedFpsos([allFpsos.includes('UNY') ? 'UNY' : allFpsos[0]]);
     }
-  }, [allFpsos, selectedFpso]);
+  }, [allFpsos, selectedFpsos]);
 
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedFilters, setSelectedFilters] = useState<Record<string, string[]>>({});
@@ -371,7 +371,7 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
   const globalFilteredRows = useMemo(() => {
     return enrichedRows.filter(r => {
       if (r.status === 'closed') return false;
-      if (selectedFpso && r.fpso !== selectedFpso) {
+      if (selectedFpsos.length > 0 && !selectedFpsos.includes(r.fpso)) {
         return false;
       }
 
@@ -394,7 +394,7 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
 
       return true;
     });
-  }, [enrichedRows, selectedFpso, period, selectedCategories, allCategories]);
+  }, [enrichedRows, selectedFpsos, period, selectedCategories, allCategories]);
 
   // Reactive KPIs synced with global filters (FPSO, Time, Categories)
   const kpiToBeValidated = useMemo(() => {
@@ -568,8 +568,9 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
   }, [data, selectedAlertIds]);
 
   const currentGeneratedEventId = useMemo(() => {
-    return generateNextEventId(selectedFpso, data);
-  }, [selectedFpso, data]);
+    const fpsoForEvent = selectedAlertsForGrouping[0]?.fpso || selectedFpsos[0] || 'UNY';
+    return generateNextEventId(fpsoForEvent, data);
+  }, [selectedAlertsForGrouping, selectedFpsos, data]);
 
   const handleConfirmGrouping = async (generatedEventId: string, description: string) => {
     const idsToGroup = Array.from(selectedAlertIds);
@@ -698,11 +699,12 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
         </div>
 
         <div className="flex items-center gap-3 flex-wrap">
-          {/* FPSO Filter */}
+          {/* Multi-select FPSO Filter */}
           <FpsosFilterDropdown
             fpsos={allFpsos}
-            selectedFpso={selectedFpso}
-            onChange={(newFpso) => setSelectedFpso(newFpso)}
+            isMultiSelect={true}
+            selectedFpsos={selectedFpsos}
+            onMultiChange={(newFpsos) => setSelectedFpsos(newFpsos)}
           />
 
           {/* Time period filter */}
