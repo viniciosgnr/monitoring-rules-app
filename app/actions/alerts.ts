@@ -23,13 +23,17 @@ export async function updateAlertStatus(id: number, status: Status, tier?: strin
   revalidatePath('/alert-review');
 }
 
-export async function groupAlerts(alertIds: number[], eventId: string, eventDescription: string) {
+export async function groupAlerts(alertIds: number[], eventId: string, eventDescription: string, tier?: string) {
   if (!alertIds || alertIds.length === 0) return;
+  const updateData: { eventId: string; eventDescription: string; tier?: string } = {
+    eventId,
+    eventDescription,
+  };
+  if (tier) {
+    updateData.tier = tier;
+  }
   await db.update(alerts)
-    .set({
-      eventId,
-      eventDescription,
-    })
+    .set(updateData)
     .where(inArray(alerts.id, alertIds));
   revalidatePath('/alert-review');
 }

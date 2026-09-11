@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
-import { X, Layers, AlertCircle } from 'lucide-react';
+import { X, Layers, AlertCircle, Info } from 'lucide-react';
 import EquipmentBadge from '@/components/ui/EquipmentBadge';
 
 interface AlertRow {
@@ -19,7 +19,7 @@ interface GroupAlertsModalProps {
   onClose: () => void;
   selectedAlerts: AlertRow[];
   generatedEventId: string;
-  onConfirm: (eventId: string, description: string) => Promise<void>;
+  onConfirm: (eventId: string, description: string, tier: string) => Promise<void>;
 }
 
 export default function GroupAlertsModal({
@@ -30,20 +30,32 @@ export default function GroupAlertsModal({
   onConfirm,
 }: GroupAlertsModalProps) {
   const [description, setDescription] = useState('');
+  const [selectedTier, setSelectedTier] = useState('Select tier');
   const [error, setError] = useState<string | null>(null);
+  const [tierError, setTierError] = useState<string | null>(null);
+  const [showTierTooltip, setShowTierTooltip] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    let hasError = false;
+    if (!selectedTier || selectedTier === 'Select tier') {
+      setTierError('Please select a Surveillance Tier before grouping alerts.');
+      hasError = true;
+    }
     if (!description.trim()) {
       setError('Please provide an event description to complete the grouping.');
-      return;
+      hasError = true;
     }
+    if (hasError) return;
+
     setError(null);
+    setTierError(null);
     setLoading(true);
     try {
-      await onConfirm(generatedEventId, description.trim());
+      await onConfirm(generatedEventId, description.trim(), selectedTier);
       setDescription('');
+      setSelectedTier('Select tier');
       onClose();
     } catch {
       setError('An error occurred while grouping alerts. Please try again.');
@@ -55,7 +67,10 @@ export default function GroupAlertsModal({
   const handleClose = () => {
     if (loading) return;
     setError(null);
+    setTierError(null);
     setDescription('');
+    setSelectedTier('Select tier');
+    setShowTierTooltip(false);
     onClose();
   };
 
@@ -140,6 +155,90 @@ export default function GroupAlertsModal({
                   </tbody>
                 </table>
               </div>
+            </div>
+
+            {/* Mandatory Surveillance Tier */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <label className="text-xs font-medium text-white flex items-center gap-1">
+                    <span>Surveillance Tier</span>
+                    <span className="text-red-400">*</span>
+                  </label>
+                  <div className="relative inline-block">
+                    <button
+                      type="button"
+                      onClick={() => setShowTierTooltip(!showTierTooltip)}
+                      className="text-[#64748B] hover:text-[#3B82F6] transition-colors cursor-pointer p-0.5"
+                      title="Surveillance Tier Criteria Info"
+                    >
+                      <Info size={13} />
+                    </button>
+
+                    {showTierTooltip && (
+                      <div className="absolute left-0 top-6 w-[320px] bg-[#0F172A] border border-[#1E293B] rounded-2xl shadow-2xl p-3.5 z-50 select-none text-left">
+                        <div className="flex items-center justify-between border-b border-[#1E293B] pb-2 mb-2.5">
+                          <span className="text-xs font-semibold text-white">Surveillance Tier Criteria</span>
+                          <button
+                            type="button"
+                            onClick={() => setShowTierTooltip(false)}
+                            className="text-[#64748B] hover:text-white transition-colors cursor-pointer"
+                          >
+                            <X size={14} />
+                          </button>
+                        </div>
+                        
+                        <div className="space-y-2 text-xs leading-relaxed text-[#94A3B8]">
+                          <div>
+                            <span className="font-semibold text-white">Tier 4:</span> No abnormality detected; no deviation from monitored parameters
+                          </div>
+                          <div>
+                            <span className="font-semibold text-white">Tier 3:</span> Slight deviation observed; trends not yet significant
+                          </div>
+                          <div>
+                            <span className="font-semibold text-white">Tier 2:</span> Confirmed anomaly; equipment operable in degraded mode
+                          </div>
+                          <div>
+                            <span className="font-semibold text-white">Tier 1:</span> Confirmed anomaly close to failure limits
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <span className="text-[11px] text-[#94A3B8]">Required</span>
+              </div>
+
+              <select
+                value={selectedTier}
+                onChange={e => {
+                  setSelectedTier(e.target.value);
+                  if (e.target.value !== 'Select tier') {
+                    setTierError(null);
+                  }
+                }}
+                disabled={loading}
+                className={`w-full bg-[#0B0F19] border rounded-xl px-3 py-2.5 text-xs text-white outline-none transition-colors cursor-pointer ${
+                  tierError
+                    ? 'border-red-500 ring-1 ring-red-500/40'
+                    : 'border-[#1E293B] hover:border-[#3B82F6] focus:border-[#3B82F6]'
+                }`}
+              >
+                <option value="Select tier" disabled className="bg-[#111827] text-[#64748B]">
+                  Select tier
+                </option>
+                <option value="Good - Tier 4" className="bg-[#111827] text-white">Good - Tier 4</option>
+                <option value="Good - Tier 3" className="bg-[#111827] text-white">Good - Tier 3</option>
+                <option value="Degraded - Tier 2" className="bg-[#111827] text-white">Degraded - Tier 2</option>
+                <option value="Critical - Tier 1" className="bg-[#111827] text-white">Critical - Tier 1</option>
+              </select>
+
+              {tierError && (
+                <div className="flex items-center gap-1.5 text-xs text-red-400 mt-1">
+                  <AlertCircle size={13} className="shrink-0" />
+                  <span>{tierError}</span>
+                </div>
+              )}
             </div>
 
             {/* Mandatory Event Description */}

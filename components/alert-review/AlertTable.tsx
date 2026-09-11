@@ -260,7 +260,6 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
   const [selectedFilters, setSelectedFilters] = useState<Record<string, string[]>>({});
   const [statusScope, setStatusScope]         = useState<'for_validation' | 'validated_alerts'>('for_validation');
   const [selectedAlertDetails, setSelectedAlertDetails] = useState<AlertRow | null>(null);
-  const [requireTierModal, setRequireTierModal]           = useState<boolean>(false);
   const [pendingRejectAlertId, setPendingRejectAlertId]   = useState<number | null>(null);
   const [selectedAlertIds, setSelectedAlertIds]           = useState<Set<number>>(new Set());
   const [showGroupModal, setShowGroupModal]               = useState<boolean>(false);
@@ -320,35 +319,15 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
     }
 
     const targetRow = data.find(r => r.id === id);
-    if (status === 'validated') {
-      const finalTier = tier || targetRow?.tier;
-      if (!finalTier || finalTier === 'Select tier') {
-        if (targetRow) {
-          setSelectedAlertDetails(targetRow);
-          setRequireTierModal(true);
-        }
-        return;
-      }
-      const reviewedBy = 'smetzner@slb.com';
-      const reviewedAt = new Date().toLocaleString('pt-BR');
-      const finalComment = comment !== undefined ? comment : (targetRow?.comment ?? null);
-      setData(d => d.map(r => r.id === id ? { ...r, status, reviewedBy, reviewedAt, tier: finalTier, comment: finalComment } : r));
-      if (selectedAlertDetails?.id === id) {
-        setSelectedAlertDetails(prev => prev ? { ...prev, status, reviewedBy, reviewedAt, tier: finalTier, comment: finalComment } : null);
-      }
-      setRequireTierModal(false);
-      await updateAlertStatus(id, status, finalTier, finalComment ?? undefined);
-      return;
-    }
-
     const reviewedBy = 'smetzner@slb.com';
     const reviewedAt = new Date().toLocaleString('pt-BR');
     const finalComment = comment !== undefined ? comment : (targetRow?.comment ?? null);
-    setData(d => d.map(r => r.id === id ? { ...r, status, reviewedBy, reviewedAt, comment: finalComment } : r));
+    const finalTier = tier || targetRow?.tier;
+    setData(d => d.map(r => r.id === id ? { ...r, status, reviewedBy, reviewedAt, tier: finalTier, comment: finalComment } : r));
     if (selectedAlertDetails?.id === id) {
-      setSelectedAlertDetails(prev => prev ? { ...prev, status, reviewedBy, reviewedAt, comment: finalComment } : null);
+      setSelectedAlertDetails(prev => prev ? { ...prev, status, reviewedBy, reviewedAt, tier: finalTier, comment: finalComment } : null);
     }
-    await updateAlertStatus(id, status, undefined, finalComment ?? undefined);
+    await updateAlertStatus(id, status, finalTier ?? undefined, finalComment ?? undefined);
   }
 
   async function handleConfirmRejection(reasons: string[], comment: string) {
@@ -575,10 +554,10 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
     return generateNextEventId(fpsoForEvent, data);
   }, [selectedAlertsForGrouping, selectedFpsos, data]);
 
-  const handleConfirmGrouping = async (generatedEventId: string, description: string) => {
+  const handleConfirmGrouping = async (generatedEventId: string, description: string, tier: string) => {
     const idsToGroup = Array.from(selectedAlertIds);
-    setData(prev => prev.map(r => idsToGroup.includes(r.id) ? { ...r, eventId: generatedEventId, eventDescription: description } : r));
-    await groupAlerts(idsToGroup, generatedEventId, description);
+    setData(prev => prev.map(r => idsToGroup.includes(r.id) ? { ...r, eventId: generatedEventId, eventDescription: description, tier } : r));
+    await groupAlerts(idsToGroup, generatedEventId, description, tier);
     setSelectedAlertIds(new Set());
   };
 
@@ -974,7 +953,6 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
                         <td className="px-4 py-3">
                           <button
                             onClick={() => {
-                              setRequireTierModal(false);
                               setSelectedAlertDetails(row);
                             }}
                             className="px-3.5 py-1 text-xs rounded-full border border-[#1E293B] text-white hover:border-[#3B82F6] hover:text-[#3B82F6] transition-colors cursor-pointer"
@@ -1014,12 +992,10 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
         open={!!selectedAlertDetails}
         onClose={() => {
           setSelectedAlertDetails(null);
-          setRequireTierModal(false);
         }}
         alert={selectedAlertDetails}
         statusScope={statusScope}
         onStatusChange={handleStatus}
-        initialTierRequired={requireTierModal}
       />
 
       {/* Reject Event Modal */}

@@ -36,7 +36,6 @@ interface EventDetailsModalProps {
   alert: AlertRow | null;
   statusScope?: 'for_validation' | 'validated_alerts';
   onStatusChange?: (id: number, newStatus: Status, comment?: string, tier?: string) => Promise<void>;
-  initialTierRequired?: boolean;
 }
 
 export function getTimeseriesDescription(
@@ -108,26 +107,16 @@ export default function EventDetailsModal({
   alert,
   statusScope = 'for_validation',
   onStatusChange,
-  initialTierRequired = false,
 }: EventDetailsModalProps) {
-  const [selectedTier, setSelectedTier] = React.useState<string>('Select tier');
-  const [tierError, setTierError] = React.useState<string | null>(null);
-  const [showTierTooltip, setShowTierTooltip] = React.useState<boolean>(false);
   const [commentText, setCommentText] = React.useState<string>('');
   const [commentError, setCommentError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     if (alert) {
-      setSelectedTier(alert.tier || 'Select tier');
       setCommentText((alert.comment as string) || '');
       setCommentError(null);
-      if (initialTierRequired && (!alert.tier || alert.tier === 'Select tier')) {
-        setTierError('Please select a Surveillance Tier before validating the alert');
-      } else {
-        setTierError(null);
-      }
     }
-  }, [alert, initialTierRequired]);
+  }, [alert]);
 
   if (!alert) return null;
 
@@ -278,91 +267,13 @@ export default function EventDetailsModal({
                   <span className="font-semibold text-white tracking-wider">PREDICT</span>
                 </div>
 
-                {/* Surveillance Tier Input with English Criteria Tooltip */}
-                <div>
-                  <div className="flex items-center gap-1.5 mb-1.5">
-                    <span className="text-[#64748B] text-[11px]">Tier</span>
-                    <span className="text-red-400 text-[11px] font-bold">*</span>
-                    <div className="relative inline-block">
-                      <button
-                        type="button"
-                        onClick={() => setShowTierTooltip(!showTierTooltip)}
-                        className="text-[#64748B] hover:text-[#3B82F6] transition-colors cursor-pointer p-0.5"
-                        title="Surveillance Tier Criteria Info"
-                      >
-                        <Info size={13} />
-                      </button>
-
-                      {showTierTooltip && (
-                        <div className="absolute right-0 top-6 w-[320px] bg-[#0F172A] border border-[#1E293B] rounded-2xl shadow-2xl p-3.5 z-50 select-none text-left">
-                          <div className="flex items-center justify-between border-b border-[#1E293B] pb-2 mb-2.5">
-                            <span className="text-xs font-semibold text-white">Surveillance Tier Criteria</span>
-                            <button
-                              type="button"
-                              onClick={() => setShowTierTooltip(false)}
-                              className="text-[#64748B] hover:text-white transition-colors cursor-pointer"
-                            >
-                              <X size={14} />
-                            </button>
-                          </div>
-                          
-                          <div className="space-y-2 text-xs leading-relaxed text-[#94A3B8]">
-                            <div>
-                              <span className="font-semibold text-white">Tier 4:</span> No abnormality detected; no deviation from monitored parameters
-                            </div>
-                            <div>
-                              <span className="font-semibold text-white">Tier 3:</span> Slight deviation observed; trends not yet significant
-                            </div>
-                            <div>
-                              <span className="font-semibold text-white">Tier 2:</span> Confirmed anomaly; equipment operable in degraded mode
-                            </div>
-                            <div>
-                              <span className="font-semibold text-white">Tier 1:</span> Confirmed anomaly close to failure limits
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                    </div>
+                {/* Surveillance Tier Metadata (only shown when alert belongs to an event) */}
+                {alert.eventId && (
+                  <div>
+                    <span className="text-[#64748B] block text-[11px] mb-0.5">Surveillance Tier</span>
+                    <span className="font-semibold text-white text-xs">{alert.tier || '—'}</span>
                   </div>
-
-                  {(() => {
-                    const isReadOnly = statusScope === 'validated_alerts' || alert.status === 'validated' || alert.status === 'rejected';
-                    return (
-                      <>
-                        <select
-                          value={alert.status === 'rejected' ? 'Select tier' : selectedTier}
-                          disabled={isReadOnly}
-                          onChange={e => {
-                            setSelectedTier(e.target.value);
-                            if (e.target.value !== 'Select tier') {
-                              setTierError(null);
-                            }
-                          }}
-                          className={`w-full bg-[#0B0F19] border rounded-xl px-3 py-2 text-xs text-white outline-none transition-colors ${
-                            isReadOnly
-                              ? 'opacity-60 cursor-not-allowed bg-[#0F172A] border-[#1E293B] text-[#94A3B8]'
-                              : tierError
-                                ? 'border-red-500 ring-1 ring-red-500/40 cursor-pointer'
-                                : 'border-[#1E293B] hover:border-[#3B82F6] cursor-pointer'
-                          }`}
-                        >
-                          <option value="Select tier" disabled className="bg-[#111827] text-[#64748B]">
-                            {alert.status === 'rejected' ? 'N/A' : 'Select tier'}
-                          </option>
-                          <option value="Good - Tier 4" className="bg-[#111827] text-white">Good - Tier 4</option>
-                          <option value="Good - Tier 3" className="bg-[#111827] text-white">Good - Tier 3</option>
-                          <option value="Degraded - Tier 2" className="bg-[#111827] text-white">Degraded - Tier 2</option>
-                          <option value="Critical - Tier 1" className="bg-[#111827] text-white">Critical - Tier 1</option>
-                        </select>
-                        {tierError && !isReadOnly && (
-                          <p className="text-[11px] text-red-400 mt-1.5 font-medium leading-tight">
-                            {tierError}
-                          </p>
-                        )}
-                      </>
-                    );
-                  })()}
-                </div>
+                )}
                 <div>
                   <span className="text-[#64748B] block text-[11px] mb-0.5">Validation Date</span>
                   <span className="font-mono text-[#94A3B8]">{alert.reviewedAt || '—'}</span>
@@ -453,24 +364,13 @@ export default function EventDetailsModal({
                             onSelect={async () => {
                               if (alert && onStatusChange) {
                                 if (s === 'validated') {
-                                  let hasError = false;
-                                  if (!selectedTier || selectedTier === 'Select tier') {
-                                    setTierError('Please select a Surveillance Tier before validating the alert');
-                                    hasError = true;
-                                  } else {
-                                    setTierError(null);
-                                  }
                                   if (!commentText.trim()) {
                                     setCommentError('Please enter a comment before validating the alert');
-                                    hasError = true;
-                                  } else {
-                                    setCommentError(null);
+                                    return;
                                   }
-                                  if (hasError) return;
-
-                                  await onStatusChange(alert.id, s, commentText.trim(), selectedTier);
+                                  setCommentError(null);
+                                  await onStatusChange(alert.id, s, commentText.trim());
                                 } else {
-                                  setTierError(null);
                                   setCommentError(null);
                                   await onStatusChange(alert.id, s, commentText.trim() || undefined);
                                 }
