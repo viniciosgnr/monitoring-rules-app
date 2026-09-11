@@ -26,6 +26,7 @@ interface AlertRow {
   tier?: string | null;
   eventId?: string | null;
   eventDescription?: string | null;
+  comment?: string | null;
   [key: string]: unknown;
 }
 
@@ -36,6 +37,47 @@ interface EventDetailsModalProps {
   statusScope?: 'for_validation' | 'validated_alerts';
   onStatusChange?: (id: number, newStatus: Status, comment?: string, tier?: string) => Promise<void>;
   initialTierRequired?: boolean;
+}
+
+export function getTimeseriesDescription(
+  timeseriesTag?: string,
+  _equipmentCode?: string,
+  ruleDescription?: string | null
+): string {
+  if (!timeseriesTag) return 'Compressor Continuous Condition Monitoring Sensor';
+  const tagUpper = timeseriesTag.toUpperCase();
+
+  // Vibration
+  if (tagUpper.includes('-VI-') || tagUpper.includes('_VI_') || tagUpper.includes('VIB')) {
+    const axis = tagUpper.endsWith('_X') ? ' (Radial X-Axis)' : tagUpper.endsWith('_Y') ? ' (Radial Y-Axis)' : tagUpper.endsWith('_Z') ? ' (Axial Z-Axis)' : '';
+    return `Compressor Drive End Radial Vibration Sensor${axis}`;
+  }
+
+  // Differential Pressure
+  if (tagUpper.includes('-PDIT-') || tagUpper.includes('-PDI-') || tagUpper.includes('DP') || tagUpper.includes('DIFF_PRESS')) {
+    return 'Duplex Coalescent Filter Differential Pressure Transmitter';
+  }
+
+  // Pressure
+  if (tagUpper.includes('-PI-') || tagUpper.includes('-PIT-') || tagUpper.includes('PRESS')) {
+    return 'First Stage Discharge Pressure Transmitter';
+  }
+
+  // Temperature
+  if (tagUpper.includes('-TI-') || tagUpper.includes('-TIT-') || tagUpper.includes('TEMP')) {
+    return 'Seal Gas Heater Process Temperature Sensor';
+  }
+
+  // Flow
+  if (tagUpper.includes('-FI-') || tagUpper.includes('-FIT-') || tagUpper.includes('FLOW')) {
+    return 'Suction Process Gas Flow Transmitter';
+  }
+
+  if (ruleDescription && ruleDescription.length > 5 && !ruleDescription.toLowerCase().includes('gearbox')) {
+    return ruleDescription;
+  }
+
+  return 'Compressor Continuous Condition Monitoring Sensor';
 }
 
 export function getAlertType(alert: AlertRow): string {
@@ -71,10 +113,14 @@ export default function EventDetailsModal({
   const [selectedTier, setSelectedTier] = React.useState<string>('Select tier');
   const [tierError, setTierError] = React.useState<string | null>(null);
   const [showTierTooltip, setShowTierTooltip] = React.useState<boolean>(false);
+  const [commentText, setCommentText] = React.useState<string>('');
+  const [commentError, setCommentError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     if (alert) {
       setSelectedTier(alert.tier || 'Select tier');
+      setCommentText((alert.comment as string) || '');
+      setCommentError(null);
       if (initialTierRequired && (!alert.tier || alert.tier === 'Select tier')) {
         setTierError('Please select a Surveillance Tier before validating the alert');
       } else {
@@ -178,14 +224,17 @@ export default function EventDetailsModal({
 
               {/* Alert Time Series Box */}
               <div className="bg-[#0B0F19] border border-[#1E293B] rounded-xl p-4">
-                <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center justify-between mb-2">
                   <h3 className="text-xs font-semibold text-white">Alert Time Series</h3>
                   <span className="text-[11px] font-mono text-[#94A3B8]">Latest: <span className="text-white">-0.36</span></span>
                 </div>
-                <div className="flex items-center gap-1.5 text-xs font-mono text-[#3B82F6] mb-3">
+                <div className="flex items-center gap-1.5 text-xs font-mono text-[#3B82F6] mb-1">
                   <span>{timeseriesTag}</span>
                   <Info size={13} className="text-[#64748B] cursor-pointer" />
                 </div>
+                <p className="text-[11px] text-[#94A3B8] leading-relaxed mb-3">
+                  {getTimeseriesDescription(timeseriesTag, alert.equipmentCode, alert.ruleDescription)}
+                </p>
 
                 {/* SVG Time Series Chart Graph */}
                 <div className="bg-[#070A10] border border-[#1E293B] rounded-lg p-3 relative h-48 flex flex-col justify-between">
@@ -277,12 +326,12 @@ export default function EventDetailsModal({
                   </div>
 
                   {(() => {
-                    const isTierDisabled = statusScope === 'validated_alerts' || alert.status === 'validated' || alert.status === 'rejected';
+                    const isReadOnly = statusScope === 'validated_alerts' || alert.status === 'validated' || alert.status === 'rejected';
                     return (
                       <>
                         <select
                           value={alert.status === 'rejected' ? 'Select tier' : selectedTier}
-                          disabled={isTierDisabled}
+                          disabled={isReadOnly}
                           onChange={e => {
                             setSelectedTier(e.target.value);
                             if (e.target.value !== 'Select tier') {
@@ -290,7 +339,7 @@ export default function EventDetailsModal({
                             }
                           }}
                           className={`w-full bg-[#0B0F19] border rounded-xl px-3 py-2 text-xs text-white outline-none transition-colors ${
-                            isTierDisabled
+                            isReadOnly
                               ? 'opacity-60 cursor-not-allowed bg-[#0F172A] border-[#1E293B] text-[#94A3B8]'
                               : tierError
                                 ? 'border-red-500 ring-1 ring-red-500/40 cursor-pointer'
@@ -305,7 +354,7 @@ export default function EventDetailsModal({
                           <option value="Degraded - Tier 2" className="bg-[#111827] text-white">Degraded - Tier 2</option>
                           <option value="Critical - Tier 1" className="bg-[#111827] text-white">Critical - Tier 1</option>
                         </select>
-                        {tierError && !isTierDisabled && (
+                        {tierError && !isReadOnly && (
                           <p className="text-[11px] text-red-400 mt-1.5 font-medium leading-tight">
                             {tierError}
                           </p>
@@ -319,8 +368,55 @@ export default function EventDetailsModal({
                   <span className="font-mono text-[#94A3B8]">{alert.reviewedAt || '—'}</span>
                 </div>
                 <div>
-                  <span className="text-[#64748B] block text-[11px] mb-0.5">Validated by</span>
+                  <span className="text-[#64748B] block text-[11px] mb-0.5">Validation By</span>
                   <span className="text-[#94A3B8] font-mono">{alert.reviewedBy || '—'}</span>
+                </div>
+
+                {/* Validation Comment Field */}
+                <div>
+                  {(() => {
+                    const isReadOnly = statusScope === 'validated_alerts' || alert.status === 'validated' || alert.status === 'rejected';
+                    return (
+                      <>
+                        <div className="flex items-center gap-1.5 mb-1.5">
+                          <span className="text-[#64748B] text-[11px]">Comment</span>
+                          {!isReadOnly && (
+                            <span className="text-red-400 text-[11px] font-bold">*</span>
+                          )}
+                        </div>
+
+                        {isReadOnly ? (
+                          <div className="w-full min-h-[56px] max-h-32 overflow-y-auto bg-[#0B0F19] border border-[#1E293B] rounded-xl px-3 py-2 text-xs text-[#E2E8F0] leading-relaxed select-text whitespace-pre-wrap">
+                            {(alert.comment as string) || '—'}
+                          </div>
+                        ) : (
+                          <>
+                            <textarea
+                              value={commentText}
+                              onChange={e => {
+                                setCommentText(e.target.value);
+                                if (e.target.value.trim()) {
+                                  setCommentError(null);
+                                }
+                              }}
+                              placeholder="Add validation comments or operational notes..."
+                              rows={3}
+                              className={`w-full bg-[#0B0F19] border rounded-xl px-3 py-2 text-xs text-white placeholder-[#64748B] outline-none transition-colors resize-none ${
+                                commentError
+                                  ? 'border-red-500 ring-1 ring-red-500/40'
+                                  : 'border-[#1E293B] focus:border-[#3B82F6]'
+                              }`}
+                            />
+                            {commentError && (
+                              <p className="text-[11px] text-red-400 mt-1.5 font-medium leading-tight">
+                                {commentError}
+                              </p>
+                            )}
+                          </>
+                        )}
+                      </>
+                    );
+                  })()}
                 </div>
               </div>
 
@@ -357,15 +453,26 @@ export default function EventDetailsModal({
                             onSelect={async () => {
                               if (alert && onStatusChange) {
                                 if (s === 'validated') {
+                                  let hasError = false;
                                   if (!selectedTier || selectedTier === 'Select tier') {
                                     setTierError('Please select a Surveillance Tier before validating the alert');
-                                    return;
+                                    hasError = true;
+                                  } else {
+                                    setTierError(null);
                                   }
-                                  setTierError(null);
-                                  await onStatusChange(alert.id, s, undefined, selectedTier);
+                                  if (!commentText.trim()) {
+                                    setCommentError('Please enter a comment before validating the alert');
+                                    hasError = true;
+                                  } else {
+                                    setCommentError(null);
+                                  }
+                                  if (hasError) return;
+
+                                  await onStatusChange(alert.id, s, commentText.trim(), selectedTier);
                                 } else {
                                   setTierError(null);
-                                  await onStatusChange(alert.id, s);
+                                  setCommentError(null);
+                                  await onStatusChange(alert.id, s, commentText.trim() || undefined);
                                 }
                               }
                             }}

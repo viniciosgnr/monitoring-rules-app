@@ -48,6 +48,7 @@ export const alerts = pgTable('alerts', {
   tier:        text('tier'),
   eventId:     text('event_id'),
   eventDescription: text('event_description'),
+  comment:     text('comment'),
 });
 
 export const auditLog = pgTable('audit_log', {

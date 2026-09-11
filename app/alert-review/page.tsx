@@ -26,6 +26,7 @@ export default async function AlertReviewPage() {
       tier:            alerts.tier,
       eventId:         alerts.eventId,
       eventDescription: alerts.eventDescription,
+      comment:         alerts.comment,
     })
     .from(alerts)
     .innerJoin(ruleInstances,   eq(alerts.instanceId,      ruleInstances.id))
@@ -45,6 +46,7 @@ export default async function AlertReviewPage() {
     tier:           r.tier ?? null,
     eventId:        r.eventId ?? null,
     eventDescription: r.eventDescription ?? null,
+    comment:        r.comment ?? null,
   }));
 
   return (

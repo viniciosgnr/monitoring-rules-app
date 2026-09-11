@@ -32,6 +32,7 @@ interface AlertRow {
   tier?: string | null;
   eventId?: string | null;
   eventDescription?: string | null;
+  comment?: string | null;
   [key: string]: unknown;
 }
 
@@ -330,22 +331,24 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
       }
       const reviewedBy = 'smetzner@slb.com';
       const reviewedAt = new Date().toLocaleString('pt-BR');
-      setData(d => d.map(r => r.id === id ? { ...r, status, reviewedBy, reviewedAt, tier: finalTier } : r));
+      const finalComment = comment !== undefined ? comment : (targetRow?.comment ?? null);
+      setData(d => d.map(r => r.id === id ? { ...r, status, reviewedBy, reviewedAt, tier: finalTier, comment: finalComment } : r));
       if (selectedAlertDetails?.id === id) {
-        setSelectedAlertDetails(prev => prev ? { ...prev, status, reviewedBy, reviewedAt, tier: finalTier } : null);
+        setSelectedAlertDetails(prev => prev ? { ...prev, status, reviewedBy, reviewedAt, tier: finalTier, comment: finalComment } : null);
       }
       setRequireTierModal(false);
-      await updateAlertStatus(id, status, finalTier);
+      await updateAlertStatus(id, status, finalTier, finalComment ?? undefined);
       return;
     }
 
     const reviewedBy = 'smetzner@slb.com';
     const reviewedAt = new Date().toLocaleString('pt-BR');
-    setData(d => d.map(r => r.id === id ? { ...r, status, reviewedBy, reviewedAt } : r));
+    const finalComment = comment !== undefined ? comment : (targetRow?.comment ?? null);
+    setData(d => d.map(r => r.id === id ? { ...r, status, reviewedBy, reviewedAt, comment: finalComment } : r));
     if (selectedAlertDetails?.id === id) {
-      setSelectedAlertDetails(prev => prev ? { ...prev, status, reviewedBy, reviewedAt } : null);
+      setSelectedAlertDetails(prev => prev ? { ...prev, status, reviewedBy, reviewedAt, comment: finalComment } : null);
     }
-    await updateAlertStatus(id, status);
+    await updateAlertStatus(id, status, undefined, finalComment ?? undefined);
   }
 
   async function handleConfirmRejection(reasons: string[], comment: string) {
@@ -356,7 +359,7 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
     const fullComment = reasons.length > 0 ? `${reasons.join(', ')}${comment ? ` - ${comment}` : ''}` : comment;
 
     setData(d => d.map(r => r.id === targetId ? { ...r, status: 'rejected' as Status, reviewedBy, reviewedAt, comment: fullComment } : r));
-    await updateAlertStatus(targetId, 'rejected');
+    await updateAlertStatus(targetId, 'rejected', undefined, fullComment);
     setPendingRejectAlertId(null);
   }
 
