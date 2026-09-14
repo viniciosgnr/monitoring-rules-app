@@ -124,7 +124,7 @@ function getSource(row: AlertRow): string {
 export function generateNextEventId(fpsoCode: string, existingAlerts: AlertRow[]): string {
   const prefix = (fpsoCode || 'UNY').replace(/\s+/g, '');
   const year = '26';
-  const regex = new RegExp(`^${prefix}${year}-EVT-(\\d+)`, 'i');
+  const regex = new RegExp(`^(?:MRM-)?${prefix}${year}-EVT-(\\d+)`, 'i');
   let maxSeq = 0;
   for (const a of existingAlerts) {
     if (a.eventId) {
@@ -136,7 +136,7 @@ export function generateNextEventId(fpsoCode: string, existingAlerts: AlertRow[]
     }
   }
   const nextSeq = String(maxSeq + 1).padStart(2, '0');
-  return `${prefix}${year}-EVT-${nextSeq}`;
+  return `MRM-${prefix}${year}-EVT-${nextSeq}`;
 }
 
 function CategoryFilterDropdown({
