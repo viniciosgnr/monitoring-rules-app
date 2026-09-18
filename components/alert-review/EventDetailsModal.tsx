@@ -1,8 +1,8 @@
 'use client';
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
-import { X, Info, Wrench, ChevronDown } from 'lucide-react';
+import { X, Info, Wrench, ChevronDown, Maximize2, Minimize2, Check } from 'lucide-react';
 import StatusBadge, { Status } from '@/components/ui/StatusBadge';
 
 const ALL_STATUSES: Status[] = ['to_be_validated', 'validation_in_progress', 'validated', 'rejected'];
@@ -103,6 +103,13 @@ export function formatUtcDateTime(raw?: string | null): string {
   return d.toISOString().replace('T', ' ').slice(0, 19) + ' UTC';
 }
 
+export function formatDateTimeSecond(ms: number | string): string {
+  if (!ms) return '—';
+  const d = new Date(ms);
+  if (isNaN(d.getTime())) return String(ms);
+  return d.toISOString().replace('T', ' ').slice(0, 19);
+}
+
 /** Extract threshold numerical value and human-readable label from rule processingSteps or fallback heuristics */
 export function getRuleThresholdInfo(alert: AlertRow): { value: number; label: string; yRatio: number } {
   const name = (alert.ruleName || '').toUpperCase();
@@ -160,11 +167,11 @@ export function getRuleThresholdInfo(alert: AlertRow): { value: number; label: s
   return { value: 10, label: 'Threshold (10.0)', yRatio: 0.35 };
 }
 
-// Master sample time series raw values (37 data points across time window)
-const MASTER_CHART_VALUES = [
-  45, 38, 52, 42, 68, 40, 55, 35, 60, 48, 72, 40, 50,
-  30, 42, 25, 38, 30, 40, 22, 35, 48, 30, 62, 40,
-  28, 35, 20, 30, 25, 35, 28, 42, 30, 25, 32, 28
+// Official SLB sample time series raw values (matches waveform in reference image)
+const SLB_CHART_VALUES = [
+  44, 50, 56, 96, 28, 33, 38, 9, 36, 30, 54, 58, 72,
+  46, 52, 60, 42, 38, 92, 40, 25, 12, 34, 48, 64, 55,
+  40, 45, 50, 88, 30, 35, 11, 29, 52, 61, 68
 ];
 
 export default function EventDetailsModal({
@@ -183,13 +190,26 @@ export default function EventDetailsModal({
   const [isDragging, setIsDragging] = useState<boolean>(false);
   const [dragStartX, setDragStartX] = useState<number>(0);
 
-  React.useEffect(() => {
-    if (alert) {
-      setCommentText((alert.comment as string) || '');
-      setCommentError(null);
-      setPanOffset(0);
+  // Time Range Selection State
+  const [activePreset, setActivePreset] = useState<string>('alert_window');
+  const [customRangeStart, setCustomRangeStart] = useState<string>('');
+  const [customRangeEnd, setCustomRangeEnd] = useState<string>('');
+  const [isTimeRangeOpen, setIsTimeRangeOpen] = useState<boolean>(false);
+  const [isChartExpanded, setIsChartExpanded] = useState<boolean>(false);
+  const timeRangeRef = useRef<HTMLDivElement>(null);
+
+  // Close time range popover on outside click
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (timeRangeRef.current && !timeRangeRef.current.contains(e.target as Node)) {
+        setIsTimeRangeOpen(false);
+      }
     }
-  }, [alert]);
+    if (isTimeRangeOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [isTimeRangeOpen]);
 
   // Alert History: Up to 5 previous alerts for this rule and asset
   const alertHistory = useMemo(() => {
@@ -205,22 +225,61 @@ export default function EventDetailsModal({
   }, [allAlerts, alert]);
 
   // Base timeframe from alert dates
-  const { startMs, endMs, durationMs } = useMemo(() => {
+  const { alertStartMs, alertEndMs } = useMemo(() => {
     if (!alert) {
       const now = Date.now();
-      return { startMs: now - 86400000, endMs: now, durationMs: 86400000 };
+      return { alertStartMs: now - 4 * 86400000, alertEndMs: now };
     }
     const s = new Date(alert.triggeredAtRaw || alert.triggeredAt).getTime();
     const e = new Date(alert.endDateRaw || alert.endDate).getTime();
-    const validStart = !isNaN(s) ? s : Date.now() - 86400000;
-    let validEnd = !isNaN(e) ? e : validStart + 86400000;
+    const validStart = !isNaN(s) ? s : Date.now() - 4 * 86400000;
+    let validEnd = !isNaN(e) ? e : validStart + 4 * 86400000;
     if (validEnd <= validStart) {
-      validEnd = validStart + 86400000;
+      validEnd = validStart + 4 * 86400000;
     }
-    const rawDuration = validEnd - validStart;
-    const duration = Math.max(rawDuration, 86400000);
-    return { startMs: validStart, endMs: validStart + duration, durationMs: duration };
+    return { alertStartMs: validStart, alertEndMs: validEnd };
   }, [alert]);
+
+  React.useEffect(() => {
+    if (alert) {
+      setCommentText((alert.comment as string) || '');
+      setCommentError(null);
+      setPanOffset(0);
+      setActivePreset('alert_window');
+      setCustomRangeStart(new Date(alertStartMs).toISOString().slice(0, 16));
+      setCustomRangeEnd(new Date(alertEndMs).toISOString().slice(0, 16));
+      setIsTimeRangeOpen(false);
+      setIsChartExpanded(false);
+    }
+  }, [alert, alertStartMs, alertEndMs]);
+
+  // Resolve selected timeframe [rangeStartMs, rangeEndMs]
+  const { rangeStartMs, rangeEndMs, rangeDurationMs, rangeLabel } = useMemo(() => {
+    let s = alertStartMs;
+    let e = alertEndMs;
+
+    if (activePreset === '24h') {
+      s = alertEndMs - 86400000;
+      e = alertEndMs;
+    } else if (activePreset === '7d') {
+      s = alertEndMs - 7 * 86400000;
+      e = alertEndMs;
+    } else if (activePreset === '30d') {
+      s = alertEndMs - 30 * 86400000;
+      e = alertEndMs;
+    } else if (activePreset === 'custom') {
+      const parsedS = new Date(customRangeStart).getTime();
+      const parsedE = new Date(customRangeEnd).getTime();
+      if (!isNaN(parsedS) && !isNaN(parsedE) && parsedE > parsedS) {
+        s = parsedS;
+        e = parsedE;
+      }
+    }
+
+    const duration = Math.max(e - s, 3600000);
+    const label = `${formatDateTimeSecond(s)} - ${formatDateTimeSecond(e)}`;
+    return { rangeStartMs: s, rangeEndMs: e, rangeDurationMs: duration, rangeLabel: label };
+  }, [activePreset, alertStartMs, alertEndMs, customRangeStart, customRangeEnd]);
 
   if (!alert) return null;
 
@@ -229,10 +288,6 @@ export default function EventDetailsModal({
   const failureMode = alert.ruleDescription || 'HH vibration or HH temperatures on gearbox component';
   const formattedStartDate = formatUtcDateTime(alert.triggeredAtRaw || alert.triggeredAt);
   const formattedEndDate = formatUtcDateTime(alert.endDateRaw || alert.endDate);
-
-  // Threshold info for reference line
-  const thresholdInfo = getRuleThresholdInfo(alert);
-  const thresholdSvgY = Math.round(100 * thresholdInfo.yRatio);
 
   // Mouse drag handlers for timeseries panning into the past
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -243,53 +298,47 @@ export default function EventDetailsModal({
   const handleMouseMove = (e: React.MouseEvent) => {
     if (!isDragging) return;
     const newOffset = e.clientX - dragStartX;
-    // Limit panning: 0 (current alert window) to 300px into past
-    setPanOffset(Math.max(0, Math.min(300, newOffset)));
+    // Limit panning: 0 (current window) to 520px into past
+    setPanOffset(Math.max(0, Math.min(520, newOffset)));
   };
 
   const handleMouseUp = () => {
     setIsDragging(false);
   };
 
-  // Generate continuous wave points shifted by panOffset to simulate scrolling into past
+  // Dynamic dates based on pan offset (panning into past)
+  const shiftMs = (panOffset / 520) * rangeDurationMs;
+  const shiftedStartMs = rangeStartMs - shiftMs;
+  const shiftedEndMs = rangeEndMs - shiftMs;
+
+  const startDateLabel = new Date(shiftedStartMs).toISOString().slice(0, 10);
+  const endDateLabel = new Date(shiftedEndMs).toISOString().slice(0, 10);
+
+  // Generate continuous wave points matching SLB waveform
   const svgWidth = 520;
-  const numPoints = 48;
+  const numPoints = 14;
   const chartPoints: [number, number][] = [];
-  const shift = Math.round(panOffset / 10);
-  const masterLen = MASTER_CHART_VALUES.length;
+  const shift = Math.round(panOffset / 15);
+  const masterLen = SLB_CHART_VALUES.length;
   for (let i = 0; i < numPoints; i++) {
     const x = (i / (numPoints - 1)) * svgWidth;
-    // Base wave pattern: dragging to the right shifts points to the right (revealing older data from left 1:1 with mouse)
     const shiftedIdx = ((i - shift) % masterLen + masterLen) % masterLen;
-    const baseVal = MASTER_CHART_VALUES[shiftedIdx] || 25;
-    // Map base value into Y SVG range (0 to 100)
-    const y = Math.max(10, Math.min(92, 100 - baseVal));
+    const baseVal = SLB_CHART_VALUES[shiftedIdx] || 50;
+    const y = Math.max(4, Math.min(96, 100 - baseVal));
     chartPoints.push([x, y]);
   }
   const pathD = chartPoints.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(' ');
 
-  // Compute displayed dynamic dates based on pan offset (panning into past)
-  const shiftMs = (panOffset / 520) * durationMs;
-  const shiftedStartMs = startMs - shiftMs;
-  const shiftedEndMs = endMs - shiftMs;
-
-  const t0 = shiftedStartMs;
-  const t1 = shiftedStartMs + durationMs * (1 / 3);
-  const t2 = shiftedStartMs + durationMs * (2 / 3);
-  const t3 = shiftedEndMs;
-
-  const d0 = new Date(t0);
-  const d1 = new Date(t1);
-  const d2 = new Date(t2);
-  const d3 = new Date(t3);
-
-  const day0Str = d0.toISOString().slice(0, 10);
-  const day3Str = d3.toISOString().slice(0, 10);
-
-  const tick0Str = day0Str;
-  const tick1Str = d1.toISOString().slice(11, 16);
-  const tick2Str = d2.toISOString().slice(11, 16);
-  const tick3Str = day3Str === day0Str ? (d3.toISOString().slice(11, 16) === '00:00' ? '24:00' : d3.toISOString().slice(11, 16)) : day3Str;
+  // Expanded points for full-width modal view
+  const expandedPoints: [number, number][] = [];
+  for (let i = 0; i < numPoints; i++) {
+    const x = (i / (numPoints - 1)) * 800;
+    const shiftedIdx = ((i - shift) % masterLen + masterLen) % masterLen;
+    const baseVal = SLB_CHART_VALUES[shiftedIdx] || 50;
+    const y = Math.max(4, Math.min(96, 100 - baseVal));
+    expandedPoints.push([x, y]);
+  }
+  const pathDExpanded = expandedPoints.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(' ');
 
   return (
     <Dialog.Root open={open} onOpenChange={v => !v && onClose()}>
@@ -373,33 +422,155 @@ export default function EventDetailsModal({
                 </div>
               </div>
 
-              {/* Alert Time Series Box - SLB Layout & Visual Identity */}
+              {/* Alert Time Series Box - Official SLB Layout & Visual Identity */}
               <div className="bg-[#0B0F19] border border-[#1E293B] rounded-xl p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-xs font-semibold text-white">Alert Time Series</h3>
-                  </div>
-                  <div className="flex items-center gap-3">
+                {/* Header & Top Controls matching SLB */}
+                <div className="flex items-center justify-between mb-2.5">
+                  <h3 className="text-xs font-semibold text-white">Alert Timeseries</h3>
+                  
+                  <div className="flex items-center gap-2.5 relative">
                     {panOffset > 0 && (
                       <button
                         type="button"
                         onClick={() => setPanOffset(0)}
-                        className="text-[11px] text-[#3B82F6] hover:underline cursor-pointer font-medium"
+                        className="text-[11px] text-[#0284C7] hover:underline cursor-pointer font-medium"
                       >
                         Reset to Trigger
                       </button>
                     )}
-                    <span className="text-[11px] font-mono text-[#94A3B8]">Latest: <span className="text-white">0.19</span></span>
+                    
+                    <span className="text-[11px] font-mono text-[#94A3B8]">
+                      Latest: <span className="text-white">-0,36</span>
+                    </span>
+
+                    {/* Time Range Selector Button & Popover */}
+                    <div className="relative" ref={timeRangeRef}>
+                      <button
+                        type="button"
+                        onClick={() => setIsTimeRangeOpen(prev => !prev)}
+                        className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#070A10] border border-[#1E293B] hover:border-[#334155] text-[11px] font-mono text-[#E2E8F0] shadow-sm transition-colors cursor-pointer"
+                      >
+                        <span className="truncate max-w-[200px]">{rangeLabel}</span>
+                        <ChevronDown size={12} className="text-[#64748B]" />
+                      </button>
+
+                      {isTimeRangeOpen && (
+                        <div className="absolute right-0 top-full mt-1.5 z-40 w-72 bg-[#0B0F19] border border-[#1E293B] rounded-xl p-3.5 shadow-2xl space-y-3 text-xs">
+                          <div className="flex items-center justify-between border-b border-[#1E293B] pb-2">
+                            <span className="font-semibold text-white">Select Time Range</span>
+                            <button
+                              type="button"
+                              onClick={() => setIsTimeRangeOpen(false)}
+                              className="text-[#64748B] hover:text-white cursor-pointer"
+                            >
+                              <X size={14} />
+                            </button>
+                          </div>
+
+                          {/* Presets */}
+                          <div className="space-y-1">
+                            <span className="text-[10px] font-semibold text-[#64748B] uppercase tracking-wider block mb-1">
+                              Presets
+                            </span>
+                            {[
+                              { id: 'alert_window', label: 'Alert Window (Default)' },
+                              { id: '24h', label: 'Last 24 Hours' },
+                              { id: '7d', label: 'Last 7 Days' },
+                              { id: '30d', label: 'Last 30 Days' },
+                            ].map(preset => (
+                              <button
+                                key={preset.id}
+                                type="button"
+                                onClick={() => {
+                                  setActivePreset(preset.id);
+                                  setPanOffset(0);
+                                  setIsTimeRangeOpen(false);
+                                }}
+                                className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-left transition-colors cursor-pointer ${
+                                  activePreset === preset.id
+                                    ? 'bg-[#0284C7]/20 text-[#38BDF8] font-medium border border-[#0284C7]/30'
+                                    : 'text-[#94A3B8] hover:bg-[#1E293B]/60 hover:text-white'
+                                }`}
+                              >
+                                <span>{preset.label}</span>
+                                {activePreset === preset.id && <Check size={13} className="text-[#38BDF8]" />}
+                              </button>
+                            ))}
+                          </div>
+
+                          {/* Custom Range Inputs */}
+                          <div className="border-t border-[#1E293B] pt-2.5 space-y-2">
+                            <span className="text-[10px] font-semibold text-[#64748B] uppercase tracking-wider block">
+                              Custom Range
+                            </span>
+                            <div className="space-y-1.5">
+                              <div>
+                                <label className="text-[10px] text-[#94A3B8] block mb-0.5">Start Date & Time</label>
+                                <input
+                                  type="datetime-local"
+                                  value={customRangeStart}
+                                  onChange={e => setCustomRangeStart(e.target.value)}
+                                  className="w-full bg-[#070A10] border border-[#1E293B] focus:border-[#0284C7] rounded px-2 py-1 text-[11px] font-mono text-white outline-none"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-[10px] text-[#94A3B8] block mb-0.5">End Date & Time</label>
+                                <input
+                                  type="datetime-local"
+                                  value={customRangeEnd}
+                                  onChange={e => setCustomRangeEnd(e.target.value)}
+                                  className="w-full bg-[#070A10] border border-[#1E293B] focus:border-[#0284C7] rounded px-2 py-1 text-[11px] font-mono text-white outline-none"
+                                />
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (customRangeStart && customRangeEnd) {
+                                  setActivePreset('custom');
+                                  setPanOffset(0);
+                                  setIsTimeRangeOpen(false);
+                                }
+                              }}
+                              className="w-full mt-2 py-1.5 rounded bg-[#0284C7] hover:bg-[#0284C7]/90 text-white font-medium text-xs shadow-md transition-colors cursor-pointer"
+                            >
+                              Apply Range
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Maximize / Expand Button */}
+                    <button
+                      type="button"
+                      onClick={() => setIsChartExpanded(true)}
+                      title="Expand Timeseries Chart"
+                      className="p-1.5 rounded-lg bg-[#070A10] border border-[#1E293B] hover:border-[#334155] text-[#94A3B8] hover:text-white transition-colors cursor-pointer"
+                    >
+                      <Maximize2 size={13} />
+                    </button>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-1.5 text-xs font-mono text-[#3B82F6] mb-1">
-                  <span>{timeseriesTag}</span>
-                  <Info size={13} className="text-[#64748B] cursor-pointer" />
+                {/* Official SLB Legend Row */}
+                <div className="flex items-center gap-4 text-xs select-none mb-3">
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-3.5 h-3.5 rounded-sm bg-[#0284C7] inline-block shadow-sm" />
+                    <span className="font-mono text-white font-medium text-[11px]">{timeseriesTag}</span>
+                    <span
+                      className="inline-flex items-center text-[#64748B] hover:text-[#94A3B8] cursor-pointer"
+                      title={getTimeseriesDescription(timeseriesTag, alert.equipmentCode, alert.ruleDescription)}
+                    >
+                      <Info size={13} />
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-3.5 h-3.5 rounded-sm border border-dashed border-[#EF4444] bg-[#EF4444]/15 inline-block" />
+                    <span className="text-[#EF4444] font-medium text-[11px]">Critical Threshold</span>
+                  </div>
                 </div>
-                <p className="text-[11px] text-[#94A3B8] leading-relaxed mb-3">
-                  {getTimeseriesDescription(timeseriesTag, alert.equipmentCode, alert.ruleDescription)}
-                </p>
 
                 {/* SLB Timeseries Chart Container with Y-Axis and Click-and-Drag Pan */}
                 <div
@@ -414,19 +585,19 @@ export default function EventDetailsModal({
                   <div className="flex">
                     {/* Left Y-Axis Area matching SLB timeseries */}
                     <div className="flex items-center gap-1.5 pr-2 border-r border-[#1E293B]/70 select-none">
-                      {/* Rotated Timeseries Tag Name */}
-                      <div className="w-4 flex items-center justify-center">
-                        <span className="text-[9px] font-mono text-[#64748B] tracking-wider -rotate-90 whitespace-nowrap">
-                          {timeseriesTag.replace(/^pi:/, '')}
+                      {/* Rotated MSCF/d Unit */}
+                      <div className="w-5 flex items-center justify-center">
+                        <span className="text-[9px] font-mono text-[#94A3B8] tracking-wider -rotate-90 whitespace-nowrap">
+                          MSCF/d
                         </span>
                       </div>
-                      {/* Y-Axis Scale Values */}
+                      {/* Y-Axis Scale Values 100 to 0 */}
                       <div className="h-36 flex flex-col justify-between text-[10px] font-mono text-[#94A3B8] text-right w-6 py-0.5">
-                        <span>1</span>
-                        <span>0.8</span>
-                        <span>0.6</span>
-                        <span>0.4</span>
-                        <span>0.2</span>
+                        <span>100</span>
+                        <span>80</span>
+                        <span>60</span>
+                        <span>40</span>
+                        <span>20</span>
                         <span>0</span>
                       </div>
                     </div>
@@ -436,39 +607,33 @@ export default function EventDetailsModal({
                       <div className="relative w-full">
                         <svg className="w-full h-36 overflow-visible" viewBox="0 0 520 100" preserveAspectRatio="none">
                           {/* Horizontal Grid lines matching Y-axis ticks */}
-                          <line x1="0" y1="5" x2="520" y2="5" stroke="#1E293B" strokeWidth="1" />
-                          <line x1="0" y1="24" x2="520" y2="24" stroke="#1E293B" strokeWidth="1" />
-                          <line x1="0" y1="43" x2="520" y2="43" stroke="#1E293B" strokeWidth="1" />
-                          <line x1="0" y1="62" x2="520" y2="62" stroke="#1E293B" strokeWidth="1" />
-                          <line x1="0" y1="81" x2="520" y2="81" stroke="#1E293B" strokeWidth="1" />
-                          <line x1="0" y1="98" x2="520" y2="98" stroke="#1E293B" strokeWidth="1" />
+                          <line x1="0" y1="20" x2="520" y2="20" stroke="#1E293B" strokeWidth="1" />
+                          <line x1="0" y1="40" x2="520" y2="40" stroke="#1E293B" strokeWidth="1" />
+                          <line x1="0" y1="60" x2="520" y2="60" stroke="#1E293B" strokeWidth="1" />
+                          <line x1="0" y1="80" x2="520" y2="80" stroke="#1E293B" strokeWidth="1" />
 
-                          {/* Subtle Vertical Grid lines aligned with tick 1 and tick 2 */}
-                          <line x1="173.3" y1="0" x2="173.3" y2="100" stroke="#1E293B" strokeWidth="1" />
-                          <line x1="346.7" y1="0" x2="346.7" y2="100" stroke="#1E293B" strokeWidth="1" />
+                          {/* Subtle Vertical Grid lines */}
+                          <line x1="130" y1="0" x2="130" y2="100" stroke="#1E293B" strokeWidth="1" />
+                          <line x1="260" y1="0" x2="260" y2="100" stroke="#1E293B" strokeWidth="1" />
+                          <line x1="390" y1="0" x2="390" y2="100" stroke="#1E293B" strokeWidth="1" />
 
-                          {/* Rule Threshold Reference Line (Dashed only, no badge or label) */}
-                          <line
-                            x1="0"
-                            y1={thresholdSvgY}
-                            x2="520"
-                            y2={thresholdSvgY}
-                            stroke="#F59E0B"
-                            strokeWidth="1.5"
-                            strokeDasharray="5 4"
-                          />
+                          {/* Upper Critical Threshold Shaded Zone (>= 90, y: 0 to 10) */}
+                          <rect x="0" y="0" width="520" height="10" fill="rgba(239, 68, 68, 0.09)" />
+                          <line x1="0" y1="10" x2="520" y2="10" stroke="#EF4444" strokeWidth="1.25" strokeDasharray="4 4" />
 
-                          {/* Blue Signal Plot Line */}
-                          <path d={pathD} fill="none" stroke="#38BDF8" strokeWidth="1.75" />
+                          {/* Lower Critical Threshold Shaded Zone (<= 14, y: 86 to 100) */}
+                          <rect x="0" y="86" width="520" height="14" fill="rgba(239, 68, 68, 0.09)" />
+                          <line x1="0" y1="86" x2="520" y2="86" stroke="#EF4444" strokeWidth="1.25" strokeDasharray="4 4" />
+
+                          {/* Blue Signal Plot Line matching SLB */}
+                          <path d={pathD} fill="none" stroke="#0284C7" strokeWidth="1.8" />
                         </svg>
                       </div>
 
                       {/* X-Axis Labels matching SLB styling */}
-                      <div className="relative w-full text-[10px] font-mono text-[#94A3B8] pt-2 border-t border-[#1E293B] h-7 select-none">
-                        <span className="absolute left-0 top-2">{tick0Str}</span>
-                        <span className="absolute left-1/3 -translate-x-1/2 top-2">{tick1Str}</span>
-                        <span className="absolute left-2/3 -translate-x-1/2 top-2">{tick2Str}</span>
-                        <span className="absolute right-0 top-2">{tick3Str}</span>
+                      <div className="flex justify-between items-center text-[10px] font-mono text-[#94A3B8] pt-2 border-t border-[#1E293B] select-none">
+                        <span>{startDateLabel}</span>
+                        <span>{endDateLabel}</span>
                       </div>
                     </div>
                   </div>
@@ -478,40 +643,6 @@ export default function EventDetailsModal({
                     <span>Drag chart horizontally to explore past alerts</span>
                   </div>
                 </div>
-              </div>
-
-              {/* ── Simplified Alert History Section (Clean Text Format) ── */}
-              <div className="border-t border-[#1E293B] pt-4">
-                <div className="flex items-center gap-2 mb-3">
-                  <h3 className="text-xs font-semibold text-white">
-                    Alert History ({alert.equipmentCode} • {ruleId})
-                  </h3>
-                </div>
-
-                {alertHistory.length === 0 ? (
-                  <div className="text-xs text-[#64748B] italic">
-                    No past alerts recorded for this Monitoring Rule on asset <span className="font-mono text-[#94A3B8]">{alert.equipmentCode}</span>.
-                  </div>
-                ) : (
-                  <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
-                    {alertHistory.map(histAlert => {
-                      const startDateStr = formatUtcDateTime(histAlert.triggeredAtRaw || histAlert.triggeredAt);
-                      const endDateDisplay = formatUtcDateTime(histAlert.endDateRaw || histAlert.endDate);
-
-                      return (
-                        <div key={histAlert.id} className="text-xs text-[#94A3B8] leading-relaxed">
-                          <span className="text-[#E2E8F0] font-mono">{startDateStr}</span>
-                          <span className="text-[#64748B]"> → </span>
-                          <span className="text-[#E2E8F0] font-mono">{endDateDisplay}</span>
-                          <span className="text-[#64748B]"> · </span>
-                          <span className="font-mono text-white font-medium">ALT-{histAlert.id}</span>
-                          <span className="text-[#64748B]"> · </span>
-                          <span className="text-white">{getAlertType(histAlert)}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
               </div>
 
             </div>
@@ -596,6 +727,37 @@ export default function EventDetailsModal({
                     );
                   })()}
                 </div>
+
+                {/* ── Alert History Section (Right Sidebar, below Comment) ── */}
+                <div className="border-t border-[#1E293B] pt-3">
+                  <h3 className="text-xs font-semibold text-white mb-0.5">Alert History</h3>
+                  <span className="text-[11px] font-mono text-[#64748B] block mb-2.5">
+                    {alert.equipmentCode} - {ruleId}
+                  </span>
+
+                  {alertHistory.length === 0 ? (
+                    <div className="text-xs text-[#64748B] italic">
+                      No past alerts recorded for this Monitoring Rule on asset <span className="font-mono text-[#94A3B8]">{alert.equipmentCode}</span>.
+                    </div>
+                  ) : (
+                    <div className="space-y-3 max-h-48 overflow-y-auto pr-1">
+                      {alertHistory.map(histAlert => {
+                        const startDateStr = formatUtcDateTime(histAlert.triggeredAtRaw || histAlert.triggeredAt);
+                        const endDateDisplay = formatUtcDateTime(histAlert.endDateRaw || histAlert.endDate);
+
+                        return (
+                          <div key={histAlert.id} className="text-xs font-mono leading-tight space-y-0.5">
+                            <div className="text-[#94A3B8] text-[11px]">{startDateStr}</div>
+                            <div className="text-white text-[11px] font-medium">{endDateDisplay}</div>
+                            <div className="text-white text-[11px]">
+                              ALT {histAlert.id} - {getAlertType(histAlert)}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Action Buttons Column matching SLB FAST design */}
@@ -658,6 +820,117 @@ export default function EventDetailsModal({
 
           </div>
 
+          {/* ── Expanded Chart Modal View ── */}
+          {isChartExpanded && (
+            <div className="fixed inset-0 z-[60] bg-black/85 backdrop-blur-md flex items-center justify-center p-6 select-none">
+              <div className="w-[1100px] max-w-full bg-[#0B0F19] border border-[#1E293B] rounded-2xl p-6 shadow-2xl space-y-4 text-white">
+                <div className="flex items-center justify-between border-b border-[#1E293B] pb-3">
+                  <div className="flex items-center gap-3">
+                    <h2 className="text-base font-semibold text-white">Alert Timeseries — Expanded View</h2>
+                    <span className="font-mono text-xs text-[#94A3B8] bg-[#1E293B] px-2 py-0.5 rounded">
+                      {alert.equipmentCode} • {ruleId}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsChartExpanded(false)}
+                    className="text-[#94A3B8] hover:text-white p-1.5 rounded-lg hover:bg-[#1E293B] transition-colors cursor-pointer"
+                  >
+                    <Minimize2 size={18} />
+                  </button>
+                </div>
+
+                {/* Expanded Controls & Legend */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4 text-xs">
+                    <div className="flex items-center gap-1.5">
+                      <span className="w-3.5 h-3.5 rounded-sm bg-[#0284C7] inline-block shadow-sm" />
+                      <span className="font-mono text-white font-medium text-xs">{timeseriesTag}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="w-3.5 h-3.5 rounded-sm border border-dashed border-[#EF4444] bg-[#EF4444]/15 inline-block" />
+                      <span className="text-[#EF4444] font-medium text-xs">Critical Threshold</span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs font-mono text-[#94A3B8]">Latest: <span className="text-white">-0,36</span></span>
+                    <span className="text-xs font-mono text-[#38BDF8] bg-[#070A10] border border-[#1E293B] px-3 py-1 rounded-lg">
+                      {rangeLabel}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Expanded Chart Surface */}
+                <div
+                  className={`bg-[#070A10] border border-[#1E293B] rounded-xl p-4 relative flex flex-col justify-between ${
+                    isDragging ? 'cursor-grabbing' : 'cursor-grab'
+                  }`}
+                  onMouseDown={handleMouseDown}
+                  onMouseMove={handleMouseMove}
+                  onMouseUp={handleMouseUp}
+                  onMouseLeave={handleMouseUp}
+                >
+                  <div className="flex">
+                    <div className="flex items-center gap-2 pr-3 border-r border-[#1E293B]/70 select-none">
+                      <div className="w-6 flex items-center justify-center">
+                        <span className="text-xs font-mono text-[#94A3B8] tracking-wider -rotate-90 whitespace-nowrap">
+                          MSCF/d
+                        </span>
+                      </div>
+                      <div className="h-72 flex flex-col justify-between text-xs font-mono text-[#94A3B8] text-right w-8 py-1">
+                        <span>100</span>
+                        <span>80</span>
+                        <span>60</span>
+                        <span>40</span>
+                        <span>20</span>
+                        <span>0</span>
+                      </div>
+                    </div>
+
+                    <div className="flex-1 pl-4 relative flex flex-col">
+                      <div className="relative w-full">
+                        <svg className="w-full h-72 overflow-visible" viewBox="0 0 800 100" preserveAspectRatio="none">
+                          <line x1="0" y1="20" x2="800" y2="20" stroke="#1E293B" strokeWidth="1" />
+                          <line x1="0" y1="40" x2="800" y2="40" stroke="#1E293B" strokeWidth="1" />
+                          <line x1="0" y1="60" x2="800" y2="60" stroke="#1E293B" strokeWidth="1" />
+                          <line x1="0" y1="80" x2="800" y2="80" stroke="#1E293B" strokeWidth="1" />
+
+                          <line x1="200" y1="0" x2="200" y2="100" stroke="#1E293B" strokeWidth="1" />
+                          <line x1="400" y1="0" x2="400" y2="100" stroke="#1E293B" strokeWidth="1" />
+                          <line x1="600" y1="0" x2="600" y2="100" stroke="#1E293B" strokeWidth="1" />
+
+                          <rect x="0" y="0" width="800" height="10" fill="rgba(239, 68, 68, 0.09)" />
+                          <line x1="0" y1="10" x2="800" y2="10" stroke="#EF4444" strokeWidth="1.5" strokeDasharray="4 4" />
+
+                          <rect x="0" y="86" width="800" height="14" fill="rgba(239, 68, 68, 0.09)" />
+                          <line x1="0" y1="86" x2="800" y2="86" stroke="#EF4444" strokeWidth="1.5" strokeDasharray="4 4" />
+
+                          <path d={pathDExpanded} fill="none" stroke="#0284C7" strokeWidth="2.5" />
+                        </svg>
+                      </div>
+
+                      <div className="flex justify-between items-center text-xs font-mono text-[#94A3B8] pt-3 border-t border-[#1E293B] select-none">
+                        <span>{startDateLabel}</span>
+                        <span>{endDateLabel}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-between items-center text-xs text-[#64748B] pt-2">
+                    <span>Drag horizontally to pan through time</span>
+                    <button
+                      type="button"
+                      onClick={() => setIsChartExpanded(false)}
+                      className="text-[#38BDF8] hover:underline cursor-pointer"
+                    >
+                      Close Expanded View
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>
