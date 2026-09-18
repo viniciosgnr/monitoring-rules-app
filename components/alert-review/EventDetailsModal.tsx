@@ -184,6 +184,7 @@ export default function EventDetailsModal({
 }: EventDetailsModalProps) {
   const [commentText, setCommentText] = React.useState<string>('');
   const [commentError, setCommentError] = React.useState<string | null>(null);
+  const [showValidateConfirm, setShowValidateConfirm] = useState<boolean>(false);
 
   // Drag-to-pan horizontal state
   const [panOffset, setPanOffset] = useState<number>(0);
@@ -245,6 +246,7 @@ export default function EventDetailsModal({
     if (alert) {
       setCommentText((alert.comment as string) || '');
       setCommentError(null);
+      setShowValidateConfirm(false);
       setPanOffset(0);
       setAppliedRangeStart(null);
       setAppliedRangeEnd(null);
@@ -324,7 +326,8 @@ export default function EventDetailsModal({
   const pathDExpanded = expandedPoints.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(' ');
 
   return (
-    <Dialog.Root open={open} onOpenChange={v => !v && onClose()}>
+    <>
+      <Dialog.Root open={open} onOpenChange={v => !v && onClose()}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 bg-black/75 z-50 backdrop-blur-sm" />
         <Dialog.Content className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[1020px] max-h-[92vh] overflow-y-auto bg-[#111827] rounded-2xl border border-[#1E293B] p-6 shadow-2xl select-none text-white">
@@ -639,8 +642,8 @@ export default function EventDetailsModal({
                       <>
                         <div className="flex items-center gap-1.5 mb-1.5">
                           <span className="text-[#64748B] text-[11px]">Comment</span>
-                          {!isReadOnly && (
-                            <span className="text-red-400 text-[11px] font-bold">*</span>
+                          {!isReadOnly && alert.status === 'to_be_validated' && (
+                            <span className="text-[#94A3B8] text-[10px] font-normal">(required for In Progress)</span>
                           )}
                         </div>
 
@@ -734,18 +737,21 @@ export default function EventDetailsModal({
                         className="z-[100] bg-[#111827] border border-[#1E293B] rounded-2xl shadow-2xl p-1.5 min-w-[210px] select-none"
                         sideOffset={4}
                       >
-                        {ALL_STATUSES.map(s => (
+                        {ALL_STATUSES.filter(s => s !== alert.status).map(s => (
                           <DropdownMenu.Item
                             key={s}
                             onSelect={async () => {
                               if (alert && onStatusChange) {
-                                if (s === 'validated') {
+                                if (s === 'validation_in_progress') {
                                   if (!commentText.trim()) {
-                                    setCommentError('Please enter a comment before validating the alert');
+                                    setCommentError('Please enter a comment before setting Validation in Progress');
                                     return;
                                   }
                                   setCommentError(null);
                                   await onStatusChange(alert.id, s, commentText.trim());
+                                } else if (s === 'validated') {
+                                  setCommentError(null);
+                                  setShowValidateConfirm(true);
                                 } else {
                                   setCommentError(null);
                                   await onStatusChange(alert.id, s, commentText.trim() || undefined);
@@ -881,5 +887,53 @@ export default function EventDetailsModal({
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>
+
+    {/* Validate Alert Confirmation Modal */}
+    <Dialog.Root open={showValidateConfirm} onOpenChange={setShowValidateConfirm}>
+      <Dialog.Portal>
+        <Dialog.Overlay className="fixed inset-0 bg-black/80 z-[70] backdrop-blur-sm transition-opacity" />
+        <Dialog.Content className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[70] w-[450px] max-w-[92vw] bg-[#111827] rounded-2xl border border-[#1E293B] p-6 shadow-2xl select-none text-white outline-none font-sans">
+          <div className="flex items-center justify-between mb-3">
+            <Dialog.Title className="text-base font-semibold text-white">
+              Validate Alert
+            </Dialog.Title>
+            <button
+              type="button"
+              onClick={() => setShowValidateConfirm(false)}
+              className="text-[#64748B] hover:text-white transition-colors cursor-pointer"
+            >
+              <X size={18} />
+            </button>
+          </div>
+
+          <p className="text-xs text-[#94A3B8] mb-6 leading-relaxed">
+            Are you sure you want to validate alert <span className="font-mono font-semibold text-white">ALT-{alert.id}</span>? Once validated, it will move to the <span className="font-medium text-white">Validated Alerts</span> tab.
+          </p>
+
+          <div className="flex justify-end gap-3 pt-4 border-t border-[#1E293B]">
+            <button
+              type="button"
+              onClick={() => setShowValidateConfirm(false)}
+              className="px-4 py-2 text-xs rounded-full border border-[#1E293B] text-white hover:bg-[#1E293B] transition-colors cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={async () => {
+                setShowValidateConfirm(false);
+                if (alert && onStatusChange) {
+                  await onStatusChange(alert.id, 'validated', commentText.trim() || undefined);
+                }
+              }}
+              className="px-4 py-2 text-xs rounded-full bg-[#3B82F6] text-white font-medium hover:bg-[#2563EB] transition-colors cursor-pointer"
+            >
+              Yes, validate
+            </button>
+          </div>
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
+  </>
   );
 }

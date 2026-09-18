@@ -319,13 +319,18 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
     }
 
     const targetRow = data.find(r => r.id === id);
-    const reviewedBy = 'smetzner@slb.com';
-    const reviewedAt = new Date().toLocaleString('pt-BR');
+    const isValidated = status === 'validated';
+    const reviewedBy = isValidated ? 'smetzner@slb.com' : (targetRow?.reviewedBy || '');
+    const reviewedAt = isValidated ? new Date().toLocaleString('pt-BR') : (targetRow?.reviewedAt || '');
     const finalComment = comment !== undefined ? comment : (targetRow?.comment ?? null);
     const finalTier = tier || targetRow?.tier;
     setData(d => d.map(r => r.id === id ? { ...r, status, reviewedBy, reviewedAt, tier: finalTier, comment: finalComment } : r));
     if (selectedAlertDetails?.id === id) {
-      setSelectedAlertDetails(prev => prev ? { ...prev, status, reviewedBy, reviewedAt, tier: finalTier, comment: finalComment } : null);
+      if (isValidated) {
+        setSelectedAlertDetails(null);
+      } else {
+        setSelectedAlertDetails(prev => prev ? { ...prev, status, reviewedBy, reviewedAt, tier: finalTier, comment: finalComment } : null);
+      }
     }
     await updateAlertStatus(id, status, finalTier ?? undefined, finalComment ?? undefined);
   }
@@ -338,6 +343,9 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
     const fullComment = reasons.length > 0 ? `${reasons.join(', ')}${comment ? ` - ${comment}` : ''}` : comment;
 
     setData(d => d.map(r => r.id === targetId ? { ...r, status: 'rejected' as Status, reviewedBy, reviewedAt, comment: fullComment } : r));
+    if (selectedAlertDetails?.id === targetId) {
+      setSelectedAlertDetails(null);
+    }
     await updateAlertStatus(targetId, 'rejected', undefined, fullComment);
     setPendingRejectAlertId(null);
   }
