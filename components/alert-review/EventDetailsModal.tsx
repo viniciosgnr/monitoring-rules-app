@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
-import { X, Info, Wrench, ChevronDown, Maximize2, Minimize2, Check } from 'lucide-react';
+import { X, Info, Wrench, ChevronDown, Maximize2, Minimize2 } from 'lucide-react';
 import StatusBadge, { Status } from '@/components/ui/StatusBadge';
 
 const ALL_STATUSES: Status[] = ['to_be_validated', 'validation_in_progress', 'validated', 'rejected'];
@@ -191,9 +191,10 @@ export default function EventDetailsModal({
   const [dragStartX, setDragStartX] = useState<number>(0);
 
   // Time Range Selection State
-  const [activePreset, setActivePreset] = useState<string>('alert_window');
   const [customRangeStart, setCustomRangeStart] = useState<string>('');
   const [customRangeEnd, setCustomRangeEnd] = useState<string>('');
+  const [appliedRangeStart, setAppliedRangeStart] = useState<number | null>(null);
+  const [appliedRangeEnd, setAppliedRangeEnd] = useState<number | null>(null);
   const [isTimeRangeOpen, setIsTimeRangeOpen] = useState<boolean>(false);
   const [isChartExpanded, setIsChartExpanded] = useState<boolean>(false);
   const timeRangeRef = useRef<HTMLDivElement>(null);
@@ -245,7 +246,8 @@ export default function EventDetailsModal({
       setCommentText((alert.comment as string) || '');
       setCommentError(null);
       setPanOffset(0);
-      setActivePreset('alert_window');
+      setAppliedRangeStart(null);
+      setAppliedRangeEnd(null);
       setCustomRangeStart(new Date(alertStartMs).toISOString().slice(0, 16));
       setCustomRangeEnd(new Date(alertEndMs).toISOString().slice(0, 16));
       setIsTimeRangeOpen(false);
@@ -255,31 +257,12 @@ export default function EventDetailsModal({
 
   // Resolve selected timeframe [rangeStartMs, rangeEndMs]
   const { rangeStartMs, rangeEndMs, rangeDurationMs, rangeLabel } = useMemo(() => {
-    let s = alertStartMs;
-    let e = alertEndMs;
-
-    if (activePreset === '24h') {
-      s = alertEndMs - 86400000;
-      e = alertEndMs;
-    } else if (activePreset === '7d') {
-      s = alertEndMs - 7 * 86400000;
-      e = alertEndMs;
-    } else if (activePreset === '30d') {
-      s = alertEndMs - 30 * 86400000;
-      e = alertEndMs;
-    } else if (activePreset === 'custom') {
-      const parsedS = new Date(customRangeStart).getTime();
-      const parsedE = new Date(customRangeEnd).getTime();
-      if (!isNaN(parsedS) && !isNaN(parsedE) && parsedE > parsedS) {
-        s = parsedS;
-        e = parsedE;
-      }
-    }
-
+    const s = appliedRangeStart !== null ? appliedRangeStart : alertStartMs;
+    const e = appliedRangeEnd !== null ? appliedRangeEnd : alertEndMs;
     const duration = Math.max(e - s, 3600000);
     const label = `${formatDateTimeSecond(s)} - ${formatDateTimeSecond(e)}`;
     return { rangeStartMs: s, rangeEndMs: e, rangeDurationMs: duration, rangeLabel: label };
-  }, [activePreset, alertStartMs, alertEndMs, customRangeStart, customRangeEnd]);
+  }, [appliedRangeStart, appliedRangeEnd, alertStartMs, alertEndMs]);
 
   if (!alert) return null;
 
@@ -467,59 +450,25 @@ export default function EventDetailsModal({
                             </button>
                           </div>
 
-                          {/* Presets */}
-                          <div className="space-y-1">
-                            <span className="text-[10px] font-semibold text-[#64748B] uppercase tracking-wider block mb-1">
-                              Presets
-                            </span>
-                            {[
-                              { id: 'alert_window', label: 'Alert Window (Default)' },
-                              { id: '24h', label: 'Last 24 Hours' },
-                              { id: '7d', label: 'Last 7 Days' },
-                              { id: '30d', label: 'Last 30 Days' },
-                            ].map(preset => (
-                              <button
-                                key={preset.id}
-                                type="button"
-                                onClick={() => {
-                                  setActivePreset(preset.id);
-                                  setPanOffset(0);
-                                  setIsTimeRangeOpen(false);
-                                }}
-                                className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-left transition-colors cursor-pointer ${
-                                  activePreset === preset.id
-                                    ? 'bg-[#0284C7]/20 text-[#38BDF8] font-medium border border-[#0284C7]/30'
-                                    : 'text-[#94A3B8] hover:bg-[#1E293B]/60 hover:text-white'
-                                }`}
-                              >
-                                <span>{preset.label}</span>
-                                {activePreset === preset.id && <Check size={13} className="text-[#38BDF8]" />}
-                              </button>
-                            ))}
-                          </div>
-
-                          {/* Custom Range Inputs */}
-                          <div className="border-t border-[#1E293B] pt-2.5 space-y-2">
-                            <span className="text-[10px] font-semibold text-[#64748B] uppercase tracking-wider block">
-                              Custom Range
-                            </span>
-                            <div className="space-y-1.5">
+                          {/* Custom Range Inputs (No Presets) */}
+                          <div className="space-y-3 pt-1">
+                            <div className="space-y-2">
                               <div>
-                                <label className="text-[10px] text-[#94A3B8] block mb-0.5">Start Date & Time</label>
+                                <label className="text-[10px] text-[#94A3B8] block mb-1">Start Date & Time</label>
                                 <input
                                   type="datetime-local"
                                   value={customRangeStart}
                                   onChange={e => setCustomRangeStart(e.target.value)}
-                                  className="w-full bg-[#070A10] border border-[#1E293B] focus:border-[#0284C7] rounded px-2 py-1 text-[11px] font-mono text-white outline-none"
+                                  className="w-full bg-[#070A10] border border-[#1E293B] focus:border-[#0284C7] rounded-lg px-2.5 py-1.5 text-[11px] font-mono text-white outline-none"
                                 />
                               </div>
                               <div>
-                                <label className="text-[10px] text-[#94A3B8] block mb-0.5">End Date & Time</label>
+                                <label className="text-[10px] text-[#94A3B8] block mb-1">End Date & Time</label>
                                 <input
                                   type="datetime-local"
                                   value={customRangeEnd}
                                   onChange={e => setCustomRangeEnd(e.target.value)}
-                                  className="w-full bg-[#070A10] border border-[#1E293B] focus:border-[#0284C7] rounded px-2 py-1 text-[11px] font-mono text-white outline-none"
+                                  className="w-full bg-[#070A10] border border-[#1E293B] focus:border-[#0284C7] rounded-lg px-2.5 py-1.5 text-[11px] font-mono text-white outline-none"
                                 />
                               </div>
                             </div>
@@ -527,12 +476,17 @@ export default function EventDetailsModal({
                               type="button"
                               onClick={() => {
                                 if (customRangeStart && customRangeEnd) {
-                                  setActivePreset('custom');
-                                  setPanOffset(0);
-                                  setIsTimeRangeOpen(false);
+                                  const parsedS = new Date(customRangeStart).getTime();
+                                  const parsedE = new Date(customRangeEnd).getTime();
+                                  if (!isNaN(parsedS) && !isNaN(parsedE) && parsedE > parsedS) {
+                                    setAppliedRangeStart(parsedS);
+                                    setAppliedRangeEnd(parsedE);
+                                    setPanOffset(0);
+                                    setIsTimeRangeOpen(false);
+                                  }
                                 }
                               }}
-                              className="w-full mt-2 py-1.5 rounded bg-[#0284C7] hover:bg-[#0284C7]/90 text-white font-medium text-xs shadow-md transition-colors cursor-pointer"
+                              className="w-full mt-1 py-2 rounded-lg bg-[#0284C7] hover:bg-[#0284C7]/90 text-white font-medium text-xs shadow-md transition-colors cursor-pointer"
                             >
                               Apply Range
                             </button>
@@ -660,10 +614,6 @@ export default function EventDetailsModal({
                     A monitoring alert has been triggered, potentially indicating a failure.
                   </p>
                 </div>
-                <div>
-                  <span className="text-[#64748B] block text-[11px] mb-0.5">LOD</span>
-                  <span className="font-semibold text-white tracking-wider">PREDICT</span>
-                </div>
 
                 {/* Surveillance Tier Metadata (only shown when alert belongs to an event) */}
                 {alert.eventId && (
@@ -728,16 +678,13 @@ export default function EventDetailsModal({
                   })()}
                 </div>
 
-                {/* ── Alert History Section (Right Sidebar, below Comment) ── */}
+                {/* ── Alert History Section (Clean minimalist format) ── */}
                 <div className="border-t border-[#1E293B] pt-3">
-                  <h3 className="text-xs font-semibold text-white mb-0.5">Alert History</h3>
-                  <span className="text-[11px] font-mono text-[#64748B] block mb-2.5">
-                    {alert.equipmentCode} - {ruleId}
-                  </span>
+                  <h3 className="text-xs font-semibold text-white mb-2">Alert History</h3>
 
                   {alertHistory.length === 0 ? (
                     <div className="text-xs text-[#64748B] italic">
-                      No past alerts recorded for this Monitoring Rule on asset <span className="font-mono text-[#94A3B8]">{alert.equipmentCode}</span>.
+                      No past alerts recorded.
                     </div>
                   ) : (
                     <div className="space-y-3 max-h-48 overflow-y-auto pr-1">
@@ -750,7 +697,7 @@ export default function EventDetailsModal({
                             <div className="text-[#94A3B8] text-[11px]">{startDateStr}</div>
                             <div className="text-white text-[11px] font-medium">{endDateDisplay}</div>
                             <div className="text-white text-[11px]">
-                              ALT {histAlert.id} - {getAlertType(histAlert)}
+                              ALT {histAlert.id}
                             </div>
                           </div>
                         );
