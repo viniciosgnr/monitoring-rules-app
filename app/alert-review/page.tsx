@@ -27,6 +27,7 @@ export default async function AlertReviewPage() {
       eventId:         alerts.eventId,
       eventDescription: alerts.eventDescription,
       comment:         alerts.comment,
+      processingSteps: monitoringRules.processingSteps,
     })
     .from(alerts)
     .innerJoin(ruleInstances,   eq(alerts.instanceId,      ruleInstances.id))
@@ -47,6 +48,7 @@ export default async function AlertReviewPage() {
     eventId:        r.eventId ?? null,
     eventDescription: r.eventDescription ?? null,
     comment:        r.comment ?? null,
+    processingSteps: (r.processingSteps as Record<string, unknown>) ?? null,
   }));
 
   return (

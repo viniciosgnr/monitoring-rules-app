@@ -994,6 +994,7 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
           setSelectedAlertDetails(null);
         }}
         alert={selectedAlertDetails}
+        allAlerts={data}
         statusScope={statusScope}
         onStatusChange={handleStatus}
       />
