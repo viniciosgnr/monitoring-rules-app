@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
-import { X, Layers, AlertCircle, Info } from 'lucide-react';
+import { X, Send, AlertCircle, Info } from 'lucide-react';
 import EquipmentBadge from '@/components/ui/EquipmentBadge';
 
 interface AlertRow {
@@ -106,16 +106,20 @@ export default function GroupAlertsModal({
           <div className="flex items-center justify-between pb-4 border-b border-[#1E293B]">
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-full bg-[#3B82F6]/10 border border-[#3B82F6]/30 flex items-center justify-center text-[#3B82F6]">
-                <Layers size={16} />
+                <Send size={16} />
               </div>
               <div>
                 <Dialog.Title className="text-base font-semibold text-white">
-                  {mode === 'view' ? 'Event Group Details' : 'Group Validated Alerts'}
+                  {mode === 'view'
+                    ? (selectedAlerts.length === 1 ? 'Event Details' : 'Event Group Details')
+                    : (selectedAlerts.length === 1 ? 'Send Alert to Event Manager' : 'Send Grouped Alerts to Event Manager')}
                 </Dialog.Title>
                 <Dialog.Description className="text-xs text-[#94A3B8]">
                   {mode === 'view'
-                    ? 'View grouped alerts and event metadata.'
-                    : 'Group selected alerts under a common Event ID and description.'}
+                    ? 'View event metadata and associated alerts.'
+                    : (selectedAlerts.length === 1
+                        ? 'Create an Event record in Event Manager for this validated alert.'
+                        : 'Group selected alerts under a common Event ID and send to Event Manager.')}
                 </Dialog.Description>
               </div>
             </div>
@@ -149,7 +153,9 @@ export default function GroupAlertsModal({
             {/* Selected Alerts Mini-Table: Asset | AlertId | Time series list | Rules */}
             <div className="space-y-1.5">
               <span className="text-xs font-medium text-[#94A3B8]">
-                {mode === 'view' ? 'Alerts in this Event' : 'Selected Alerts for Grouping'}
+                {mode === 'view'
+                  ? (selectedAlerts.length === 1 ? 'Alert in this Event' : 'Alerts in this Event')
+                  : (selectedAlerts.length === 1 ? 'Selected Alert' : 'Selected Alerts for Grouping')}
               </span>
               <div className="bg-[#0B0F19] border border-[#1E293B] rounded-xl overflow-hidden max-h-52 overflow-y-auto">
                 <table className="w-full text-xs text-left border-collapse">
@@ -296,7 +302,7 @@ export default function GroupAlertsModal({
                   }}
                   disabled={loading}
                   rows={3}
-                  placeholder="Provide a detailed description or root cause justification for grouping these validated alerts..."
+                  placeholder="Provide a detailed description or root cause justification for this event..."
                   className={`w-full bg-[#0B0F19] border rounded-xl p-3 text-xs text-white placeholder-[#64748B] outline-none transition-colors resize-none ${
                     error
                       ? 'border-red-500 ring-1 ring-red-500/40'
@@ -339,7 +345,8 @@ export default function GroupAlertsModal({
                     disabled={loading}
                     className="px-6 py-2 text-xs rounded-full bg-[#3B82F6] hover:bg-[#2563EB] disabled:opacity-50 text-white font-medium transition-all shadow-sm cursor-pointer flex items-center gap-2"
                   >
-                    {loading ? 'Grouping...' : 'Confirm Grouping'}
+                    <Send size={13} />
+                    <span>{loading ? 'Sending...' : 'Send to Event Manager'}</span>
                   </button>
                 </>
               )}

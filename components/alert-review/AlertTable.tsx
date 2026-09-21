@@ -8,7 +8,7 @@ import EventDetailsModal from '@/components/alert-review/EventDetailsModal';
 import RejectEventModal from '@/components/alert-review/RejectEventModal';
 import GroupAlertsModal from '@/components/alert-review/GroupAlertsModal';
 import { updateAlertStatus, groupAlerts } from '@/app/actions/alerts';
-import { ChevronDown, ChevronRight, Filter, Check, ArrowUpDown, ArrowUp, ArrowDown, Layers, Download, X } from 'lucide-react';
+import { ChevronDown, ChevronRight, Filter, Check, ArrowUpDown, ArrowUp, ArrowDown, Layers, Download, X, Send } from 'lucide-react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { exportBrandedExcel } from '@/lib/excelExportUtils';
 import type { Status } from '@/components/ui/StatusBadge';
@@ -795,8 +795,8 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
                   : 'bg-[#1E293B]/60 text-[#64748B] border border-[#1E293B] cursor-not-allowed opacity-60'
               }`}
             >
-              <Layers size={13} />
-              <span>Group Alerts {selectedAlertIds.size > 0 ? `(${selectedAlertIds.size})` : ''}</span>
+              <Send size={13} />
+              <span>Send to Event Manager {selectedAlertIds.size > 0 ? `(${selectedAlertIds.size})` : ''}</span>
             </button>
           )}
         </div>
