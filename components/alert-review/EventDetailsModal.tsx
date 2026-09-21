@@ -281,15 +281,11 @@ export default function EventDetailsModal({
     ? (alert.reviewedBy || '—')
     : '—';
 
-  const availableStatuses: Status[] = useMemo(() => {
-    if (alert.status === 'to_be_validated') {
-      return ['validation_in_progress', 'validated', 'rejected'];
-    }
-    if (alert.status === 'validation_in_progress') {
-      return ['validated', 'rejected'];
-    }
-    return ALL_STATUSES.filter(s => s !== alert.status);
-  }, [alert.status]);
+  const availableStatuses: Status[] = alert.status === 'to_be_validated'
+    ? ['validation_in_progress', 'validated', 'rejected']
+    : alert.status === 'validation_in_progress'
+    ? ['validated', 'rejected']
+    : ALL_STATUSES.filter(s => s !== alert.status);
 
   // Mouse drag handlers for timeseries panning into the past
   const handleMouseDown = (e: React.MouseEvent) => {
