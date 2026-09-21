@@ -537,22 +537,15 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
   }
 
   const toggleSelectAlert = (id: number) => {
+    const alertRow = data.find(r => r.id === id);
+    if (alertRow?.eventId) return;
+
     setSelectedAlertIds(prev => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
       return next;
     });
-  };
-
-  const allVisibleIds = useMemo(() => filtered.map(r => r.id), [filtered]);
-  const isAllSelected = allVisibleIds.length > 0 && allVisibleIds.every(id => selectedAlertIds.has(id));
-  const toggleSelectAll = () => {
-    if (isAllSelected) {
-      setSelectedAlertIds(new Set());
-    } else {
-      setSelectedAlertIds(new Set(allVisibleIds));
-    }
   };
 
   const selectedAlertsForGrouping = useMemo(() => {
@@ -813,16 +806,9 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
           <table className="w-full text-sm border-collapse">
             <thead>
               <tr className="border-b border-[#1E293B] bg-[#0B0F19]/40">
-                {/* Chevron / Checkbox column */}
+                {/* Spacer column */}
                 {statusScope === 'validated_alerts' ? (
-                  <th className="w-10 px-3 py-3 text-center">
-                    <input
-                      type="checkbox"
-                      checked={isAllSelected}
-                      onChange={toggleSelectAll}
-                      className="rounded border-[#334155] bg-[#0B0F19] text-[#3B82F6] focus:ring-0 focus:ring-offset-0 cursor-pointer accent-[#3B82F6]"
-                    />
-                  </th>
+                  <th className="w-10 px-3 py-3" />
                 ) : (
                   <th className="w-8 px-3 py-3" />
                 )}
@@ -889,12 +875,22 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
                         {/* Checkbox column on Validated Alerts, Indent spacer on For Validation */}
                         {statusScope === 'validated_alerts' ? (
                           <td className="px-3 py-3 text-center" onClick={e => e.stopPropagation()}>
-                            <input
-                              type="checkbox"
-                              checked={selectedAlertIds.has(row.id)}
-                              onChange={() => toggleSelectAlert(row.id)}
-                              className="rounded border-[#334155] bg-[#0B0F19] text-[#3B82F6] focus:ring-0 focus:ring-offset-0 cursor-pointer accent-[#3B82F6]"
-                            />
+                            {row.eventId ? (
+                              <input
+                                type="checkbox"
+                                disabled
+                                checked={false}
+                                tabIndex={-1}
+                                className="rounded border-[#334155] bg-[#0B0F19] text-[#3B82F6] opacity-30 cursor-not-allowed pointer-events-none"
+                              />
+                            ) : (
+                              <input
+                                type="checkbox"
+                                checked={selectedAlertIds.has(row.id)}
+                                onChange={() => toggleSelectAlert(row.id)}
+                                className="rounded border-[#334155] bg-[#0B0F19] text-[#3B82F6] focus:ring-0 focus:ring-offset-0 cursor-pointer accent-[#3B82F6]"
+                              />
+                            )}
                           </td>
                         ) : (
                           <td className="px-3 py-3">
