@@ -243,7 +243,7 @@ async function seed() {
       const minutesOffset = (j * 17) % 60;
       const triggeredAt = new Date(nowMs - day * 24 * 60 * 60 * 1000 - hoursOffset * 60 * 60 * 1000 - minutesOffset * 60 * 1000);
       const endDate = new Date(triggeredAt.getTime() + 12 * 60 * 60 * 1000);
-      const reviewedAt = status !== 'to_be_validated'
+      const reviewedAt = (status === 'validated' || status === 'rejected')
         ? new Date(triggeredAt.getTime() + 2 * 60 * 60 * 1000)
         : null;
       const operatorEmails = ['smetzner@slb.com', 'jdoe@slb.com', 'mrodrigues@slb.com', 'icaro.zelioli@sbmoffshore.com'];

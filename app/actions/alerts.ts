@@ -6,11 +6,16 @@ import { revalidatePath } from 'next/cache';
 import type { Status } from '@/components/ui/StatusBadge';
 
 export async function updateAlertStatus(id: number, status: Status, tier?: string, comment?: string) {
-  const updateData: { status: Status; reviewedAt: Date; reviewedBy: string; tier?: string; comment?: string } = {
+  const updateData: { status: Status; reviewedAt?: Date | null; reviewedBy?: string | null; tier?: string; comment?: string } = {
     status,
-    reviewedAt: new Date(),
-    reviewedBy: 'Jon Doe',
   };
+  if (status === 'validation_in_progress') {
+    updateData.reviewedBy = 'Jon Doe';
+    updateData.reviewedAt = null;
+  } else if (status === 'validated' || status === 'rejected') {
+    updateData.reviewedBy = 'Jon Doe';
+    updateData.reviewedAt = new Date();
+  }
   if (tier !== undefined) {
     updateData.tier = tier;
   }

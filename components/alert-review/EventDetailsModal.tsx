@@ -274,6 +274,23 @@ export default function EventDetailsModal({
   const formattedStartDate = formatUtcDateTime(alert.triggeredAtRaw || alert.triggeredAt);
   const formattedEndDate = formatUtcDateTime(alert.endDateRaw || alert.endDate);
 
+  const validationDateDisplay = (alert.status === 'validated' || alert.status === 'rejected')
+    ? (alert.reviewedAt || '—')
+    : '—';
+  const validationByDisplay = (alert.status === 'validation_in_progress' || alert.status === 'validated' || alert.status === 'rejected')
+    ? (alert.reviewedBy || '—')
+    : '—';
+
+  const availableStatuses: Status[] = useMemo(() => {
+    if (alert.status === 'to_be_validated') {
+      return ['validation_in_progress', 'validated', 'rejected'];
+    }
+    if (alert.status === 'validation_in_progress') {
+      return ['validated', 'rejected'];
+    }
+    return ALL_STATUSES.filter(s => s !== alert.status);
+  }, [alert.status]);
+
   // Mouse drag handlers for timeseries panning into the past
   const handleMouseDown = (e: React.MouseEvent) => {
     setIsDragging(true);
@@ -627,11 +644,11 @@ export default function EventDetailsModal({
                 )}
                 <div>
                   <span className="text-[#64748B] block text-[11px] mb-0.5">Validation Date</span>
-                  <span className="font-mono text-[#94A3B8]">{alert.reviewedAt || '—'}</span>
+                  <span className="font-mono text-[#94A3B8]">{validationDateDisplay}</span>
                 </div>
                 <div>
                   <span className="text-[#64748B] block text-[11px] mb-0.5">Validation By</span>
-                  <span className="text-[#94A3B8] font-mono">{alert.reviewedBy || '—'}</span>
+                  <span className="text-[#94A3B8] font-mono">{validationByDisplay}</span>
                 </div>
 
                 {/* Validation Comment Field */}
@@ -737,7 +754,7 @@ export default function EventDetailsModal({
                         className="z-[100] bg-[#111827] border border-[#1E293B] rounded-2xl shadow-2xl p-1.5 min-w-[210px] select-none"
                         sideOffset={4}
                       >
-                        {ALL_STATUSES.filter(s => s !== alert.status).map(s => (
+                        {availableStatuses.map(s => (
                           <DropdownMenu.Item
                             key={s}
                             onSelect={async () => {

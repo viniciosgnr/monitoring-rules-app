@@ -320,8 +320,9 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
 
     const targetRow = data.find(r => r.id === id);
     const isValidated = status === 'validated';
-    const reviewedBy = isValidated ? 'smetzner@slb.com' : (targetRow?.reviewedBy || '');
-    const reviewedAt = isValidated ? new Date().toLocaleString('pt-BR') : (targetRow?.reviewedAt || '');
+    const isValidationInProgress = status === 'validation_in_progress';
+    const reviewedBy = (isValidated || isValidationInProgress) ? 'smetzner@slb.com' : (targetRow?.reviewedBy || '');
+    const reviewedAt = isValidated ? new Date().toLocaleString('pt-BR') : '';
     const finalComment = comment !== undefined ? comment : (targetRow?.comment ?? null);
     const finalTier = tier || targetRow?.tier;
     setData(d => d.map(r => r.id === id ? { ...r, status, reviewedBy, reviewedAt, tier: finalTier, comment: finalComment } : r));
