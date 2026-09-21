@@ -263,6 +263,7 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
   const [pendingRejectAlertId, setPendingRejectAlertId]   = useState<number | null>(null);
   const [selectedAlertIds, setSelectedAlertIds]           = useState<Set<number>>(new Set());
   const [showGroupModal, setShowGroupModal]               = useState<boolean>(false);
+  const [selectedGroupEventId, setSelectedGroupEventId]   = useState<string | null>(null);
   const [showExportModal, setShowExportModal]             = useState<boolean>(false);
   const [sortField, setSortField]       = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
@@ -557,6 +558,11 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
   const selectedAlertsForGrouping = useMemo(() => {
     return data.filter(r => selectedAlertIds.has(r.id));
   }, [data, selectedAlertIds]);
+
+  const selectedGroupAlerts = useMemo(() => {
+    if (!selectedGroupEventId) return [];
+    return data.filter(r => r.eventId === selectedGroupEventId);
+  }, [data, selectedGroupEventId]);
 
   const currentGeneratedEventId = useMemo(() => {
     const fpsoForEvent = selectedAlertsForGrouping[0]?.fpso || selectedFpsos[0] || 'UNY';
@@ -903,7 +909,13 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
                         {statusScope === 'validated_alerts' && (
                           <td className="px-4 py-3 font-mono text-xs whitespace-nowrap">
                             {row.eventId ? (
-                              <span className="text-white">{row.eventId}</span>
+                              <button
+                                type="button"
+                                onClick={() => setSelectedGroupEventId(row.eventId || null)}
+                                className="text-[#38BDF8] hover:underline cursor-pointer font-mono font-medium text-xs transition-colors"
+                              >
+                                {row.eventId}
+                              </button>
                             ) : (
                               <span className="text-[#64748B]">—</span>
                             )}
@@ -994,6 +1006,17 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
         selectedAlerts={selectedAlertsForGrouping}
         generatedEventId={currentGeneratedEventId}
         onConfirm={handleConfirmGrouping}
+      />
+
+      {/* Event Group Details Modal (View Mode) */}
+      <GroupAlertsModal
+        open={!!selectedGroupEventId}
+        onClose={() => setSelectedGroupEventId(null)}
+        selectedAlerts={selectedGroupAlerts}
+        generatedEventId={selectedGroupEventId || ''}
+        mode="view"
+        initialTier={selectedGroupAlerts[0]?.tier || ''}
+        initialDescription={selectedGroupAlerts[0]?.eventDescription || ''}
       />
 
       {/* Event Details Modal */}

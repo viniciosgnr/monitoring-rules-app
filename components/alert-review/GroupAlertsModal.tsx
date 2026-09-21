@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { X, Layers, AlertCircle, Info } from 'lucide-react';
 import EquipmentBadge from '@/components/ui/EquipmentBadge';
@@ -19,7 +19,10 @@ interface GroupAlertsModalProps {
   onClose: () => void;
   selectedAlerts: AlertRow[];
   generatedEventId: string;
-  onConfirm: (eventId: string, description: string, tier: string) => Promise<void>;
+  onConfirm?: (eventId: string, description: string, tier: string) => Promise<void>;
+  mode?: 'create' | 'view';
+  initialTier?: string;
+  initialDescription?: string;
 }
 
 export default function GroupAlertsModal({
@@ -28,6 +31,9 @@ export default function GroupAlertsModal({
   selectedAlerts,
   generatedEventId,
   onConfirm,
+  mode = 'create',
+  initialTier,
+  initialDescription,
 }: GroupAlertsModalProps) {
   const [description, setDescription] = useState('');
   const [selectedTier, setSelectedTier] = useState('Select tier');
@@ -36,8 +42,24 @@ export default function GroupAlertsModal({
   const [showTierTooltip, setShowTierTooltip] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  useEffect(() => {
+    if (open) {
+      setDescription(initialDescription || '');
+      setSelectedTier(initialTier || 'Select tier');
+      setError(null);
+      setTierError(null);
+      setShowTierTooltip(false);
+    }
+  }, [open, initialTier, initialDescription]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (mode === 'view') {
+      onClose();
+      return;
+    }
+    if (!onConfirm) return;
+
     let hasError = false;
     if (!selectedTier || selectedTier === 'Select tier') {
       setTierError('Please select a Surveillance Tier before grouping alerts.');
@@ -88,10 +110,12 @@ export default function GroupAlertsModal({
               </div>
               <div>
                 <Dialog.Title className="text-base font-semibold text-white">
-                  Group Validated Alerts
+                  {mode === 'view' ? 'Event Group Details' : 'Group Validated Alerts'}
                 </Dialog.Title>
                 <Dialog.Description className="text-xs text-[#94A3B8]">
-                  Group selected alerts under a common Event ID and description.
+                  {mode === 'view'
+                    ? 'View grouped alerts and event metadata.'
+                    : 'Group selected alerts under a common Event ID and description.'}
                 </Dialog.Description>
               </div>
             </div>
@@ -105,11 +129,11 @@ export default function GroupAlertsModal({
           </div>
 
           <form onSubmit={handleSubmit} className="mt-5 space-y-4">
-            {/* Generated Event ID preview */}
+            {/* Event ID card */}
             <div className="bg-[#0B0F19] border border-[#1E293B] rounded-xl p-3.5 flex items-center justify-between">
               <div>
                 <span className="text-[10px] text-[#94A3B8] uppercase tracking-wider font-semibold block mb-0.5">
-                  Generated Event ID
+                  {mode === 'view' ? 'Event ID' : 'Generated Event ID'}
                 </span>
                 <span className="font-mono text-base font-bold text-[#3B82F6]">
                   {generatedEventId}
@@ -124,7 +148,9 @@ export default function GroupAlertsModal({
 
             {/* Selected Alerts Mini-Table: Asset | AlertId | Time series list | Rules */}
             <div className="space-y-1.5">
-              <span className="text-xs font-medium text-[#94A3B8]">Selected Alerts for Grouping</span>
+              <span className="text-xs font-medium text-[#94A3B8]">
+                {mode === 'view' ? 'Alerts in this Event' : 'Selected Alerts for Grouping'}
+              </span>
               <div className="bg-[#0B0F19] border border-[#1E293B] rounded-xl overflow-hidden max-h-52 overflow-y-auto">
                 <table className="w-full text-xs text-left border-collapse">
                   <thead className="bg-[#070A10]/70 border-b border-[#1E293B] text-[#94A3B8] text-[11px] font-medium sticky top-0">
@@ -157,13 +183,13 @@ export default function GroupAlertsModal({
               </div>
             </div>
 
-            {/* Mandatory Surveillance Tier */}
+            {/* Surveillance Tier */}
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5">
                   <label className="text-xs font-medium text-white flex items-center gap-1">
                     <span>Surveillance Tier</span>
-                    <span className="text-red-400">*</span>
+                    {mode !== 'view' && <span className="text-red-400">*</span>}
                   </label>
                   <div className="relative inline-block">
                     <button
@@ -206,32 +232,38 @@ export default function GroupAlertsModal({
                     )}
                   </div>
                 </div>
-                <span className="text-[11px] text-[#94A3B8]">Required</span>
+                {mode !== 'view' && <span className="text-[11px] text-[#94A3B8]">Required</span>}
               </div>
 
-              <select
-                value={selectedTier}
-                onChange={e => {
-                  setSelectedTier(e.target.value);
-                  if (e.target.value !== 'Select tier') {
-                    setTierError(null);
-                  }
-                }}
-                disabled={loading}
-                className={`w-full bg-[#0B0F19] border rounded-xl px-3 py-2.5 text-xs text-white outline-none transition-colors cursor-pointer ${
-                  tierError
-                    ? 'border-red-500 ring-1 ring-red-500/40'
-                    : 'border-[#1E293B] hover:border-[#3B82F6] focus:border-[#3B82F6]'
-                }`}
-              >
-                <option value="Select tier" disabled className="bg-[#111827] text-[#64748B]">
-                  Select tier
-                </option>
-                <option value="Good - Tier 4" className="bg-[#111827] text-white">Good - Tier 4</option>
-                <option value="Good - Tier 3" className="bg-[#111827] text-white">Good - Tier 3</option>
-                <option value="Degraded - Tier 2" className="bg-[#111827] text-white">Degraded - Tier 2</option>
-                <option value="Critical - Tier 1" className="bg-[#111827] text-white">Critical - Tier 1</option>
-              </select>
+              {mode === 'view' ? (
+                <div className="w-full bg-[#0B0F19] border border-[#1E293B] rounded-xl px-3 py-2.5 text-xs text-white font-medium">
+                  {selectedTier && selectedTier !== 'Select tier' ? selectedTier : '—'}
+                </div>
+              ) : (
+                <select
+                  value={selectedTier}
+                  onChange={e => {
+                    setSelectedTier(e.target.value);
+                    if (e.target.value !== 'Select tier') {
+                      setTierError(null);
+                    }
+                  }}
+                  disabled={loading}
+                  className={`w-full bg-[#0B0F19] border rounded-xl px-3 py-2.5 text-xs text-white outline-none transition-colors cursor-pointer ${
+                    tierError
+                      ? 'border-red-500 ring-1 ring-red-500/40'
+                      : 'border-[#1E293B] hover:border-[#3B82F6] focus:border-[#3B82F6]'
+                  }`}
+                >
+                  <option value="Select tier" disabled className="bg-[#111827] text-[#64748B]">
+                    Select tier
+                  </option>
+                  <option value="Good - Tier 4" className="bg-[#111827] text-white">Good - Tier 4</option>
+                  <option value="Good - Tier 3" className="bg-[#111827] text-white">Good - Tier 3</option>
+                  <option value="Degraded - Tier 2" className="bg-[#111827] text-white">Degraded - Tier 2</option>
+                  <option value="Critical - Tier 1" className="bg-[#111827] text-white">Critical - Tier 1</option>
+                </select>
+              )}
 
               {tierError && (
                 <div className="flex items-center gap-1.5 text-xs text-red-400 mt-1">
@@ -241,30 +273,38 @@ export default function GroupAlertsModal({
               )}
             </div>
 
-            {/* Mandatory Event Description */}
+            {/* Event Description */}
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
                 <label className="text-xs font-medium text-white flex items-center gap-1">
                   <span>Event Description</span>
-                  <span className="text-red-400">*</span>
+                  {mode !== 'view' && <span className="text-red-400">*</span>}
                 </label>
-                <span className="text-[11px] text-[#94A3B8]">Required</span>
+                {mode !== 'view' && <span className="text-[11px] text-[#94A3B8]">Required</span>}
               </div>
-              <textarea
-                value={description}
-                onChange={e => {
-                  setDescription(e.target.value);
-                  if (error) setError(null);
-                }}
-                disabled={loading}
-                rows={3}
-                placeholder="Provide a detailed description or root cause justification for grouping these validated alerts..."
-                className={`w-full bg-[#0B0F19] border rounded-xl p-3 text-xs text-white placeholder-[#64748B] outline-none transition-colors resize-none ${
-                  error
-                    ? 'border-red-500 ring-1 ring-red-500/40'
-                    : 'border-[#1E293B] focus:border-[#3B82F6]'
-                }`}
-              />
+
+              {mode === 'view' ? (
+                <div className="w-full bg-[#0B0F19] border border-[#1E293B] rounded-xl p-3 text-xs text-[#E2E8F0] leading-relaxed whitespace-pre-wrap min-h-[68px]">
+                  {description || '—'}
+                </div>
+              ) : (
+                <textarea
+                  value={description}
+                  onChange={e => {
+                    setDescription(e.target.value);
+                    if (error) setError(null);
+                  }}
+                  disabled={loading}
+                  rows={3}
+                  placeholder="Provide a detailed description or root cause justification for grouping these validated alerts..."
+                  className={`w-full bg-[#0B0F19] border rounded-xl p-3 text-xs text-white placeholder-[#64748B] outline-none transition-colors resize-none ${
+                    error
+                      ? 'border-red-500 ring-1 ring-red-500/40'
+                      : 'border-[#1E293B] focus:border-[#3B82F6]'
+                  }`}
+                />
+              )}
+
               {error && (
                 <div className="flex items-center gap-1.5 text-xs text-red-400 mt-1">
                   <AlertCircle size={13} className="shrink-0" />
@@ -275,22 +315,34 @@ export default function GroupAlertsModal({
 
             {/* Modal Actions */}
             <div className="flex items-center justify-end gap-3 pt-3 border-t border-[#1E293B]">
-              <button
-                type="button"
-                onClick={handleClose}
-                disabled={loading}
-                className="px-5 py-2 text-xs rounded-full border border-[#1E293B] text-white hover:border-[#3B82F6] hover:text-[#3B82F6] transition-colors cursor-pointer"
-              >
-                Cancel
-              </button>
+              {mode === 'view' ? (
+                <button
+                  type="button"
+                  onClick={handleClose}
+                  className="px-6 py-2 text-xs rounded-full bg-[#1E293B] hover:bg-[#334155] text-white font-medium transition-colors cursor-pointer"
+                >
+                  Close
+                </button>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={handleClose}
+                    disabled={loading}
+                    className="px-5 py-2 text-xs rounded-full border border-[#1E293B] text-white hover:border-[#3B82F6] hover:text-[#3B82F6] transition-colors cursor-pointer"
+                  >
+                    Cancel
+                  </button>
 
-              <button
-                type="submit"
-                disabled={loading}
-                className="px-6 py-2 text-xs rounded-full bg-[#3B82F6] hover:bg-[#2563EB] disabled:opacity-50 text-white font-medium transition-all shadow-sm cursor-pointer flex items-center gap-2"
-              >
-                {loading ? 'Grouping...' : 'Confirm Grouping'}
-              </button>
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="px-6 py-2 text-xs rounded-full bg-[#3B82F6] hover:bg-[#2563EB] disabled:opacity-50 text-white font-medium transition-all shadow-sm cursor-pointer flex items-center gap-2"
+                  >
+                    {loading ? 'Grouping...' : 'Confirm Grouping'}
+                  </button>
+                </>
+              )}
             </div>
           </form>
 
