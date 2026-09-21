@@ -8,7 +8,7 @@ import EventDetailsModal from '@/components/alert-review/EventDetailsModal';
 import RejectEventModal from '@/components/alert-review/RejectEventModal';
 import GroupAlertsModal from '@/components/alert-review/GroupAlertsModal';
 import { updateAlertStatus, groupAlerts } from '@/app/actions/alerts';
-import { ChevronDown, ChevronRight, Filter, Check, ArrowUpDown, ArrowUp, ArrowDown, Layers, Download, X, Send } from 'lucide-react';
+import { ChevronDown, ChevronRight, Filter, Check, ArrowUpDown, ArrowUp, ArrowDown, Download, X, Send } from 'lucide-react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { exportBrandedExcel } from '@/lib/excelExportUtils';
 import type { Status } from '@/components/ui/StatusBadge';
