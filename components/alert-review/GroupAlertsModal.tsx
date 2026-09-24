@@ -11,6 +11,7 @@ interface AlertRow {
   equipmentCode: string;
   ruleName: string;
   timeseries?: string;
+  eventRef?: string | null;
   [key: string]: unknown;
 }
 
@@ -111,15 +112,15 @@ export default function GroupAlertsModal({
               <div>
                 <Dialog.Title className="text-base font-semibold text-white">
                   {mode === 'view'
-                    ? (selectedAlerts.length === 1 ? 'Event Details' : 'Event Group Details')
+                    ? (selectedAlerts.length === 1 ? 'Group Details' : 'Group Details')
                     : (selectedAlerts.length === 1 ? 'Send Alert to Event Manager' : 'Send Grouped Alerts to Event Manager')}
                 </Dialog.Title>
                 <Dialog.Description className="text-xs text-[#94A3B8]">
                   {mode === 'view'
-                    ? 'View event metadata and associated alerts.'
+                    ? 'View group metadata and associated alerts.'
                     : (selectedAlerts.length === 1
                         ? 'Create an Event record in Event Manager for this validated alert.'
-                        : 'Group selected alerts under a common Event ID and send to Event Manager.')}
+                        : 'Group selected alerts under a common Group ID and send to Event Manager.')}
                 </Dialog.Description>
               </div>
             </div>
@@ -133,16 +134,38 @@ export default function GroupAlertsModal({
           </div>
 
           <form onSubmit={handleSubmit} className="mt-5 space-y-4">
-            {/* Event ID card */}
+            {/* Group Ref and Event Ref card */}
             <div className="bg-[#0B0F19] border border-[#1E293B] rounded-xl p-3.5 flex items-center justify-between">
-              <div>
-                <span className="text-[10px] text-[#94A3B8] uppercase tracking-wider font-semibold block mb-0.5">
-                  {mode === 'view' ? 'Event ID' : 'Generated Event ID'}
-                </span>
-                <span className="font-mono text-base font-bold text-[#3B82F6]">
-                  {generatedEventId}
-                </span>
+              <div className="flex items-center gap-6">
+                <div>
+                  <span className="text-[10px] text-[#94A3B8] uppercase tracking-wider font-semibold block mb-0.5">
+                    {mode === 'view' ? 'Group Ref.' : 'Generated Group Ref.'}
+                  </span>
+                  <span className="font-mono text-base font-bold text-[#3B82F6]">
+                    {generatedEventId}
+                  </span>
+                </div>
+
+                <div className="w-px h-8 bg-[#1E293B]" />
+
+                <div>
+                  <span className="text-[10px] text-[#94A3B8] uppercase tracking-wider font-semibold block mb-0.5">
+                    Event Ref.
+                  </span>
+                  <span className="font-mono text-sm font-medium">
+                    {mode === 'view' ? (
+                      selectedAlerts[0]?.eventRef ? (
+                        <span className="text-white">{selectedAlerts[0].eventRef as string}</span>
+                      ) : (
+                        <span className="text-[#64748B] italic">Pending sync (—)</span>
+                      )
+                    ) : (
+                      <span className="text-[#64748B] italic">Pending sync (—)</span>
+                    )}
+                  </span>
+                </div>
               </div>
+
               <div className="text-right">
                 <span className="px-2.5 py-1 rounded-full bg-[#1E293B] border border-[#334155]/40 text-[#E2E8F0] text-xs font-semibold">
                   {selectedAlerts.length} alert{selectedAlerts.length !== 1 ? 's' : ''}
@@ -154,7 +177,7 @@ export default function GroupAlertsModal({
             <div className="space-y-1.5">
               <span className="text-xs font-medium text-[#94A3B8]">
                 {mode === 'view'
-                  ? (selectedAlerts.length === 1 ? 'Alert in this Event' : 'Alerts in this Event')
+                  ? (selectedAlerts.length === 1 ? 'Alert in this Group' : 'Alerts in this Group')
                   : (selectedAlerts.length === 1 ? 'Selected Alert' : 'Selected Alerts for Grouping')}
               </span>
               <div className="bg-[#0B0F19] border border-[#1E293B] rounded-xl overflow-hidden max-h-52 overflow-y-auto">

@@ -27,6 +27,7 @@ interface AlertRow {
   eventId?: string | null;
   eventDescription?: string | null;
   comment?: string | null;
+  eventRef?: string | null;
   processingSteps?: Record<string, unknown> | null;
   [key: string]: unknown;
 }
@@ -385,16 +386,6 @@ export default function EventDetailsModal({
                   <span className="col-span-2 font-mono text-white">ALT-{alert.id}</span>
                 </div>
                 <div className="grid grid-cols-3 py-1.5 border-b border-[#1E293B]/60">
-                  <span className="text-[#94A3B8]">Event ID</span>
-                  <span className="col-span-2 font-mono">
-                    {alert.eventId ? (
-                      <span className="text-white">{alert.eventId}</span>
-                    ) : (
-                      <span className="text-[#64748B]">—</span>
-                    )}
-                  </span>
-                </div>
-                <div className="grid grid-cols-3 py-1.5 border-b border-[#1E293B]/60">
                   <span className="text-[#94A3B8]">Alert description</span>
                   <span className="col-span-2 text-[#E2E8F0] leading-relaxed">
                     Seal Gas Duplex Coalescent Filter Differential Pressure, External Seal Gas line 2 Temperature, Seal Gas Heater 3 Temperature, Seal Gas Heater Temperature
@@ -415,9 +406,29 @@ export default function EventDetailsModal({
                   <span className="text-[#94A3B8]">End date</span>
                   <span className="col-span-2 font-mono text-white">{formattedEndDate}</span>
                 </div>
-                <div className="grid grid-cols-3 py-1.5">
+                <div className="grid grid-cols-3 py-1.5 border-b border-[#1E293B]/60">
                   <span className="text-[#94A3B8]">Recommendations</span>
                   <span className="col-span-2 text-[#E2E8F0] leading-relaxed">{failureMode}</span>
+                </div>
+                <div className="grid grid-cols-3 py-1.5 border-b border-[#1E293B]/60">
+                  <span className="text-[#94A3B8]">Group Ref.</span>
+                  <span className="col-span-2 font-mono">
+                    {alert.eventId ? (
+                      <span className="text-white font-medium">{alert.eventId}</span>
+                    ) : (
+                      <span className="text-[#64748B]">—</span>
+                    )}
+                  </span>
+                </div>
+                <div className="grid grid-cols-3 py-1.5">
+                  <span className="text-[#94A3B8]">Event Ref.</span>
+                  <span className="col-span-2 font-mono">
+                    {alert.eventRef ? (
+                      <span className="text-white font-medium">{alert.eventRef}</span>
+                    ) : (
+                      <span className="text-[#64748B]">—</span>
+                    )}
+                  </span>
                 </div>
               </div>
 

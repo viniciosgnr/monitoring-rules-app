@@ -33,6 +33,7 @@ interface AlertRow {
   eventId?: string | null;
   eventDescription?: string | null;
   comment?: string | null;
+  eventRef?: string | null;
   [key: string]: unknown;
 }
 
@@ -121,10 +122,10 @@ function getSource(row: AlertRow): string {
   return SOURCES[idx];
 }
 
-export function generateNextEventId(fpsoCode: string, existingAlerts: AlertRow[]): string {
+export function generateNextGroupRef(fpsoCode: string, existingAlerts: AlertRow[]): string {
   const prefix = (fpsoCode || 'UNY').replace(/\s+/g, '');
   const year = '26';
-  const regex = new RegExp(`^(?:MRM-)?${prefix}${year}-EVT-(\\d+)`, 'i');
+  const regex = new RegExp(`^(?:MRM-)?${prefix}${year}-(?:GRP|EVT)-(\\d+)`, 'i');
   let maxSeq = 0;
   for (const a of existingAlerts) {
     if (a.eventId) {
@@ -136,8 +137,10 @@ export function generateNextEventId(fpsoCode: string, existingAlerts: AlertRow[]
     }
   }
   const nextSeq = String(maxSeq + 1).padStart(2, '0');
-  return `MRM-${prefix}${year}-EVT-${nextSeq}`;
+  return `MRM-${prefix}${year}-GRP-${nextSeq}`;
 }
+
+export const generateNextEventId = generateNextGroupRef;
 
 function CategoryFilterDropdown({
   categories,
@@ -579,7 +582,7 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
 
     const headers = isValidationTab
       ? ['FPSO', 'Alert Ref.', 'Asset', 'Timeseries', 'Source', 'Creation Date', 'Status', 'Rule']
-      : ['FPSO', 'Event Ref.', 'Alert Ref.', 'Asset', 'Timeseries', 'Source', 'Start Date', 'End Date', 'Validated Date', 'Rule'];
+      : ['FPSO', 'Group Ref.', 'Alert Ref.', 'Asset', 'Timeseries', 'Source', 'Start Date', 'End Date', 'Validated Date', 'Rule'];
 
     const STATUS_TEXT: Record<string, string> = {
       to_be_validated: 'To Be Validated',
@@ -630,7 +633,7 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
     if (statusScope === 'validated_alerts') {
       return [
         ['fpso', 'FPSO'],
-        ['eventId', 'Event Ref.'],
+        ['eventId', 'Group Ref.'],
         ['alertId', 'Alert Ref.'],
         ['equipmentCode', 'Assets'],
         ['timeseries', 'Timeseries'],
@@ -753,13 +756,13 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
               title="Ungrouped Alerts"
               value={kpiUngrouped}
               subtitle="Pending Alert Grouping"
-              tooltip="Validated alerts that have not yet been assigned to an Event Reference ID."
+              tooltip="Validated alerts that have not yet been assigned to a Group Reference ID."
             />
             <KpiCard
               title="Grouped Alerts"
               value={kpiGrouped}
-              subtitle="Linked to Event Ref."
-              tooltip="Validated alerts that have been consolidated and linked to an Event Reference ID."
+              subtitle="Linked to Group Ref."
+              tooltip="Validated alerts that have been consolidated and linked to a Group Reference ID."
             />
             <KpiCard
               title="Total Validated"

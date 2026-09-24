@@ -49,6 +49,7 @@ export const alerts = pgTable('alerts', {
   eventId:     text('event_id'),
   eventDescription: text('event_description'),
   comment:     text('comment'),
+  eventRef:    text('event_ref'),
 });
 
 export const auditLog = pgTable('audit_log', {

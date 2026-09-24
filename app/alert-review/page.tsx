@@ -27,6 +27,7 @@ export default async function AlertReviewPage() {
       eventId:         alerts.eventId,
       eventDescription: alerts.eventDescription,
       comment:         alerts.comment,
+      eventRef:        alerts.eventRef,
       processingSteps: monitoringRules.processingSteps,
     })
     .from(alerts)
@@ -48,6 +49,7 @@ export default async function AlertReviewPage() {
     eventId:        r.eventId ?? null,
     eventDescription: r.eventDescription ?? null,
     comment:        r.comment ?? null,
+    eventRef:       r.eventRef ?? null,
     processingSteps: (r.processingSteps as Record<string, unknown>) ?? null,
   }));
 
