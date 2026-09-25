@@ -821,8 +821,8 @@ export default function AlertDetailsClient({
               </div>
             </div>
 
-            {/* Alert History Card (Only validated alerts, no status badge) */}
-            <div className="bg-[#111827] border border-[#1E293B] rounded-2xl p-5 shadow-sm space-y-3">
+            {/* Alert History Card (SLB Vertical Timeline format) */}
+            <div className="bg-[#111827] border border-[#1E293B] rounded-2xl p-5 shadow-sm space-y-4">
               <div className="flex items-center justify-between pb-2 border-b border-[#1E293B]">
                 <h3 className="text-xs font-semibold uppercase tracking-wider text-[#94A3B8]">
                   Alert History
@@ -837,29 +837,36 @@ export default function AlertDetailsClient({
                   No previous validated alerts recorded for this asset and rule.
                 </div>
               ) : (
-                <div className="space-y-2.5">
+                <div className="relative pl-6 space-y-5 before:absolute before:left-2 before:top-2 before:bottom-3 before:w-px before:bg-[#334155]">
                   {alertHistory.map(histAlert => {
                     const startStr = formatUtcDateTime(histAlert.triggeredAtRaw || histAlert.triggeredAt);
                     const endStr = formatUtcDateTime(histAlert.endDateRaw || histAlert.endDate);
 
                     return (
-                      <Link
-                        key={histAlert.id}
-                        href={`/alert-review/${histAlert.id}?from=${fromTab}`}
-                        className="block p-2.5 rounded-xl bg-[#0B0F19] border border-[#1E293B] hover:border-[#3B82F6] transition-colors group cursor-pointer"
-                      >
-                        <div className="mb-1">
-                          <span className="font-mono text-xs font-semibold text-[#3B82F6] group-hover:underline">
+                      <div key={histAlert.id} className="relative group">
+                        {/* Timeline Node Bullet */}
+                        <div className="absolute -left-6 top-1 w-2 h-2 rounded-full bg-[#64748B] group-hover:bg-[#38BDF8] group-hover:ring-4 group-hover:ring-[#38BDF8]/20 transition-all -translate-x-[0.5px]" />
+
+                        <Link
+                          href={`/alert-review/${histAlert.id}?from=${fromTab}`}
+                          className="block p-1.5 -m-1.5 rounded-lg hover:bg-[#1E293B]/40 transition-colors"
+                        >
+                          {/* Start Date / Trigger timestamp on top (matching SLB format) */}
+                          <div className="text-[11px] font-mono text-[#94A3B8]">
+                            {startStr}
+                          </div>
+
+                          {/* Alert Reference Identifier */}
+                          <div className="text-xs font-mono font-medium text-[#38BDF8] group-hover:underline mt-0.5">
                             ALT-{histAlert.id}
-                          </span>
-                        </div>
-                        <div className="text-[11px] text-[#94A3B8] font-mono">
-                          Start: {startStr}
-                        </div>
-                        <div className="text-[11px] text-white font-mono">
-                          End: {endStr}
-                        </div>
-                      </Link>
+                          </div>
+
+                          {/* End Date Details */}
+                          <div className="text-[11px] font-mono text-[#CBD5E1] mt-0.5">
+                            End: {endStr}
+                          </div>
+                        </Link>
+                      </div>
                     );
                   })}
                 </div>
