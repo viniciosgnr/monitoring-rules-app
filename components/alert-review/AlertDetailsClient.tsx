@@ -360,7 +360,9 @@ export default function AlertDetailsClient({
     }
   };
 
-  const backUrl = fromTab === 'validated_alerts' ? '/alert-review?from=validated_alerts' : '/alert-review?from=for_validation';
+  const isAlertValidated = currentAlert.status === 'validated';
+  const effectiveBackTab = (isAlertValidated || fromTab === 'validated_alerts') ? 'validated_alerts' : 'for_validation';
+  const backUrl = `/alert-review?from=${effectiveBackTab}`;
 
   return (
     <>
@@ -373,7 +375,10 @@ export default function AlertDetailsClient({
         <div className="flex items-center justify-between gap-4 flex-wrap pb-3 border-b border-[#1E293B]">
           <div className="flex items-center gap-4">
             <button
-              onClick={() => router.push(backUrl)}
+              onClick={() => {
+                router.push(backUrl);
+                router.refresh();
+              }}
               className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#111827] border border-[#1E293B] text-white hover:border-[#3B82F6] hover:text-[#3B82F6] transition-colors cursor-pointer text-xs font-medium"
             >
               <ArrowLeft size={14} />
@@ -398,6 +403,26 @@ export default function AlertDetailsClient({
             Source: <span className="text-white font-medium">{currentAlert.source || 'Monitoring Rules Engine'}</span>
           </div>
         </div>
+
+        {/* Validation success feedback notification */}
+        {isAlertValidated && fromTab === 'for_validation' && (
+          <div className="flex items-center justify-between gap-3 px-4 py-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs">
+            <div className="flex items-center gap-2">
+              <Check size={14} className="stroke-[3]" />
+              <span>Alerta validado com sucesso! Ele agora pertence à aba <strong>Validated Alerts</strong>.</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                router.push('/alert-review?from=validated_alerts');
+                router.refresh();
+              }}
+              className="underline hover:text-emerald-300 font-medium cursor-pointer"
+            >
+              Ver na aba Validated Alerts →
+            </button>
+          </div>
+        )}
 
         {/* 2-Column Responsive Layout */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">

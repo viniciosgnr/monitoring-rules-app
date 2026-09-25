@@ -283,6 +283,16 @@ export default function AlertTable({
     setSelectedAlertIds(new Set());
   }, [statusScope]);
 
+  useEffect(() => {
+    setData(rows);
+  }, [rows]);
+
+  useEffect(() => {
+    if (initialScope) {
+      setStatusScope(initialScope);
+    }
+  }, [initialScope]);
+
   function handleSort(field: string) {
     if (sortField === field) {
       if (sortDirection === 'desc') {
