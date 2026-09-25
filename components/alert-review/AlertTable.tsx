@@ -1,5 +1,6 @@
 'use client';
 import React, { useState, useMemo, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import EquipmentBadge from '@/components/ui/EquipmentBadge';
 import StatusBadge from '@/components/ui/StatusBadge';
 import KpiCard from '@/components/ui/KpiCard';
@@ -245,7 +246,14 @@ function CategoryFilterDropdown({
 
 import FpsosFilterDropdown from '@/components/ui/FpsosFilterDropdown';
 
-export default function AlertTable({ rows }: { rows: AlertRow[] }) {
+export default function AlertTable({
+  rows,
+  initialScope = 'for_validation',
+}: {
+  rows: AlertRow[];
+  initialScope?: 'for_validation' | 'validated_alerts';
+}) {
+  const router = useRouter();
   const [data, setData]                       = useState(rows);
   const [period, setPeriod]                   = useState('All Time');
   const allFpsos = useMemo(() => {
@@ -261,7 +269,7 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
 
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedFilters, setSelectedFilters] = useState<Record<string, string[]>>({});
-  const [statusScope, setStatusScope]         = useState<'for_validation' | 'validated_alerts'>('for_validation');
+  const [statusScope, setStatusScope]         = useState<'for_validation' | 'validated_alerts'>(initialScope);
   const [selectedAlertDetails, setSelectedAlertDetails] = useState<AlertRow | null>(null);
   const [pendingRejectAlertId, setPendingRejectAlertId]   = useState<number | null>(null);
   const [selectedAlertIds, setSelectedAlertIds]           = useState<Set<number>>(new Set());
@@ -511,13 +519,30 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
           const bStr = String(bVal ?? '');
           return sortDirection === 'asc' ? aStr.localeCompare(bStr) : bStr.localeCompare(aStr);
         }
-        return STATUS_ORDER[a.status] - STATUS_ORDER[b.status];
+
+        if (statusScope === 'validated_alerts') {
+          const aUngrouped = !a.eventId;
+          const bUngrouped = !b.eventId;
+          if (aUngrouped && !bUngrouped) return -1;
+          if (!aUngrouped && bUngrouped) return 1;
+
+          const aTime = a.triggeredAtRaw ? new Date(a.triggeredAtRaw).getTime() : 0;
+          const bTime = b.triggeredAtRaw ? new Date(b.triggeredAtRaw).getTime() : 0;
+          return bTime - aTime;
+        }
+
+        const statusDiff = STATUS_ORDER[a.status] - STATUS_ORDER[b.status];
+        if (statusDiff !== 0) return statusDiff;
+
+        const aTime = a.triggeredAtRaw ? new Date(a.triggeredAtRaw).getTime() : 0;
+        const bTime = b.triggeredAtRaw ? new Date(b.triggeredAtRaw).getTime() : 0;
+        return bTime - aTime;
       });
     }
     return Array.from(map.entries()).sort(([catA], [catB]) => {
       return sortCategories(catA, catB);
     });
-  }, [filtered, sortField, sortDirection]);
+  }, [filtered, sortField, sortDirection, statusScope]);
 
   function TableColumnFilter({ field, label }: { field: string; label: string }) {
     const opts = columnOptions[field] || [];
@@ -581,8 +606,8 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
     const filename = isValidationTab ? 'alerts_for_validation.xlsx' : 'validated_alerts.xlsx';
 
     const headers = isValidationTab
-      ? ['FPSO', 'Alert Ref.', 'Asset', 'Timeseries', 'Source', 'Creation Date', 'Status', 'Rule']
-      : ['FPSO', 'Group Ref.', 'Alert Ref.', 'Asset', 'Timeseries', 'Source', 'Start Date', 'End Date', 'Validated Date', 'Rule'];
+      ? ['FPSO', 'Alert Ref.', 'Asset', 'Timeseries', 'Source', 'Creation Date', 'Status', 'Monitoring Rule ID']
+      : ['FPSO', 'Group Ref.', 'Alert Ref.', 'Asset', 'Timeseries', 'Source', 'Start Date', 'End Date', 'Validated Date', 'Monitoring Rule ID'];
 
     const STATUS_TEXT: Record<string, string> = {
       to_be_validated: 'To Be Validated',
@@ -641,7 +666,7 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
         ['triggeredAt', 'Start Date'],
         ['endDate', 'End Date'],
         ['reviewedAt', 'Validated Date'],
-        ['ruleName', 'Rule'],
+        ['ruleName', 'Monitoring Rule ID'],
       ];
     }
     return [
@@ -652,7 +677,7 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
       ['source', 'Source'],
       ['triggeredAt', 'Creation Date'],
       ['status', 'Status'],
-      ['ruleName', 'Rule'],
+      ['ruleName', 'Monitoring Rule ID'],
     ];
   }, [statusScope]);
 
@@ -973,7 +998,7 @@ export default function AlertTable({ rows }: { rows: AlertRow[] }) {
                         <td className="px-4 py-3">
                           <button
                             onClick={() => {
-                              setSelectedAlertDetails(row);
+                              router.push(`/alert-review/${row.id}?from=${statusScope}`);
                             }}
                             className="px-3.5 py-1 text-xs rounded-full border border-[#1E293B] text-white hover:border-[#3B82F6] hover:text-[#3B82F6] transition-colors cursor-pointer"
                           >

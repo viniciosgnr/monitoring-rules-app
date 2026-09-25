@@ -8,7 +8,15 @@ import type { Status } from '@/components/ui/StatusBadge';
 
 export const dynamic = 'force-dynamic';
 
-export default async function AlertReviewPage() {
+interface PageProps {
+  searchParams?: { from?: string; tab?: string };
+}
+
+export default async function AlertReviewPage({ searchParams }: PageProps) {
+  const initialScope = (searchParams?.from === 'validated_alerts' || searchParams?.tab === 'validated_alerts')
+    ? 'validated_alerts'
+    : 'for_validation';
+
   const rows = await db
     .select({
       id:              alerts.id,
@@ -58,7 +66,7 @@ export default async function AlertReviewPage() {
       <Topbar breadcrumb="Alert Review" />
       <NavTabs title="Alert Review" />
       <main className="px-6 py-5 space-y-5">
-        <AlertTable rows={serialized} />
+        <AlertTable rows={serialized} initialScope={initialScope} />
       </main>
     </>
   );
