@@ -12,9 +12,12 @@ export async function updateAlertStatus(id: number, status: Status, tier?: strin
   if (status === 'validation_in_progress') {
     updateData.reviewedBy = 'Jon Doe';
     updateData.reviewedAt = null;
-  } else if (status === 'validated' || status === 'rejected') {
+  } else if (status === 'validated') {
     updateData.reviewedBy = 'Jon Doe';
     updateData.reviewedAt = new Date();
+  } else if (status === 'rejected') {
+    updateData.reviewedBy = 'Jon Doe';
+    updateData.reviewedAt = null;
   }
   if (tier !== undefined) {
     updateData.tier = tier;

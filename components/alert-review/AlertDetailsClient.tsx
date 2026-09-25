@@ -261,7 +261,7 @@ export default function AlertDetailsClient({
   const formattedStartDate = formatUtcDateTime(currentAlert.triggeredAtRaw || currentAlert.triggeredAt);
   const formattedEndDate = formatUtcDateTime(currentAlert.endDateRaw || currentAlert.endDate);
 
-  const validationDateDisplay = (currentAlert.status === 'validated' || currentAlert.status === 'rejected')
+  const validationDateDisplay = currentAlert.status === 'validated'
     ? (currentAlert.reviewedAt || '—')
     : '—';
   const validationByDisplay = (currentAlert.status === 'validation_in_progress' || currentAlert.status === 'validated' || currentAlert.status === 'rejected')
@@ -723,30 +723,32 @@ export default function AlertDetailsClient({
                   </p>
                 </div>
 
-                {/* Surveillance Tier Metadata */}
-                <div>
-                  <div className="flex items-center gap-1.5 mb-0.5">
-                    <span className="text-[#64748B] text-[11px]">Surveillance Tier</span>
-                    <button
-                      type="button"
-                      onClick={() => setShowTierTooltip(!showTierTooltip)}
-                      className="text-[#64748B] hover:text-[#3B82F6] cursor-pointer"
-                      title="Tier Info"
-                    >
-                      <Info size={12} />
-                    </button>
-                  </div>
-                  <span className="font-semibold text-white text-xs">{currentAlert.tier || '—'}</span>
-
-                  {showTierTooltip && (
-                    <div className="mt-2 bg-[#0B0F19] border border-[#1E293B] rounded-xl p-3 text-[11px] text-[#94A3B8] space-y-1.5">
-                      <div><strong className="text-white">Tier 4:</strong> No abnormality detected</div>
-                      <div><strong className="text-white">Tier 3:</strong> Slight deviation observed</div>
-                      <div><strong className="text-white">Tier 2:</strong> Confirmed anomaly; operable in degraded mode</div>
-                      <div><strong className="text-white">Tier 1:</strong> Critical; close to failure limits</div>
+                {/* Surveillance Tier Metadata (only shown when alert belongs to a group/event) */}
+                {currentAlert.eventId && (
+                  <div>
+                    <div className="flex items-center gap-1.5 mb-0.5">
+                      <span className="text-[#64748B] text-[11px]">Surveillance Tier</span>
+                      <button
+                        type="button"
+                        onClick={() => setShowTierTooltip(!showTierTooltip)}
+                        className="text-[#64748B] hover:text-[#3B82F6] cursor-pointer"
+                        title="Tier Info"
+                      >
+                        <Info size={12} />
+                      </button>
                     </div>
-                  )}
-                </div>
+                    <span className="font-semibold text-white text-xs">{currentAlert.tier || '—'}</span>
+
+                    {showTierTooltip && (
+                      <div className="mt-2 bg-[#0B0F19] border border-[#1E293B] rounded-xl p-3 text-[11px] text-[#94A3B8] space-y-1.5">
+                        <div><strong className="text-white">Tier 4:</strong> No abnormality detected</div>
+                        <div><strong className="text-white">Tier 3:</strong> Slight deviation observed</div>
+                        <div><strong className="text-white">Tier 2:</strong> Confirmed anomaly; operable in degraded mode</div>
+                        <div><strong className="text-white">Tier 1:</strong> Critical; close to failure limits</div>
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 <div>
                   <span className="text-[#64748B] block text-[11px] mb-0.5">Validation Date</span>

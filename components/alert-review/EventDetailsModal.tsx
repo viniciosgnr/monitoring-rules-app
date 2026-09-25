@@ -275,7 +275,7 @@ export default function EventDetailsModal({
   const formattedStartDate = formatUtcDateTime(alert.triggeredAtRaw || alert.triggeredAt);
   const formattedEndDate = formatUtcDateTime(alert.endDateRaw || alert.endDate);
 
-  const validationDateDisplay = (alert.status === 'validated' || alert.status === 'rejected')
+  const validationDateDisplay = alert.status === 'validated'
     ? (alert.reviewedAt || '—')
     : '—';
   const validationByDisplay = (alert.status === 'validation_in_progress' || alert.status === 'validated' || alert.status === 'rejected')
