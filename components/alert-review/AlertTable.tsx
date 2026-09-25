@@ -426,11 +426,11 @@ export default function AlertTable({
     return globalFilteredRows.filter(r => r.status === 'validated');
   }, [globalFilteredRows]);
 
-  const kpiUngrouped = useMemo(() => {
+  const kpiUnreleased = useMemo(() => {
     return validatedAlertsList.filter(r => !r.eventId).length;
   }, [validatedAlertsList]);
 
-  const kpiGrouped = useMemo(() => {
+  const kpiReleased = useMemo(() => {
     return validatedAlertsList.filter(r => Boolean(r.eventId)).length;
   }, [validatedAlertsList]);
 
@@ -531,10 +531,10 @@ export default function AlertTable({
         }
 
         if (statusScope === 'validated_alerts') {
-          const aUngrouped = !a.eventId;
-          const bUngrouped = !b.eventId;
-          if (aUngrouped && !bUngrouped) return -1;
-          if (!aUngrouped && bUngrouped) return 1;
+          const aUnreleased = !a.eventId;
+          const bUnreleased = !b.eventId;
+          if (aUnreleased && !bUnreleased) return -1;
+          if (!aUnreleased && bUnreleased) return 1;
 
           const aTime = a.triggeredAtRaw ? new Date(a.triggeredAtRaw).getTime() : 0;
           const bTime = b.triggeredAtRaw ? new Date(b.triggeredAtRaw).getTime() : 0;
@@ -788,22 +788,22 @@ export default function AlertTable({
         ) : (
           <>
             <KpiCard
-              title="Ungrouped Alerts"
-              value={kpiUngrouped}
-              subtitle="Pending Alert Grouping"
-              tooltip="Validated alerts that have not yet been assigned to a Group Reference ID."
+              title="Unreleased Alerts"
+              value={kpiUnreleased}
+              subtitle="Pending release"
+              tooltip="Validated alerts that have not yet been grouped or released to Event Manager."
             />
             <KpiCard
-              title="Grouped Alerts"
-              value={kpiGrouped}
-              subtitle="Linked to Group Ref."
-              tooltip="Validated alerts that have been consolidated and linked to a Group Reference ID."
+              title="Released Alerts"
+              value={kpiReleased}
+              subtitle="Sent to Event Manager"
+              tooltip="Validated alerts that have been grouped and released to Event Manager."
             />
             <KpiCard
               title="Total Validated"
               value={kpiTotalValidated}
               subtitle="Confirmed valid"
-              tooltip="Total number of validated alerts (both grouped and ungrouped) for the selected filters."
+              tooltip="Total number of validated alerts (both released and unreleased) for the selected filters."
             />
           </>
         )}
