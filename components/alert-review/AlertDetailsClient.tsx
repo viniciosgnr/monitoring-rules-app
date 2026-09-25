@@ -371,36 +371,30 @@ export default function AlertDetailsClient({
 
       <main className="px-6 py-5 space-y-5 max-w-[1600px] mx-auto select-none">
         
-        {/* Navigation & Header Bar */}
+        {/* Navigation & Header Bar matching SLB Mockup */}
         <div className="flex items-center justify-between gap-4 flex-wrap pb-3 border-b border-[#1E293B]">
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             <button
               onClick={() => {
                 router.push(backUrl);
                 router.refresh();
               }}
-              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#111827] border border-[#1E293B] text-white hover:border-[#3B82F6] hover:text-[#3B82F6] transition-colors cursor-pointer text-xs font-medium"
+              className="flex items-center gap-2 text-white hover:text-[#38BDF8] transition-colors cursor-pointer group"
+              title="Back to Alert Review"
             >
-              <ArrowLeft size={14} />
-              <span>Back to Alert Review</span>
-            </button>
-
-            <div className="h-5 w-px bg-[#1E293B]" />
-
-            <div className="flex items-center gap-2.5">
-              <h1 className="text-base font-bold text-white font-mono">
-                ALT-{currentAlert.id}
+              <ArrowLeft size={16} className="text-[#94A3B8] group-hover:text-[#38BDF8] transition-colors" />
+              <h1 className="text-sm md:text-base font-semibold text-white tracking-tight flex items-center gap-2">
+                <span>Alert Details: ALT-{currentAlert.id} - {currentAlert.source || 'Monitoring Rules Engine'}</span>
               </h1>
-              <EquipmentBadge code={currentAlert.equipmentCode} />
-              <span className="px-2 py-0.5 rounded text-[11px] font-mono bg-[#1E293B] text-[#94A3B8] border border-[#334155]/40 font-semibold">
-                {currentAlert.fpso}
-              </span>
-              <StatusBadge status={currentAlert.status} />
-            </div>
+            </button>
           </div>
 
-          <div className="text-xs text-[#94A3B8]">
-            Source: <span className="text-white font-medium">{currentAlert.source || 'Monitoring Rules Engine'}</span>
+          <div className="flex items-center gap-2.5">
+            <EquipmentBadge code={currentAlert.equipmentCode} />
+            <span className="px-2 py-0.5 rounded text-[11px] font-mono bg-[#1E293B] text-[#94A3B8] border border-[#334155]/40 font-semibold">
+              {currentAlert.fpso}
+            </span>
+            <StatusBadge status={currentAlert.status} />
           </div>
         </div>
 
@@ -424,70 +418,282 @@ export default function AlertDetailsClient({
           </div>
         )}
 
-        {/* 2-Column Responsive Layout */}
+        {/* 2-Column Responsive Layout (matching SLB design) */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           
-          {/* ── Left Column (~70% width: cols 1-8) ── */}
+          {/* ── Left Column (~33% width: cols 1-4): Workflow & Validation + Alert History ── */}
+          <div className="lg:col-span-4 space-y-6">
+            
+            {/* Status & Validation Action Card */}
+            <div className="bg-[#111827] border border-[#1E293B] rounded-2xl p-5 shadow-sm space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-[#1E293B]">
+                <h3 className="text-xs font-semibold text-white">
+                  Workflow & Validation
+                </h3>
+                <div title="Workflow and approval transitions" className="text-[#64748B] hover:text-[#94A3B8] cursor-pointer">
+                  <Info size={14} />
+                </div>
+              </div>
+
+              {/* Status Transition & Operator fields */}
+              <div className="space-y-3 text-xs">
+                {/* Status Transition Row */}
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[#94A3B8] text-xs">Status Transition:</span>
+                  {!isReadOnly && availableStatuses.length > 0 ? (
+                    <DropdownMenu.Root>
+                      <DropdownMenu.Trigger asChild>
+                        <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#0B0F19] border border-[#1E293B] text-white text-xs font-medium hover:border-[#3B82F6] transition-colors cursor-pointer">
+                          <span>Change Status</span>
+                          <ChevronDown size={13} className="text-[#94A3B8]" />
+                        </button>
+                      </DropdownMenu.Trigger>
+                      <DropdownMenu.Portal>
+                        <DropdownMenu.Content
+                          className="z-[100] bg-[#111827] border border-[#1E293B] rounded-2xl shadow-2xl p-1.5 min-w-[200px] select-none text-xs"
+                          sideOffset={4}
+                        >
+                          {availableStatuses.map(s => (
+                            <DropdownMenu.Item
+                              key={s}
+                              onSelect={() => handleStatusSelect(s)}
+                              className="flex items-center justify-between px-3 py-2 rounded-xl text-white hover:bg-[#1E293B] cursor-pointer outline-none transition-colors"
+                            >
+                              <StatusBadge status={s} />
+                            </DropdownMenu.Item>
+                          ))}
+                        </DropdownMenu.Content>
+                      </DropdownMenu.Portal>
+                    </DropdownMenu.Root>
+                  ) : (
+                    <StatusBadge status={currentAlert.status} />
+                  )}
+                </div>
+
+                <div className="flex items-start justify-between gap-2">
+                  <span className="text-[#94A3B8] text-xs">Created on:</span>
+                  <span className="font-mono text-white text-xs text-right">{formattedStartDate}</span>
+                </div>
+
+                <div className="flex items-start justify-between gap-2">
+                  <span className="text-[#94A3B8] text-xs">Description:</span>
+                  <span className="text-[#E2E8F0] text-xs text-right max-w-[200px] leading-relaxed">
+                    A monitoring alert has been triggered, potentially indicating a failure.
+                  </span>
+                </div>
+
+                {/* Surveillance Tier Metadata (only shown when alert belongs to a group/event) */}
+                {currentAlert.eventId && (
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-1">
+                      <span className="text-[#94A3B8] text-xs">Surveillance Tier:</span>
+                      <button
+                        type="button"
+                        onClick={() => setShowTierTooltip(!showTierTooltip)}
+                        className="text-[#64748B] hover:text-[#3B82F6] cursor-pointer"
+                        title="Tier Info"
+                      >
+                        <Info size={12} />
+                      </button>
+                    </div>
+                    <span className="font-semibold text-white text-xs">{currentAlert.tier || '—'}</span>
+                  </div>
+                )}
+
+                {showTierTooltip && currentAlert.eventId && (
+                  <div className="bg-[#0B0F19] border border-[#1E293B] rounded-xl p-3 text-[11px] text-[#94A3B8] space-y-1.5">
+                    <div><strong className="text-white">Tier 4:</strong> No abnormality detected</div>
+                    <div><strong className="text-white">Tier 3:</strong> Slight deviation observed</div>
+                    <div><strong className="text-white">Tier 2:</strong> Confirmed anomaly; operable in degraded mode</div>
+                    <div><strong className="text-white">Tier 1:</strong> Critical; close to failure limits</div>
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[#94A3B8] text-xs">Validation Date:</span>
+                  <span className="font-mono text-[#94A3B8] text-xs">{validationDateDisplay}</span>
+                </div>
+
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[#94A3B8] text-xs">Validated by:</span>
+                  <span className="text-[#94A3B8] font-mono text-xs">{validationByDisplay}</span>
+                </div>
+              </div>
+
+              {/* Comment Section */}
+              <div className="space-y-2 pt-2 border-t border-[#1E293B]">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-[#94A3B8]">Validation Comment</span>
+                  {commentSavedFeedback && (
+                    <span className="text-[11px] text-emerald-400 flex items-center gap-1">
+                      <Check size={12} /> Saved
+                    </span>
+                  )}
+                </div>
+
+                {isReadOnly ? (
+                  <div className="w-full bg-[#0B0F19] border border-[#1E293B] rounded-xl p-3 text-xs text-[#E2E8F0] leading-relaxed whitespace-pre-wrap min-h-[60px]">
+                    {currentAlert.comment || '—'}
+                  </div>
+                ) : (
+                  <>
+                    <textarea
+                      value={commentText}
+                      onChange={e => {
+                        setCommentText(e.target.value);
+                        if (commentError) setCommentError(null);
+                      }}
+                      rows={3}
+                      placeholder="Validation comment..."
+                      className={`w-full bg-[#0B0F19] border rounded-xl p-3 text-xs text-white placeholder-[#64748B] outline-none transition-colors resize-none ${
+                        commentError ? 'border-red-500' : 'border-[#1E293B] focus:border-[#3B82F6]'
+                      }`}
+                    />
+                    {commentError && (
+                      <div className="flex items-center gap-1.5 text-xs text-red-400">
+                        <AlertCircle size={13} className="shrink-0" />
+                        <span>{commentError}</span>
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {/* Bottom Action Buttons: Open Workbench & Save Note */}
+                <div className="flex items-center gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => alert('Opening Workbench...')}
+                    className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-[#0B0F19] border border-[#1E293B] text-white text-xs font-medium hover:border-[#3B82F6] transition-colors cursor-pointer"
+                  >
+                    <Wrench size={13} />
+                    <span>Open Workbench</span>
+                  </button>
+                  {!isReadOnly && (
+                    <button
+                      type="button"
+                      onClick={handleSaveComment}
+                      disabled={isSavingComment || !commentText.trim()}
+                      className="px-4 py-2 rounded-xl text-xs font-medium bg-[#1E293B] text-white hover:bg-[#334155] disabled:opacity-50 transition-colors cursor-pointer whitespace-nowrap"
+                    >
+                      {isSavingComment ? 'Saving...' : 'Save Note'}
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Alert History Card (matching SLB design in mockup) */}
+            <div className="bg-[#111827] border border-[#1E293B] rounded-2xl p-5 shadow-sm space-y-3">
+              <div className="flex items-center justify-between pb-2 border-b border-[#1E293B]">
+                <h3 className="text-xs font-semibold text-white">
+                  Alert History
+                </h3>
+                <div title={`${alertHistory.length} validated alerts for this asset and rule`} className="text-[#64748B] hover:text-[#94A3B8] cursor-pointer">
+                  <Info size={14} />
+                </div>
+              </div>
+
+              {alertHistory.length === 0 ? (
+                <div className="text-xs text-[#64748B] italic py-2">
+                  No previous validated alerts recorded for this asset and rule.
+                </div>
+              ) : (
+                <div className="space-y-3 divide-y divide-[#1E293B]/60">
+                  {alertHistory.map(histAlert => {
+                    const startStr = formatUtcDateTime(histAlert.triggeredAtRaw || histAlert.triggeredAt);
+                    const endStr = formatUtcDateTime(histAlert.endDateRaw || histAlert.endDate);
+
+                    return (
+                      <div key={histAlert.id} className="pt-3 first:pt-0 space-y-1">
+                        <Link
+                          href={`/alert-review/${histAlert.id}?from=${fromTab}`}
+                          className="font-mono text-xs font-bold text-white hover:text-[#38BDF8] transition-colors inline-block"
+                        >
+                          ALT {histAlert.id}
+                        </Link>
+
+                        <div className="flex items-center justify-between text-[11px] font-mono">
+                          <span className="text-[#94A3B8]">Start Date:</span>
+                          <span className="text-[#CBD5E1]">{startStr}</span>
+                        </div>
+
+                        <div className="flex items-center justify-between text-[11px] font-mono">
+                          <span className="text-[#94A3B8]">End Date:</span>
+                          <span className="text-[#CBD5E1]">{endStr}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+          </div>
+
+          {/* ── Right Column (~67% width: cols 5-12): Metadata Grid + Alert Timeseries ── */}
           <div className="lg:col-span-8 space-y-6">
             
             {/* Metadata Grid Card */}
-            <div className="bg-[#111827] border border-[#1E293B] rounded-2xl p-5 shadow-sm space-y-4">
-              <div className="flex items-center justify-between pb-3 border-b border-[#1E293B]">
-                <h2 className="text-xs font-semibold uppercase tracking-wider text-[#94A3B8]">
-                  Alert Specifications & Metadata
+            <div className="bg-[#111827] border border-[#1E293B] rounded-2xl p-5 shadow-sm space-y-3">
+              <div className="pb-2 border-b border-[#1E293B]">
+                <h2 className="text-xs font-semibold text-white">
+                  Alert specifications & metadata
                 </h2>
+                <span className="text-[11px] text-[#94A3B8] font-medium block mt-1">
+                  Monitoring Alert
+                </span>
               </div>
 
-              <div className="text-xs text-[#E2E8F0] space-y-0.5">
-                {/* Clean Asset Row: No duplicated code */}
-                <div className="grid grid-cols-3 py-2 border-b border-[#1E293B]/60">
-                  <span className="text-[#94A3B8]">Asset</span>
-                  <span className="col-span-2 font-mono text-white font-medium">
+              <div className="text-xs text-[#E2E8F0] divide-y divide-[#1E293B]/60">
+                <div className="grid grid-cols-12 py-2.5">
+                  <span className="col-span-4 text-[#94A3B8]">Asset</span>
+                  <span className="col-span-8 font-mono text-white font-medium flex items-center gap-2">
+                    <span>{currentAlert.equipmentCode}</span>
                     <EquipmentBadge code={currentAlert.equipmentCode} />
                   </span>
                 </div>
 
-                <div className="grid grid-cols-3 py-2 border-b border-[#1E293B]/60">
-                  <span className="text-[#94A3B8]">Alert type</span>
-                  <span className="col-span-2 text-white font-medium">{getAlertType(currentAlert)}</span>
+                <div className="grid grid-cols-12 py-2.5">
+                  <span className="col-span-4 text-[#94A3B8]">Alert Type</span>
+                  <span className="col-span-8 text-white font-medium">{getAlertType(currentAlert)}</span>
                 </div>
 
-                <div className="grid grid-cols-3 py-2 border-b border-[#1E293B]/60">
-                  <span className="text-[#94A3B8]">Alert Ref.</span>
-                  <span className="col-span-2 font-mono text-[#3B82F6] font-bold">ALT-{currentAlert.id}</span>
+                <div className="grid grid-cols-12 py-2.5">
+                  <span className="col-span-4 text-[#94A3B8]">Alert Ref.</span>
+                  <span className="col-span-8 font-mono text-[#3B82F6] font-bold">ALT-{currentAlert.id}</span>
                 </div>
 
-                <div className="grid grid-cols-3 py-2 border-b border-[#1E293B]/60">
-                  <span className="text-[#94A3B8]">Alert description</span>
-                  <span className="col-span-2 text-[#E2E8F0] leading-relaxed">
-                    Seal Gas Duplex Coalescent Filter Differential Pressure, External Seal Gas line 2 Temperature, Seal Gas Heater 3 Temperature, Seal Gas Heater Temperature
+                <div className="grid grid-cols-12 py-2.5">
+                  <span className="col-span-4 text-[#94A3B8]">Alert Description</span>
+                  <span className="col-span-8 text-[#E2E8F0] leading-relaxed">
+                    {currentAlert.ruleDescription || 'Seal Gas Duplex Coalescent Filter Differential Pressure, External Seal Gas line 2 Temperature, Seal Gas Heater 3 Temperature, Seal Gas Heater Temperature'}
                   </span>
                 </div>
 
-                <div className="grid grid-cols-3 py-2 border-b border-[#1E293B]/60">
-                  <span className="text-[#94A3B8]">Monitoring Rule ID</span>
-                  <span className="col-span-2 font-mono text-white font-medium">{ruleId}</span>
+                <div className="grid grid-cols-12 py-2.5">
+                  <span className="col-span-4 text-[#94A3B8]">Monitoring Rule ID</span>
+                  <span className="col-span-8 font-mono text-white font-medium">{ruleId}</span>
                 </div>
 
-                <div className="grid grid-cols-3 py-2 border-b border-[#1E293B]/60">
-                  <span className="text-[#94A3B8]">Start date</span>
-                  <span className="col-span-2 font-mono text-white">{formattedStartDate}</span>
+                <div className="grid grid-cols-12 py-2.5">
+                  <span className="col-span-4 text-[#94A3B8]">Start Date</span>
+                  <span className="col-span-8 font-mono text-white">{formattedStartDate}</span>
                 </div>
 
-                <div className="grid grid-cols-3 py-2 border-b border-[#1E293B]/60">
-                  <span className="text-[#94A3B8]">End date</span>
-                  <span className="col-span-2 font-mono text-white">{formattedEndDate}</span>
+                <div className="grid grid-cols-12 py-2.5">
+                  <span className="col-span-4 text-[#94A3B8]">End Date</span>
+                  <span className="col-span-8 font-mono text-white">{formattedEndDate}</span>
                 </div>
 
-                <div className="grid grid-cols-3 py-2 border-b border-[#1E293B]/60">
-                  <span className="text-[#94A3B8]">Recommendations</span>
-                  <span className="col-span-2 text-[#E2E8F0] leading-relaxed">{failureMode}</span>
+                <div className="grid grid-cols-12 py-2.5">
+                  <span className="col-span-4 text-[#94A3B8]">Recommendations</span>
+                  <span className="col-span-8 text-[#E2E8F0] leading-relaxed">{failureMode}</span>
                 </div>
 
-                {/* Group Ref. and Event Ref. below Recommendations */}
-                <div className="grid grid-cols-3 py-2 border-b border-[#1E293B]/60">
-                  <span className="text-[#94A3B8]">Group Ref.</span>
-                  <span className="col-span-2 font-mono">
+                {/* Group Ref. and Event Ref. below Recommendations (strictly kept at bottom) */}
+                <div className="grid grid-cols-12 py-2.5">
+                  <span className="col-span-4 text-[#94A3B8]">Group Ref.</span>
+                  <span className="col-span-8 font-mono">
                     {currentAlert.eventId ? (
                       <span className="text-white font-medium bg-[#0B0F19] px-2 py-0.5 rounded border border-[#1E293B]">
                         {currentAlert.eventId}
@@ -498,9 +704,9 @@ export default function AlertDetailsClient({
                   </span>
                 </div>
 
-                <div className="grid grid-cols-3 py-2">
-                  <span className="text-[#94A3B8]">Event Ref.</span>
-                  <span className="col-span-2 font-mono">
+                <div className="grid grid-cols-12 py-2.5">
+                  <span className="col-span-4 text-[#94A3B8]">Event Ref.</span>
+                  <span className="col-span-8 font-mono">
                     {currentAlert.eventRef ? (
                       <span className="text-white font-medium bg-[#0B0F19] px-2 py-0.5 rounded border border-[#1E293B]">
                         {currentAlert.eventRef}
@@ -518,7 +724,15 @@ export default function AlertDetailsClient({
               <div className="flex items-center justify-between pb-2 border-b border-[#1E293B] flex-wrap gap-2">
                 <div>
                   <h3 className="text-xs font-semibold text-white">Alert Timeseries</h3>
-                  <span className="text-[11px] font-mono text-[#94A3B8]">{timeseriesTag}</span>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="text-[11px] font-mono text-[#94A3B8]">{timeseriesTag}</span>
+                    <Info size={12} className="text-[#64748B] cursor-pointer" />
+                    <div className="flex items-center gap-2 text-[10px] font-mono pl-2 border-l border-[#1E293B]">
+                      <span className="flex items-center gap-1 text-[#EF4444]">
+                        <span className="w-2 h-0.5 bg-[#EF4444] inline-block" /> Critical Threshold
+                      </span>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="flex items-center gap-2.5 relative flex-wrap">
@@ -535,7 +749,7 @@ export default function AlertDetailsClient({
                     Latest: <span className="text-white">-0,36</span>
                   </span>
 
-                  {/* Time Range Selector Button & Popover (matching image 2) */}
+                  {/* Time Range Selector Button & Popover */}
                   <div className="relative" ref={timeRangeRef}>
                     <button
                       type="button"
@@ -614,7 +828,8 @@ export default function AlertDetailsClient({
               >
                 <div className="flex items-stretch">
                   {/* Y-Axis Ticks */}
-                  <div className="w-10 flex flex-col justify-between text-[10px] font-mono text-[#64748B] text-right pr-2 py-0 select-none">
+                  <div className="w-12 flex flex-col justify-between text-[10px] font-mono text-[#64748B] text-right pr-2 py-0 select-none">
+                    <span className="text-[9px] text-[#475569]">MSCF/d</span>
                     <span>100</span>
                     <span>80</span>
                     <span>60</span>
@@ -661,218 +876,6 @@ export default function AlertDetailsClient({
                   <span>Drag chart horizontally to explore past timeseries</span>
                 </div>
               </div>
-            </div>
-
-          </div>
-
-          {/* ── Right Column (~30% width: cols 9-12) ── */}
-          <div className="lg:col-span-4 space-y-6">
-            
-            {/* Status & Validation Action Card */}
-            <div className="bg-[#111827] border border-[#1E293B] rounded-2xl p-5 shadow-sm space-y-4">
-              <div className="flex items-center justify-between pb-3 border-b border-[#1E293B]">
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-[#94A3B8]">
-                  Workflow & Validation
-                </h3>
-                <StatusBadge status={currentAlert.status} />
-              </div>
-
-              {/* Status Selector dropdown: Only render if not read-only and transitions exist */}
-              {!isReadOnly && availableStatuses.length > 0 && (
-                <div className="space-y-1.5">
-                  <span className="text-xs text-[#94A3B8] font-medium">Status Transition</span>
-                  <DropdownMenu.Root>
-                    <DropdownMenu.Trigger asChild>
-                      <button className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-[#0B0F19] border border-[#1E293B] text-white text-xs font-medium hover:border-[#3B82F6] transition-colors cursor-pointer">
-                        <span>Change Status</span>
-                        <ChevronDown size={14} className="text-[#94A3B8]" />
-                      </button>
-                    </DropdownMenu.Trigger>
-                    <DropdownMenu.Portal>
-                      <DropdownMenu.Content
-                        className="z-[100] bg-[#111827] border border-[#1E293B] rounded-2xl shadow-2xl p-1.5 min-w-[220px] select-none text-xs"
-                        sideOffset={4}
-                      >
-                        {availableStatuses.map(s => (
-                          <DropdownMenu.Item
-                            key={s}
-                            onSelect={() => handleStatusSelect(s)}
-                            className="flex items-center justify-between px-3 py-2 rounded-xl text-white hover:bg-[#1E293B] cursor-pointer outline-none transition-colors"
-                          >
-                            <StatusBadge status={s} />
-                          </DropdownMenu.Item>
-                        ))}
-                      </DropdownMenu.Content>
-                    </DropdownMenu.Portal>
-                  </DropdownMenu.Root>
-                </div>
-              )}
-
-              {/* Operator info fields */}
-              <div className="space-y-2.5 pt-2 text-xs border-t border-[#1E293B]">
-                {/* Changed Start Date to Created On */}
-                <div>
-                  <span className="text-[#64748B] block text-[11px] mb-0.5">Created On</span>
-                  <span className="font-mono text-white text-xs">{formattedStartDate}</span>
-                </div>
-
-                <div>
-                  <span className="text-[#64748B] block text-[11px] mb-0.5">Description</span>
-                  <p className="text-[#E2E8F0] text-xs leading-relaxed">
-                    A monitoring alert has been triggered, potentially indicating a failure.
-                  </p>
-                </div>
-
-                {/* Surveillance Tier Metadata (only shown when alert belongs to a group/event) */}
-                {currentAlert.eventId && (
-                  <div>
-                    <div className="flex items-center gap-1.5 mb-0.5">
-                      <span className="text-[#64748B] text-[11px]">Surveillance Tier</span>
-                      <button
-                        type="button"
-                        onClick={() => setShowTierTooltip(!showTierTooltip)}
-                        className="text-[#64748B] hover:text-[#3B82F6] cursor-pointer"
-                        title="Tier Info"
-                      >
-                        <Info size={12} />
-                      </button>
-                    </div>
-                    <span className="font-semibold text-white text-xs">{currentAlert.tier || '—'}</span>
-
-                    {showTierTooltip && (
-                      <div className="mt-2 bg-[#0B0F19] border border-[#1E293B] rounded-xl p-3 text-[11px] text-[#94A3B8] space-y-1.5">
-                        <div><strong className="text-white">Tier 4:</strong> No abnormality detected</div>
-                        <div><strong className="text-white">Tier 3:</strong> Slight deviation observed</div>
-                        <div><strong className="text-white">Tier 2:</strong> Confirmed anomaly; operable in degraded mode</div>
-                        <div><strong className="text-white">Tier 1:</strong> Critical; close to failure limits</div>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                <div>
-                  <span className="text-[#64748B] block text-[11px] mb-0.5">Validation Date</span>
-                  <span className="font-mono text-[#94A3B8]">{validationDateDisplay}</span>
-                </div>
-
-                <div>
-                  <span className="text-[#64748B] block text-[11px] mb-0.5">Validation By</span>
-                  <span className="text-[#94A3B8] font-mono">{validationByDisplay}</span>
-                </div>
-              </div>
-
-              {/* Comment Section: Read-only for validated/rejected alerts */}
-              <div className="space-y-2 pt-2 border-t border-[#1E293B]">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-[#94A3B8] font-medium">Validation Comment</span>
-                  {commentSavedFeedback && (
-                    <span className="text-[11px] text-emerald-400 flex items-center gap-1">
-                      <Check size={12} /> Saved
-                    </span>
-                  )}
-                </div>
-
-                {isReadOnly ? (
-                  <div className="w-full bg-[#0B0F19] border border-[#1E293B] rounded-xl p-3 text-xs text-[#E2E8F0] leading-relaxed whitespace-pre-wrap min-h-[60px]">
-                    {currentAlert.comment || '—'}
-                  </div>
-                ) : (
-                  <>
-                    <textarea
-                      value={commentText}
-                      onChange={e => {
-                        setCommentText(e.target.value);
-                        if (commentError) setCommentError(null);
-                      }}
-                      rows={3}
-                      placeholder="Add operator notes or validation justifications..."
-                      className={`w-full bg-[#0B0F19] border rounded-xl p-3 text-xs text-white placeholder-[#64748B] outline-none transition-colors resize-none ${
-                        commentError ? 'border-red-500' : 'border-[#1E293B] focus:border-[#3B82F6]'
-                      }`}
-                    />
-                    {commentError && (
-                      <div className="flex items-center gap-1.5 text-xs text-red-400">
-                        <AlertCircle size={13} className="shrink-0" />
-                        <span>{commentError}</span>
-                      </div>
-                    )}
-                    <div className="flex justify-end">
-                      <button
-                        type="button"
-                        onClick={handleSaveComment}
-                        disabled={isSavingComment || !commentText.trim()}
-                        className="px-3.5 py-1.5 rounded-full text-xs font-medium bg-[#1E293B] text-white hover:bg-[#334155] disabled:opacity-50 transition-colors cursor-pointer"
-                      >
-                        {isSavingComment ? 'Saving...' : 'Save Note'}
-                      </button>
-                    </div>
-                  </>
-                )}
-              </div>
-
-              {/* Action Button: Workbench */}
-              <div className="pt-2 border-t border-[#1E293B]">
-                <button
-                  type="button"
-                  onClick={() => alert('Opening Workbench...')}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-full bg-[#0B0F19] border border-[#1E293B] text-white text-xs font-medium hover:border-[#3B82F6] transition-colors cursor-pointer"
-                >
-                  <Wrench size={13} />
-                  <span>Open Workbench</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Alert History Card (SLB Vertical Timeline format) */}
-            <div className="bg-[#111827] border border-[#1E293B] rounded-2xl p-5 shadow-sm space-y-4">
-              <div className="flex items-center justify-between pb-2 border-b border-[#1E293B]">
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-[#94A3B8]">
-                  Alert History
-                </h3>
-                <span className="text-[11px] text-[#64748B] font-mono">
-                  {alertHistory.length} validated
-                </span>
-              </div>
-
-              {alertHistory.length === 0 ? (
-                <div className="text-xs text-[#64748B] italic py-2">
-                  No previous validated alerts recorded for this asset and rule.
-                </div>
-              ) : (
-                <div className="relative pl-6 space-y-5 before:absolute before:left-2 before:top-2 before:bottom-3 before:w-px before:bg-[#334155]">
-                  {alertHistory.map(histAlert => {
-                    const startStr = formatUtcDateTime(histAlert.triggeredAtRaw || histAlert.triggeredAt);
-                    const endStr = formatUtcDateTime(histAlert.endDateRaw || histAlert.endDate);
-
-                    return (
-                      <div key={histAlert.id} className="relative group">
-                        {/* Timeline Node Bullet */}
-                        <div className="absolute -left-6 top-1 w-2 h-2 rounded-full bg-[#64748B] group-hover:bg-[#38BDF8] group-hover:ring-4 group-hover:ring-[#38BDF8]/20 transition-all -translate-x-[0.5px]" />
-
-                        <Link
-                          href={`/alert-review/${histAlert.id}?from=${fromTab}`}
-                          className="block p-1.5 -m-1.5 rounded-lg hover:bg-[#1E293B]/40 transition-colors"
-                        >
-                          {/* Start Date / Trigger timestamp on top (matching SLB format) */}
-                          <div className="text-[11px] font-mono text-[#94A3B8]">
-                            {startStr}
-                          </div>
-
-                          {/* Alert Reference Identifier */}
-                          <div className="text-xs font-mono font-medium text-[#38BDF8] group-hover:underline mt-0.5">
-                            ALT-{histAlert.id}
-                          </div>
-
-                          {/* End Date Details */}
-                          <div className="text-[11px] font-mono text-[#CBD5E1] mt-0.5">
-                            End: {endStr}
-                          </div>
-                        </Link>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
             </div>
 
           </div>
