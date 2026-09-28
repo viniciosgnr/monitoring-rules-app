@@ -9,7 +9,7 @@ import EventDetailsModal from '@/components/alert-review/EventDetailsModal';
 import RejectEventModal from '@/components/alert-review/RejectEventModal';
 import GroupAlertsModal from '@/components/alert-review/GroupAlertsModal';
 import { updateAlertStatus, groupAlerts } from '@/app/actions/alerts';
-import { ChevronDown, ChevronRight, Check, ArrowUpDown, ArrowUp, ArrowDown, Download, X, Send } from 'lucide-react';
+import { ChevronDown, ChevronRight, Check, ArrowUpDown, ArrowUp, ArrowDown, Download, X } from 'lucide-react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { exportBrandedExcel } from '@/lib/excelExportUtils';
 import type { Status } from '@/components/ui/StatusBadge';
@@ -800,12 +800,11 @@ export default function AlertTable({
               onClick={() => setShowGroupModal(true)}
               className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-semibold transition-all ${
                 selectedAlertIds.size > 0
-                  ? 'bg-[#3B82F6] hover:bg-[#2563EB] text-white cursor-pointer shadow-sm'
+                  ? 'bg-[#60A5FA] hover:bg-[#3B82F6] text-[#0B0F19] cursor-pointer shadow-sm'
                   : 'bg-[#1E293B]/60 text-[#64748B] border border-[#1E293B] cursor-not-allowed opacity-60'
               }`}
             >
-              <Send size={13} />
-              <span>Send to Event Manager {selectedAlertIds.size > 0 ? `(${selectedAlertIds.size})` : ''}</span>
+              <span>Release to Event Manager {selectedAlertIds.size > 0 ? `(${selectedAlertIds.size})` : ''}</span>
             </button>
           )}
         </div>
