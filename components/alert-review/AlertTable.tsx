@@ -767,28 +767,28 @@ export default function AlertTable({
         {statusScope === 'for_validation' ? (
           <>
             <KpiCard
-              title="To Be Validated"
+              title="To be validated"
               value={kpiToBeValidated}
-              subtitle="Requires Operator Validation"
+              subtitle="Requires operator action"
               tooltip="Alerts that have been triggered and are awaiting initial review by an operator."
             />
             <KpiCard
-              title="Validation in Progress"
+              title="Validation in progress"
               value={kpiInProgress}
               subtitle="Under review"
               tooltip="Alerts currently being investigated or reviewed by an operator."
             />
             <KpiCard
-              title="Total Alerts"
+              title="Total alerts"
               value={kpiTotalForValidation}
-              subtitle="Pending validation"
+              subtitle="Pending Validation"
               tooltip="Total number of alerts awaiting validation or currently under review for the selected filters."
             />
           </>
         ) : (
           <>
             <KpiCard
-              title="Unreleased Alerts"
+              title="Unreleased alerts"
               value={kpiUnreleased}
               subtitle="Pending release"
               tooltip="Validated alerts that have not yet been grouped or released to Event Manager."
@@ -796,11 +796,11 @@ export default function AlertTable({
             <KpiCard
               title="Released Alerts"
               value={kpiReleased}
-              subtitle="Sent to Event Manager"
+              subtitle="Released to Event Manager"
               tooltip="Validated alerts that have been grouped and released to Event Manager."
             />
             <KpiCard
-              title="Total Validated"
+              title="Total validated"
               value={kpiTotalValidated}
               subtitle="Confirmed valid"
               tooltip="Total number of validated alerts (both released and unreleased) for the selected filters."
