@@ -11,6 +11,9 @@ interface FpsosFilterDropdownProps {
   isMultiSelect?: boolean;
   selectedFpsos?: string[];
   onMultiChange?: (fpsos: string[]) => void;
+  baseLabel?: string;
+  showFilterIcon?: boolean;
+  buttonClassName?: string;
 }
 
 export default function FpsosFilterDropdown({
@@ -20,6 +23,9 @@ export default function FpsosFilterDropdown({
   isMultiSelect = false,
   selectedFpsos = [],
   onMultiChange,
+  baseLabel,
+  showFilterIcon = true,
+  buttonClassName,
 }: FpsosFilterDropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -45,22 +51,32 @@ export default function FpsosFilterDropdown({
   // Determine button label
   let label = '';
   if (isMultiSelect) {
-    if (selectedFpsos.length === 0) {
-      label = 'Select FPSO';
-    } else if (selectedFpsos.length === allFpsos.length && allFpsos.length > 0) {
-      label = 'All FPSOs';
-    } else if (selectedFpsos.length === 1) {
-      label = selectedFpsos[0];
-    } else if (selectedFpsos.length === 2) {
-      label = selectedFpsos.join(', ');
+    if (baseLabel) {
+      if (selectedFpsos.length === 0 || (allFpsos.length > 0 && selectedFpsos.length === allFpsos.length)) {
+        label = baseLabel;
+      } else if (selectedFpsos.length === 1) {
+        label = `${baseLabel} (${selectedFpsos[0]})`;
+      } else {
+        label = `${baseLabel} (${selectedFpsos.length})`;
+      }
     } else {
-      label = `FPSO (${selectedFpsos.length})`;
+      if (selectedFpsos.length === 0) {
+        label = 'Select FPSO';
+      } else if (selectedFpsos.length === allFpsos.length && allFpsos.length > 0) {
+        label = 'All FPSOs';
+      } else if (selectedFpsos.length === 1) {
+        label = selectedFpsos[0];
+      } else if (selectedFpsos.length === 2) {
+        label = selectedFpsos.join(', ');
+      } else {
+        label = `FPSO (${selectedFpsos.length})`;
+      }
     }
   } else {
     label = selectedFpso || (allFpsos[0] ?? 'Select FPSO');
   }
 
-  const isAllSelected = isMultiSelect && allFpsos.length > 0 && selectedFpsos.length === allFpsos.length;
+  const isAllSelected = isMultiSelect && allFpsos.length > 0 && (selectedFpsos.length === allFpsos.length || selectedFpsos.length === 0);
 
   const handleToggleAll = () => {
     if (!onMultiChange) return;
@@ -75,12 +91,14 @@ export default function FpsosFilterDropdown({
 
   const handleToggleItem = (fpso: string) => {
     if (!onMultiChange) return;
-    if (selectedFpsos.includes(fpso)) {
+    const currentSelected = selectedFpsos.length === 0 ? allFpsos : selectedFpsos;
+    if (currentSelected.includes(fpso)) {
       // Guard: Do not allow unchecking if it's the only one selected
-      if (selectedFpsos.length <= 1) return;
-      onMultiChange(selectedFpsos.filter(f => f !== fpso));
+      if (currentSelected.length <= 1) return;
+      onMultiChange(currentSelected.filter(f => f !== fpso));
     } else {
-      onMultiChange([...selectedFpsos, fpso]);
+      const next = [...currentSelected, fpso];
+      onMultiChange(next.length === allFpsos.length ? [] : next);
     }
   };
 
@@ -89,9 +107,9 @@ export default function FpsosFilterDropdown({
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 px-3.5 py-1.5 text-xs font-normal rounded-full bg-[#0B0F19] border border-[#1E293B] text-white hover:border-[#3B82F6] transition-colors cursor-pointer"
+        className={buttonClassName || "flex items-center gap-2 px-3.5 py-1.5 text-xs font-normal rounded-lg bg-[#0B0F19] border border-[#1E293B] text-white hover:border-[#3B82F6] transition-colors cursor-pointer"}
       >
-        <Filter size={13} className="text-[#94A3B8]" />
+        {showFilterIcon && <Filter size={13} className="text-[#94A3B8]" />}
         <span>{label}</span>
         <ChevronDown size={13} className="text-[#94A3B8]" />
       </button>
@@ -131,8 +149,8 @@ export default function FpsosFilterDropdown({
             ) : (
               filteredFpsos.map(fpso => {
                 if (isMultiSelect) {
-                  const isChecked = selectedFpsos.includes(fpso);
-                  const isOnlyOne = isChecked && selectedFpsos.length === 1;
+                  const isChecked = selectedFpsos.length === 0 || selectedFpsos.includes(fpso);
+                  const isOnlyOne = isChecked && (selectedFpsos.length === 1 || (selectedFpsos.length === 0 && allFpsos.length === 1));
                   return (
                     <label
                       key={fpso}

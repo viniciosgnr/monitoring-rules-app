@@ -9,7 +9,7 @@ import EventDetailsModal from '@/components/alert-review/EventDetailsModal';
 import RejectEventModal from '@/components/alert-review/RejectEventModal';
 import GroupAlertsModal from '@/components/alert-review/GroupAlertsModal';
 import { updateAlertStatus, groupAlerts } from '@/app/actions/alerts';
-import { ChevronDown, ChevronRight, Filter, Check, ArrowUpDown, ArrowUp, ArrowDown, Download, X, Send } from 'lucide-react';
+import { ChevronDown, ChevronRight, Check, ArrowUpDown, ArrowUp, ArrowDown, Download, X, Send } from 'lucide-react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { exportBrandedExcel } from '@/lib/excelExportUtils';
 import type { Status } from '@/components/ui/StatusBadge';
@@ -95,8 +95,6 @@ function TimeseriesCell({ timeseries }: { timeseries?: string | null }) {
     </div>
   );
 }
-
-const PERIODS = ['All Time', 'Last Week', 'Last Month', 'Last 3 Months', 'Last 6 months', 'Last Year'];
 
 export function getFriendlyRuleName(ruleName: string): string {
   const name = ruleName.toUpperCase();
@@ -200,9 +198,8 @@ function CategoryFilterDropdown({
     <div className="relative" ref={dropdownRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 px-3.5 py-1.5 text-xs font-normal rounded-full bg-[#0B0F19] border border-[#1E293B] text-white hover:border-[#3B82F6] transition-colors cursor-pointer"
+        className="flex items-center gap-2 px-3.5 py-1.5 text-xs font-normal rounded-lg bg-[#0B0F19] border border-[#1E293B] text-white hover:border-[#3B82F6] transition-colors cursor-pointer"
       >
-        <Filter size={13} className="text-[#3B82F6]" />
         <span>{label}</span>
         <ChevronDown size={13} className="text-[#94A3B8]" />
       </button>
@@ -255,17 +252,10 @@ export default function AlertTable({
 }) {
   const router = useRouter();
   const [data, setData]                       = useState(rows);
-  const [period, setPeriod]                   = useState('All Time');
   const allFpsos = useMemo(() => {
     return Array.from(new Set(rows.map(r => r.fpso))).filter(Boolean).sort();
   }, [rows]);
-  const [selectedFpsos, setSelectedFpsos]     = useState<string[]>(['UNY']);
-
-  useEffect(() => {
-    if (allFpsos.length > 0 && selectedFpsos.length === 0) {
-      setSelectedFpsos([allFpsos.includes('UNY') ? 'UNY' : allFpsos[0]]);
-    }
-  }, [allFpsos, selectedFpsos]);
+  const [selectedFpsos, setSelectedFpsos]     = useState<string[]>([]);
 
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedFilters, setSelectedFilters] = useState<Record<string, string[]>>({});
@@ -388,18 +378,6 @@ export default function AlertTable({
         return false;
       }
 
-      if (period !== 'All Time' && r.triggeredAtRaw) {
-        const date = new Date(r.triggeredAtRaw);
-        const now = new Date();
-        const diffMs = now.getTime() - date.getTime();
-        const oneDay = 1000 * 60 * 60 * 24;
-        if (period === 'Last Week' && diffMs > oneDay * 7) return false;
-        if (period === 'Last Month' && diffMs > oneDay * 30) return false;
-        if (period === 'Last 3 Months' && diffMs > oneDay * 90) return false;
-        if (period === 'Last 6 months' && diffMs > oneDay * 180) return false;
-        if (period === 'Last Year' && diffMs > oneDay * 365) return false;
-      }
-
       if (selectedCategories.length > 0 && selectedCategories.length < allCategories.length) {
         const cat = getCategory(r);
         if (!selectedCategories.includes(cat)) return false;
@@ -407,7 +385,7 @@ export default function AlertTable({
 
       return true;
     });
-  }, [enrichedRows, selectedFpsos, period, selectedCategories, allCategories]);
+  }, [enrichedRows, selectedFpsos, selectedCategories, allCategories]);
 
   // Reactive KPIs synced with global filters (FPSO, Time, Categories)
   const kpiToBeValidated = useMemo(() => {
@@ -727,23 +705,6 @@ export default function AlertTable({
         </div>
 
         <div className="flex items-center gap-3 flex-wrap">
-          {/* Multi-select FPSO Filter */}
-          <FpsosFilterDropdown
-            fpsos={allFpsos}
-            isMultiSelect={true}
-            selectedFpsos={selectedFpsos}
-            onMultiChange={(newFpsos) => setSelectedFpsos(newFpsos)}
-          />
-
-          {/* Time period filter */}
-          <select
-            value={period}
-            onChange={e => setPeriod(e.target.value)}
-            className="bg-[#0B0F19] border border-[#1E293B] rounded-full px-3.5 py-1.5 text-xs text-white outline-none cursor-pointer hover:border-[#3B82F6] transition-colors"
-          >
-            {PERIODS.map(p => <option key={p} value={p}>{p}</option>)}
-          </select>
-
           {/* Category Filter Dropdown */}
           <CategoryFilterDropdown
             categories={allCategories}
@@ -751,10 +712,20 @@ export default function AlertTable({
             onChange={(newCats) => setSelectedCategories(newCats)}
           />
 
+          {/* Multi-select FPSO Filter */}
+          <FpsosFilterDropdown
+            fpsos={allFpsos}
+            isMultiSelect={true}
+            selectedFpsos={selectedFpsos}
+            onMultiChange={(newFpsos) => setSelectedFpsos(newFpsos)}
+            baseLabel="FPSO"
+            showFilterIcon={false}
+          />
+
           {/* Export to Excel Button */}
           <button
             onClick={() => setShowExportModal(true)}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-normal rounded-full bg-transparent border border-[#1E293B] text-white hover:border-[#3B82F6] hover:text-[#3B82F6] transition-colors cursor-pointer"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-normal rounded-lg bg-transparent border border-[#1E293B] text-white hover:border-[#3B82F6] hover:text-[#3B82F6] transition-colors cursor-pointer"
           >
             <Download size={13} />
             Export to excel
