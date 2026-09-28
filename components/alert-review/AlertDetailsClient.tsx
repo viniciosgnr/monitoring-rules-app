@@ -3,7 +3,7 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Wrench, ChevronDown, Info, AlertCircle, Check, X } from 'lucide-react';
+import { ArrowLeft, ExternalLink, ChevronDown, Info, AlertCircle, Check, X } from 'lucide-react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import * as Dialog from '@radix-ui/react-dialog';
 import Topbar from '@/components/layout/Topbar';
@@ -142,6 +142,14 @@ const SLB_CHART_VALUES = [
   40, 45, 50, 88, 30, 35, 11, 29, 52, 61, 68
 ];
 
+const STATUS_LABELS: Record<Status, string> = {
+  to_be_validated: 'To be Validated',
+  validation_in_progress: 'Validation in Progress',
+  validated: 'Validated',
+  rejected: 'Rejected',
+  closed: 'Closed',
+};
+
 export default function AlertDetailsClient({
   alert: initialAlert,
   alertHistory,
@@ -277,6 +285,11 @@ export default function AlertDetailsClient({
     : currentAlert.status === 'validation_in_progress'
     ? ['validated', 'rejected']
     : [];
+
+  const menuStatuses: Status[] = [
+    currentAlert.status,
+    ...availableStatuses.filter(s => s !== currentAlert.status),
+  ];
 
   const handleStatusSelect = async (newStatus: Status) => {
     if (newStatus === 'rejected') {
@@ -437,14 +450,14 @@ export default function AlertDetailsClient({
 
               {/* Status Transition & Operator fields */}
               <div className="space-y-3 text-xs">
-                {/* Status Transition Row */}
+                {/* Status Row */}
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-[#94A3B8] text-xs">Status Transition:</span>
+                  <span className="text-[#94A3B8] text-xs">Status:</span>
                   {!isReadOnly && availableStatuses.length > 0 ? (
                     <DropdownMenu.Root>
                       <DropdownMenu.Trigger asChild>
-                        <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#0B0F19] border border-[#1E293B] text-white text-xs font-medium hover:border-[#3B82F6] transition-colors cursor-pointer">
-                          <span>Change Status</span>
+                        <button className="flex items-center justify-between gap-2 px-3 py-1.5 rounded-lg bg-[#0B0F19] border border-[#1E293B] text-white text-xs font-normal hover:border-[#3B82F6] transition-colors cursor-pointer min-w-[130px]">
+                          <span>{STATUS_LABELS[currentAlert.status] || currentAlert.status}</span>
                           <ChevronDown size={13} className="text-[#94A3B8]" />
                         </button>
                       </DropdownMenu.Trigger>
@@ -453,20 +466,37 @@ export default function AlertDetailsClient({
                           className="z-[100] bg-[#111827] border border-[#1E293B] rounded-2xl shadow-2xl p-1.5 min-w-[200px] select-none text-xs"
                           sideOffset={4}
                         >
-                          {availableStatuses.map(s => (
-                            <DropdownMenu.Item
-                              key={s}
-                              onSelect={() => handleStatusSelect(s)}
-                              className="flex items-center justify-between px-3 py-2 rounded-xl text-white hover:bg-[#1E293B] cursor-pointer outline-none transition-colors"
-                            >
-                              <StatusBadge status={s} />
-                            </DropdownMenu.Item>
-                          ))}
+                          {menuStatuses.map(s => {
+                            const isCurrent = s === currentAlert.status;
+                            return (
+                              <DropdownMenu.Item
+                                key={s}
+                                disabled={isCurrent}
+                                onSelect={() => {
+                                  if (!isCurrent) handleStatusSelect(s);
+                                }}
+                                className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs outline-none transition-colors ${
+                                  isCurrent
+                                    ? 'bg-[#3B82F6]/15 text-[#60A5FA] font-medium cursor-default'
+                                    : 'text-[#E2E8F0] hover:bg-[#1E293B] cursor-pointer'
+                                }`}
+                              >
+                                <span>{STATUS_LABELS[s] || s}</span>
+                                {isCurrent && <Check size={13} className="text-[#60A5FA]" />}
+                              </DropdownMenu.Item>
+                            );
+                          })}
                         </DropdownMenu.Content>
                       </DropdownMenu.Portal>
                     </DropdownMenu.Root>
                   ) : (
-                    <StatusBadge status={currentAlert.status} />
+                    <button
+                      disabled
+                      className="flex items-center justify-between gap-2 px-3 py-1.5 rounded-lg bg-[#0B0F19] border border-[#1E293B] text-white text-xs font-normal opacity-80 cursor-default min-w-[130px]"
+                    >
+                      <span>{STATUS_LABELS[currentAlert.status] || currentAlert.status}</span>
+                      <ChevronDown size={13} className="text-[#64748B]" />
+                    </button>
                   )}
                 </div>
 
@@ -476,7 +506,7 @@ export default function AlertDetailsClient({
                 </div>
 
                 <div className="flex items-start justify-between gap-2">
-                  <span className="text-[#94A3B8] text-xs">Description:</span>
+                  <span className="text-[#94A3B8] text-xs">MR Description:</span>
                   <span className="text-[#E2E8F0] text-xs text-right max-w-[200px] leading-relaxed">
                     A monitoring alert has been triggered, potentially indicating a failure.
                   </span>
@@ -523,7 +553,7 @@ export default function AlertDetailsClient({
               {/* Comment Section */}
               <div className="space-y-2 pt-2 border-t border-[#1E293B]">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs text-[#94A3B8]">Validation Comment</span>
+                  <span className="text-xs text-[#94A3B8]">Comment</span>
                   {commentSavedFeedback && (
                     <span className="text-[11px] text-emerald-400 flex items-center gap-1">
                       <Check size={12} /> Saved
@@ -532,7 +562,7 @@ export default function AlertDetailsClient({
                 </div>
 
                 {isReadOnly ? (
-                  <div className="w-full bg-[#0B0F19] border border-[#1E293B] rounded-xl p-3 text-xs text-[#E2E8F0] leading-relaxed whitespace-pre-wrap min-h-[60px]">
+                  <div className="w-full bg-[#0B0F19] border border-[#1E293B] rounded-xl p-3 text-xs text-[#E2E8F0] leading-relaxed whitespace-pre-wrap min-h-[80px]">
                     {currentAlert.comment || '—'}
                   </div>
                 ) : (
@@ -543,9 +573,9 @@ export default function AlertDetailsClient({
                         setCommentText(e.target.value);
                         if (commentError) setCommentError(null);
                       }}
-                      rows={3}
-                      placeholder="Validation comment..."
-                      className={`w-full bg-[#0B0F19] border rounded-xl p-3 text-xs text-white placeholder-[#64748B] outline-none transition-colors resize-none ${
+                      rows={4}
+                      placeholder="Type here..."
+                      className={`w-full bg-[#0B0F19] border rounded-xl p-3 text-xs text-white placeholder-[#64748B] outline-none transition-colors resize-y ${
                         commentError ? 'border-red-500' : 'border-[#1E293B] focus:border-[#3B82F6]'
                       }`}
                     />
@@ -563,9 +593,9 @@ export default function AlertDetailsClient({
                   <button
                     type="button"
                     onClick={() => alert('Opening Workbench...')}
-                    className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-[#0B0F19] border border-[#1E293B] text-white text-xs font-medium hover:border-[#3B82F6] transition-colors cursor-pointer"
+                    className="flex-1 flex items-center justify-center gap-2 px-3.5 py-1.5 rounded-full bg-[#0B0F19] border border-[#1E293B] text-white text-xs font-normal hover:border-[#3B82F6] transition-colors cursor-pointer"
                   >
-                    <Wrench size={13} />
+                    <ExternalLink size={13} />
                     <span>Open Workbench</span>
                   </button>
                   {!isReadOnly && (
@@ -573,7 +603,7 @@ export default function AlertDetailsClient({
                       type="button"
                       onClick={handleSaveComment}
                       disabled={isSavingComment || !commentText.trim()}
-                      className="px-4 py-2 rounded-xl text-xs font-medium bg-[#1E293B] text-white hover:bg-[#334155] disabled:opacity-50 transition-colors cursor-pointer whitespace-nowrap"
+                      className="px-4 py-1.5 rounded-full text-xs font-normal bg-[#0B0F19] border border-[#1E293B] text-white hover:border-[#3B82F6] hover:text-[#3B82F6] disabled:opacity-50 transition-colors cursor-pointer whitespace-nowrap"
                     >
                       {isSavingComment ? 'Saving...' : 'Save Note'}
                     </button>
