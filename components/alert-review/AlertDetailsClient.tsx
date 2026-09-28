@@ -490,13 +490,9 @@ export default function AlertDetailsClient({
                       </DropdownMenu.Portal>
                     </DropdownMenu.Root>
                   ) : (
-                    <button
-                      disabled
-                      className="flex items-center justify-between gap-2 px-3 py-1.5 rounded-lg bg-[#0B0F19] border border-[#1E293B] text-white text-xs font-normal opacity-80 cursor-default min-w-[130px]"
-                    >
-                      <span>{STATUS_LABELS[currentAlert.status] || currentAlert.status}</span>
-                      <ChevronDown size={13} className="text-[#64748B]" />
-                    </button>
+                    <span className="font-normal text-white text-xs">
+                      {STATUS_LABELS[currentAlert.status] || currentAlert.status}
+                    </span>
                   )}
                 </div>
 
@@ -548,57 +544,70 @@ export default function AlertDetailsClient({
                   <span className="text-[#94A3B8] text-xs">Validated by:</span>
                   <span className="text-[#94A3B8] font-mono text-xs">{validationByDisplay}</span>
                 </div>
+
+                {/* In read-only mode, Comment is presented as a clean row */}
+                {isReadOnly && (
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="text-[#94A3B8] text-xs">Comment:</span>
+                    <span className="text-[#E2E8F0] text-xs text-right max-w-[200px] leading-relaxed">
+                      {currentAlert.comment || 'A monitoring alert has been triggered, potentially indicating a failure.'}
+                    </span>
+                  </div>
+                )}
               </div>
 
-              {/* Comment Section */}
-              <div className="space-y-2 pt-2 border-t border-[#1E293B]">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-[#94A3B8]">Comment</span>
-                  {commentSavedFeedback && (
-                    <span className="text-[11px] text-emerald-400 flex items-center gap-1">
-                      <Check size={12} /> Saved
-                    </span>
-                  )}
-                </div>
-
-                {isReadOnly ? (
-                  <div className="w-full bg-[#0B0F19] border border-[#1E293B] rounded-xl p-3 text-xs text-[#E2E8F0] leading-relaxed whitespace-pre-wrap min-h-[80px]">
-                    {currentAlert.comment || '—'}
-                  </div>
-                ) : (
-                  <>
-                    <textarea
-                      value={commentText}
-                      onChange={e => {
-                        setCommentText(e.target.value);
-                        if (commentError) setCommentError(null);
-                      }}
-                      rows={4}
-                      placeholder="Type here..."
-                      className={`w-full bg-[#0B0F19] border rounded-xl p-3 text-xs text-white placeholder-[#64748B] outline-none transition-colors resize-y ${
-                        commentError ? 'border-red-500' : 'border-[#1E293B] focus:border-[#3B82F6]'
-                      }`}
-                    />
-                    {commentError && (
-                      <div className="flex items-center gap-1.5 text-xs text-red-400">
-                        <AlertCircle size={13} className="shrink-0" />
-                        <span>{commentError}</span>
-                      </div>
-                    )}
-                  </>
-                )}
-
-                {/* Bottom Action Buttons: Open Workbench & Save Note */}
-                <div className="flex items-center gap-2 pt-2">
+              {/* Action / Comment Section */}
+              {isReadOnly ? (
+                <div className="pt-2 border-t border-[#1E293B]">
                   <button
                     type="button"
                     onClick={() => alert('Opening Workbench...')}
-                    className="flex-1 flex items-center justify-center gap-2 px-3.5 py-1.5 rounded-full bg-[#0B0F19] border border-[#1E293B] text-white text-xs font-normal hover:border-[#3B82F6] transition-colors cursor-pointer"
+                    className="w-full flex items-center justify-center gap-2 px-3.5 py-1.5 rounded-full bg-[#0B0F19] border border-[#1E293B] text-white text-xs font-normal hover:border-[#3B82F6] transition-colors cursor-pointer"
                   >
                     <ExternalLink size={13} />
                     <span>Open Workbench</span>
                   </button>
-                  {!isReadOnly && (
+                </div>
+              ) : (
+                <div className="space-y-2 pt-2 border-t border-[#1E293B]">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-[#94A3B8]">Comment</span>
+                    {commentSavedFeedback && (
+                      <span className="text-[11px] text-emerald-400 flex items-center gap-1">
+                        <Check size={12} /> Saved
+                      </span>
+                    )}
+                  </div>
+
+                  <textarea
+                    value={commentText}
+                    onChange={e => {
+                      setCommentText(e.target.value);
+                      if (commentError) setCommentError(null);
+                    }}
+                    rows={4}
+                    placeholder="Type here..."
+                    className={`w-full bg-[#0B0F19] border rounded-xl p-3 text-xs text-white placeholder-[#64748B] outline-none transition-colors resize-y ${
+                      commentError ? 'border-red-500' : 'border-[#1E293B] focus:border-[#3B82F6]'
+                    }`}
+                  />
+                  {commentError && (
+                    <div className="flex items-center gap-1.5 text-xs text-red-400">
+                      <AlertCircle size={13} className="shrink-0" />
+                      <span>{commentError}</span>
+                    </div>
+                  )}
+
+                  {/* Bottom Action Buttons: Open Workbench & Save Note */}
+                  <div className="flex items-center gap-2 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => alert('Opening Workbench...')}
+                      className="flex-1 flex items-center justify-center gap-2 px-3.5 py-1.5 rounded-full bg-[#0B0F19] border border-[#1E293B] text-white text-xs font-normal hover:border-[#3B82F6] transition-colors cursor-pointer"
+                    >
+                      <ExternalLink size={13} />
+                      <span>Open Workbench</span>
+                    </button>
                     <button
                       type="button"
                       onClick={handleSaveComment}
@@ -607,9 +616,9 @@ export default function AlertDetailsClient({
                     >
                       {isSavingComment ? 'Saving...' : 'Save Note'}
                     </button>
-                  )}
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
 
             {/* Alert History Card (matching SLB design in mockup) */}
@@ -725,24 +734,22 @@ export default function AlertDetailsClient({
                   <span className="col-span-4 text-[#94A3B8]">Group Ref.</span>
                   <span className="col-span-8 font-mono">
                     {currentAlert.eventId ? (
-                      <span className="text-white font-medium bg-[#0B0F19] px-2 py-0.5 rounded border border-[#1E293B]">
+                      <span className="text-[#3B82F6] font-medium">
                         {currentAlert.eventId}
                       </span>
                     ) : (
-                      <span className="text-[#64748B]">—</span>
+                      <span className="text-[#64748B]">N/A</span>
                     )}
                   </span>
                 </div>
 
                 <div className="grid grid-cols-12 py-2.5">
                   <span className="col-span-4 text-[#94A3B8]">Event Ref.</span>
-                  <span className="col-span-8 font-mono">
+                  <span className="col-span-8 font-mono text-white">
                     {currentAlert.eventRef ? (
-                      <span className="text-white font-medium bg-[#0B0F19] px-2 py-0.5 rounded border border-[#1E293B]">
-                        {currentAlert.eventRef}
-                      </span>
+                      currentAlert.eventRef
                     ) : (
-                      <span className="text-[#64748B] italic">Pending sync (—)</span>
+                      <span className="text-[#94A3B8]">Pending Sync</span>
                     )}
                   </span>
                 </div>
