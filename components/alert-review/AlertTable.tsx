@@ -845,9 +845,7 @@ export default function AlertTable({
                     </th>
                   );
                 })}
-                <th className="text-left px-4 py-3 text-xs font-normal text-[#94A3B8] whitespace-nowrap">
-                  Actions
-                </th>
+                <th className="px-4 py-3" />
               </tr>
             </thead>
             <tbody>
@@ -975,7 +973,7 @@ export default function AlertTable({
                           {row.ruleName}
                         </td>
 
-                        {/* Action Column: Details button */}
+                        {/* Action Column: Validate / Details button */}
                         <td className="px-4 py-3">
                           <button
                             onClick={() => {
@@ -983,7 +981,7 @@ export default function AlertTable({
                             }}
                             className="px-3.5 py-1 text-xs rounded-full border border-[#1E293B] text-white hover:border-[#3B82F6] hover:text-[#3B82F6] transition-colors cursor-pointer"
                           >
-                            Details
+                            {statusScope === 'for_validation' ? 'Validate' : 'Details'}
                           </button>
                         </td>
                       </tr>
