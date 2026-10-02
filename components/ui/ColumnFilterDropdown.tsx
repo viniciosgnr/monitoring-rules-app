@@ -95,7 +95,7 @@ export default function ColumnFilterDropdown({
               : 'border-border-panel/70 text-text-muted hover:border-text-muted'
           }`}
         >
-          <span className="truncate max-w-[120px]" title={summaryText || placeholder}>
+          <span className="truncate max-w-[80px]" title={summaryText || placeholder}>
             {summaryText || <span className="opacity-60">{placeholder}</span>}
           </span>
           <SlidersHorizontal size={11} className={`flex-shrink-0 ${isFiltered ? 'text-accent-blue' : 'text-text-muted'}`} />

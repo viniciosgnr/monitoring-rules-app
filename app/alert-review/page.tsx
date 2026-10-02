@@ -5,6 +5,7 @@ import Topbar from '@/components/layout/Topbar';
 import NavTabs from '@/components/layout/NavTabs';
 import AlertTable from '@/components/alert-review/AlertTable';
 import type { Status } from '@/components/ui/StatusBadge';
+import { getSystemFromTimeseries, getSubsystem } from '@/lib/systemUtils';
 
 export const dynamic = 'force-dynamic';
 
@@ -46,6 +47,8 @@ export default async function AlertReviewPage({ searchParams }: PageProps) {
 
   const serialized = rows.map(r => ({
     ...r,
+    system:         getSystemFromTimeseries(r.timeseries || ''),
+    subsystem:      getSubsystem(r.timeseries || '', r.equipmentCode),
     endDate:        r.endDate.toLocaleString('pt-BR'),
     endDateRaw:     r.endDate.toISOString(),
     triggeredAt:    r.triggeredAt.toLocaleString('pt-BR'),

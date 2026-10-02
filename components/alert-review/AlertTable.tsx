@@ -21,6 +21,8 @@ interface AlertRow {
   ruleName: string;
   ruleDescription?: string | null;
   timeseries?: string;
+  system?: string;
+  subsystem?: string;
   type?: string;
   source?: string;
   endDate: string;
@@ -75,7 +77,7 @@ function TimeseriesCell({ timeseries }: { timeseries?: string | null }) {
   }
   if (tags.length === 1) {
     return (
-      <span className="text-[#94A3B8] font-mono text-xs font-normal whitespace-nowrap" title={tags[0]}>
+      <span className="text-[#94A3B8] font-mono text-xs font-normal max-w-[130px] truncate inline-block align-middle" title={tags[0]}>
         {tags[0]}
       </span>
     );
@@ -86,10 +88,10 @@ function TimeseriesCell({ timeseries }: { timeseries?: string | null }) {
 
   return (
     <div className="flex items-center gap-1.5 whitespace-nowrap" title={allTagsTooltip}>
-      <span className="text-[#94A3B8] font-mono text-xs font-normal">
+      <span className="text-[#94A3B8] font-mono text-xs font-normal max-w-[120px] truncate inline-block align-middle">
         {firstTag}
       </span>
-      <span className="px-1 py-0.5 rounded text-[10px] font-mono text-[#94A3B8] bg-[#1E293B]/60 border border-[#334155]/40 cursor-pointer hover:text-white">
+      <span className="px-1 py-0.5 rounded text-[10px] font-mono text-[#94A3B8] bg-[#1E293B]/60 border border-[#334155]/40 cursor-pointer hover:text-white flex-shrink-0">
         +{remainingCount}
       </span>
     </div>
@@ -427,6 +429,8 @@ export default function AlertTable({
       alertId: Array.from(new Set(scopedRows.map(r => `ALT-${r.id}`))).filter(Boolean).sort(),
       equipmentCode: Array.from(new Set(scopedRows.map(r => r.equipmentCode))).filter(Boolean).sort(),
       timeseries: Array.from(new Set(scopedRows.map(r => r.timeseries || '—'))).filter(Boolean).sort(),
+      system: Array.from(new Set(scopedRows.map(r => r.system || '—'))).filter(Boolean).sort(),
+      subsystem: Array.from(new Set(scopedRows.map(r => r.subsystem || '—'))).filter(Boolean).sort(),
       eventId: Array.from(new Set(scopedRows.map(r => r.eventId || '—'))).filter(Boolean).sort(),
       ruleName: Array.from(new Set(scopedRows.map(r => r.ruleName))).filter(Boolean).sort(),
       source: Array.from(new Set(scopedRows.map(r => r.source))).filter(Boolean).sort(),
@@ -458,6 +462,10 @@ export default function AlertTable({
           val = r.eventId || '—';
         } else if (colKey === 'timeseries') {
           val = r.timeseries || '—';
+        } else if (colKey === 'system') {
+          val = r.system || '—';
+        } else if (colKey === 'subsystem') {
+          val = r.subsystem || '—';
         } else if (colKey === 'ruleName') {
           val = r.ruleName;
         }
@@ -594,8 +602,8 @@ export default function AlertTable({
     const filename = isValidationTab ? 'alerts_for_validation.xlsx' : 'validated_alerts.xlsx';
 
     const headers = isValidationTab
-      ? ['FPSO', 'Alert Ref.', 'Asset', 'Timeseries', 'Source', 'Creation Date', 'Status', 'Monitoring Rule ID']
-      : ['FPSO', 'Group Ref.', 'Alert Ref.', 'Asset', 'Timeseries', 'Source', 'Start Date', 'End Date', 'Validated Date', 'Monitoring Rule ID'];
+      ? ['FPSO', 'Alert Ref.', 'Asset', 'Timeseries', 'System', 'Subsystem', 'Source', 'Creation Date', 'Status', 'Monitoring Rule ID']
+      : ['FPSO', 'Group Ref.', 'Alert Ref.', 'Asset', 'Timeseries', 'System', 'Subsystem', 'Source', 'Start Date', 'End Date', 'Monitoring Rule ID'];
 
     const STATUS_TEXT: Record<string, string> = {
       to_be_validated: 'To Be Validated',
@@ -612,6 +620,8 @@ export default function AlertTable({
           `ALT-${row.id}`,
           row.equipmentCode || '',
           row.timeseries || '',
+          row.system || '',
+          row.subsystem || '',
           row.source || '',
           row.triggeredAt || '',
           STATUS_TEXT[row.status] || row.status || '',
@@ -624,10 +634,11 @@ export default function AlertTable({
         `ALT-${row.id}`,
         row.equipmentCode || '',
         row.timeseries || '',
+        row.system || '',
+        row.subsystem || '',
         row.source || '',
         row.triggeredAt || '',
         row.endDate || '—',
-        row.reviewedAt || '—',
         row.ruleName || '',
       ];
     });
@@ -650,10 +661,11 @@ export default function AlertTable({
         ['alertId', 'Alert Ref.'],
         ['equipmentCode', 'Assets'],
         ['timeseries', 'Timeseries'],
+        ['system', 'System'],
+        ['subsystem', 'Subsystem'],
         ['source', 'Source'],
         ['triggeredAt', 'Start Date'],
         ['endDate', 'End Date'],
-        ['reviewedAt', 'Validated Date'],
         ['ruleName', 'Monitoring Rule ID'],
       ];
     }
@@ -662,6 +674,8 @@ export default function AlertTable({
       ['alertId', 'Alert Ref.'],
       ['equipmentCode', 'Assets'],
       ['timeseries', 'Timeseries'],
+      ['system', 'System'],
+      ['subsystem', 'Subsystem'],
       ['source', 'Source'],
       ['triggeredAt', 'Creation Date'],
       ['status', 'Status'],
@@ -821,10 +835,10 @@ export default function AlertTable({
                   <th className="w-8 px-3 py-3" />
                 )}
                 {cols.map(([field, label]) => {
-                  const isSortable = field === 'alertId' || field === 'eventId' || field === 'triggeredAt' || field === 'endDate' || field === 'reviewedAt';
+                  const isSortable = field === 'alertId' || field === 'eventId' || field === 'triggeredAt' || field === 'endDate';
                   const isCurrentSort = sortField === field;
                   return (
-                    <th key={field} className="text-left px-4 py-3 text-xs font-normal text-[#94A3B8] whitespace-nowrap">
+                    <th key={field} className="text-left px-2.5 py-2.5 text-xs font-normal text-[#94A3B8] whitespace-nowrap">
                       <div
                         className={`inline-flex items-center gap-1.5 ${isSortable ? 'cursor-pointer hover:text-white transition-colors select-none' : ''}`}
                         onClick={() => isSortable && handleSort(field)}
@@ -844,7 +858,7 @@ export default function AlertTable({
                     </th>
                   );
                 })}
-                <th className="px-4 py-3" />
+                <th className="px-2.5 py-2.5 text-center sticky right-0 bg-[#0F1623] z-10 shadow-[-6px_0_10px_-3px_rgba(0,0,0,0.4)]" />
               </tr>
             </thead>
             <tbody>
@@ -905,11 +919,11 @@ export default function AlertTable({
                         )}
 
                         {/* FPSO */}
-                        <td className="px-4 py-3 text-white font-medium text-xs font-mono">{row.fpso}</td>
+                        <td className="px-2.5 py-2.5 text-white font-medium text-xs font-mono">{row.fpso}</td>
 
                         {/* Event Ref - only on Validated Alerts */}
                         {statusScope === 'validated_alerts' && (
-                          <td className="px-4 py-3 font-mono text-xs whitespace-nowrap">
+                          <td className="px-2.5 py-2.5 font-mono text-xs whitespace-nowrap">
                             {row.eventId ? (
                               <button
                                 type="button"
@@ -925,29 +939,35 @@ export default function AlertTable({
                         )}
 
                         {/* Alert ID */}
-                        <td className="px-4 py-3 text-white font-mono text-xs whitespace-nowrap">
+                        <td className="px-2.5 py-2.5 text-white font-mono text-xs whitespace-nowrap">
                           ALT-{row.id}
                         </td>
 
                         {/* Asset */}
-                        <td className="px-4 py-3"><EquipmentBadge code={row.equipmentCode} /></td>
+                        <td className="px-2.5 py-2.5"><EquipmentBadge code={row.equipmentCode} /></td>
 
                         {/* Timeseries */}
-                        <td className="px-4 py-3">
+                        <td className="px-2.5 py-2.5">
                           <TimeseriesCell timeseries={row.timeseries} />
                         </td>
 
+                        {/* System */}
+                        <td className="px-2.5 py-2.5 text-[#94A3B8] text-xs whitespace-nowrap">{row.system || '—'}</td>
+
+                        {/* Subsystem */}
+                        <td className="px-2.5 py-2.5 text-[#94A3B8] text-xs whitespace-nowrap">{row.subsystem || '—'}</td>
+
                         {/* Source */}
-                        <td className="px-4 py-3 text-[#94A3B8] text-xs font-medium">{row.source}</td>
+                        <td className="px-2.5 py-2.5 text-[#94A3B8] text-xs font-medium whitespace-nowrap">{row.source}</td>
 
                         {/* Date & Status columns for For Validation */}
                         {statusScope === 'for_validation' && (
                           <>
                             {/* Creation Date / Triggered At */}
-                            <td className="px-4 py-3 text-[#94A3B8] text-xs whitespace-nowrap">{row.triggeredAt}</td>
+                            <td className="px-2.5 py-2.5 text-[#94A3B8] text-xs whitespace-nowrap">{row.triggeredAt}</td>
 
                             {/* Status Badge */}
-                            <td className="px-4 py-3">
+                            <td className="px-2.5 py-2.5">
                               <StatusBadge status={row.status} />
                             </td>
                           </>
@@ -957,28 +977,25 @@ export default function AlertTable({
                         {statusScope === 'validated_alerts' && (
                           <>
                             {/* Start Date */}
-                            <td className="px-4 py-3 text-[#94A3B8] text-xs whitespace-nowrap">{row.triggeredAt}</td>
+                            <td className="px-2.5 py-2.5 text-[#94A3B8] text-xs whitespace-nowrap">{row.triggeredAt}</td>
 
                             {/* End Date */}
-                            <td className="px-4 py-3 text-[#94A3B8] text-xs whitespace-nowrap">{row.endDate || '—'}</td>
-
-                            {/* Validated Date */}
-                            <td className="px-4 py-3 text-[#94A3B8] text-xs whitespace-nowrap">{row.reviewedAt || '—'}</td>
+                            <td className="px-2.5 py-2.5 text-[#94A3B8] text-xs whitespace-nowrap">{row.endDate || '—'}</td>
                           </>
                         )}
 
                         {/* MR ID */}
-                        <td className="px-4 py-3 text-white font-mono text-xs whitespace-nowrap font-medium">
+                        <td className="px-2.5 py-2.5 text-white font-mono text-xs whitespace-nowrap font-medium">
                           {row.ruleName}
                         </td>
 
                         {/* Action Column: Validate / Details button */}
-                        <td className="px-4 py-3">
+                        <td className="px-2.5 py-2.5 text-center sticky right-0 bg-[#0F1623] z-10 shadow-[-6px_0_10px_-3px_rgba(0,0,0,0.4)]">
                           <button
                             onClick={() => {
                               router.push(`/alert-review/${row.id}?from=${statusScope}`);
                             }}
-                            className="px-3.5 py-1 text-xs rounded-full border border-[#1E293B] text-white hover:border-[#3B82F6] hover:text-[#3B82F6] transition-colors cursor-pointer"
+                            className="px-3 py-1 text-xs rounded-full border border-[#1E293B] text-white hover:border-[#3B82F6] hover:text-[#3B82F6] transition-colors cursor-pointer whitespace-nowrap bg-[#0F1623]"
                           >
                             {statusScope === 'for_validation' ? 'Validate' : 'Details'}
                           </button>
