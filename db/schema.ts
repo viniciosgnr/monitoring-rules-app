@@ -45,7 +45,7 @@ export const alerts = pgTable('alerts', {
   reviewedAt:  timestamp('reviewed_at'),
   reviewedBy:  text('reviewed_by'),
   status:      varchar('status', { length: 30 }).notNull().default('to_be_validated'),
-  tier:        text('tier'),
+  severity:    text('severity'),
   eventId:     text('event_id'),
   eventDescription: text('event_description'),
   comment:     text('comment'),

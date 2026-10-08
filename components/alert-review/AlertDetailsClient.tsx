@@ -10,6 +10,7 @@ import Topbar from '@/components/layout/Topbar';
 import NavTabs from '@/components/layout/NavTabs';
 import StatusBadge, { Status } from '@/components/ui/StatusBadge';
 import EquipmentBadge from '@/components/ui/EquipmentBadge';
+import SeverityBadge from '@/components/ui/SeverityBadge';
 import RejectEventModal from '@/components/alert-review/RejectEventModal';
 import { updateAlertStatus } from '@/app/actions/alerts';
 
@@ -29,6 +30,7 @@ export interface AlertDetailData {
   reviewedAt: string;
   reviewedBy: string;
   status: Status;
+  severity?: string | null;
   tier?: string | null;
   eventId?: string | null;
   eventDescription?: string | null;
@@ -142,12 +144,14 @@ const SLB_CHART_VALUES = [
   40, 45, 50, 88, 30, 35, 11, 29, 52, 61, 68
 ];
 
-const STATUS_LABELS: Record<Status, string> = {
-  to_be_validated: 'To be Validated',
-  validation_in_progress: 'Validation in Progress',
-  validated: 'Validated',
+const STATUS_LABELS: Record<string, string> = {
+  to_be_validated: 'New',
+  new: 'New',
+  validation_in_progress: 'Review in Progress',
+  review_in_progress: 'Review in Progress',
+  validated: 'Eligible for Event Manager',
+  eligible_for_em: 'Eligible for Event Manager',
   rejected: 'Rejected',
-  closed: 'Closed',
 };
 
 export default function AlertDetailsClient({
@@ -180,9 +184,6 @@ export default function AlertDetailsClient({
   const [appliedRangeEnd, setAppliedRangeEnd] = useState<number | null>(null);
   const [isTimeRangeOpen, setIsTimeRangeOpen] = useState<boolean>(false);
   const timeRangeRef = useRef<HTMLDivElement>(null);
-
-  // Surveillance Tier Info tooltip
-  const [showTierTooltip, setShowTierTooltip] = useState<boolean>(false);
 
   // Base timeframe from alert dates
   const { alertStartMs, alertEndMs } = useMemo(() => {
@@ -280,11 +281,12 @@ export default function AlertDetailsClient({
   const isReadOnly = currentAlert.status === 'validated' || currentAlert.status === 'rejected' || fromTab === 'validated_alerts';
 
   // Forward-only valid transitions (cannot revert to previous steps)
-  const availableStatuses: Status[] = currentAlert.status === 'to_be_validated'
-    ? ['validation_in_progress', 'validated', 'rejected']
-    : currentAlert.status === 'validation_in_progress'
-    ? ['validated', 'rejected']
-    : [];
+  const availableStatuses: Status[] =
+    currentAlert.status === 'to_be_validated' || currentAlert.status === 'new'
+      ? ['validation_in_progress', 'validated', 'rejected']
+      : currentAlert.status === 'validation_in_progress' || currentAlert.status === 'review_in_progress'
+      ? ['validated', 'rejected']
+      : [];
 
   const menuStatuses: Status[] = [
     currentAlert.status,
@@ -297,13 +299,16 @@ export default function AlertDetailsClient({
       return;
     }
 
-    if (newStatus === 'validated') {
+    if (newStatus === 'validated' || newStatus === 'eligible_for_em') {
       setShowValidateConfirm(true);
       return;
     }
 
-    if (newStatus === 'validation_in_progress' && !commentText.trim()) {
-      setCommentError('Comment is mandatory when setting status to Validation in Progress');
+    if (
+      (newStatus === 'validation_in_progress' || newStatus === 'review_in_progress') &&
+      !commentText.trim()
+    ) {
+      setCommentError('Comment is mandatory when setting status to Review in Progress');
       return;
     }
 
@@ -319,7 +324,7 @@ export default function AlertDetailsClient({
       comment: commentText,
     }));
 
-    await updateAlertStatus(currentAlert.id, newStatus, currentAlert.tier || undefined, commentText);
+    await updateAlertStatus(currentAlert.id, newStatus, currentAlert.severity || currentAlert.tier || undefined, commentText);
   };
 
   const handleConfirmValidation = async () => {
@@ -335,7 +340,7 @@ export default function AlertDetailsClient({
       reviewedAt: updatedDate,
     }));
 
-    await updateAlertStatus(currentAlert.id, 'validated', currentAlert.tier || undefined, commentText.trim() || undefined);
+    await updateAlertStatus(currentAlert.id, 'validated', currentAlert.severity || currentAlert.tier || undefined, commentText.trim() || undefined);
   };
 
   const handleConfirmRejection = async (reasons: string[], reasonComment: string) => {
@@ -354,7 +359,7 @@ export default function AlertDetailsClient({
     }));
     setCommentText(fullComment);
 
-    await updateAlertStatus(currentAlert.id, 'rejected', currentAlert.tier || undefined, fullComment);
+    await updateAlertStatus(currentAlert.id, 'rejected', currentAlert.severity || currentAlert.tier || undefined, fullComment);
   };
 
   const handleSaveComment = async () => {
@@ -362,7 +367,7 @@ export default function AlertDetailsClient({
     setIsSavingComment(true);
     setCommentError(null);
     try {
-      await updateAlertStatus(currentAlert.id, currentAlert.status, currentAlert.tier || undefined, commentText.trim());
+      await updateAlertStatus(currentAlert.id, currentAlert.status, currentAlert.severity || currentAlert.tier || undefined, commentText.trim());
       setCurrentAlert(prev => ({ ...prev, comment: commentText.trim() }));
       setCommentSavedFeedback(true);
       setTimeout(() => setCommentSavedFeedback(false), 2500);
@@ -416,7 +421,7 @@ export default function AlertDetailsClient({
           <div className="flex items-center justify-between gap-3 px-4 py-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs">
             <div className="flex items-center gap-2">
               <Check size={14} className="stroke-[3]" />
-              <span>Alerta validado com sucesso! Ele agora pertence à aba <strong>Validated Alerts</strong>.</span>
+              <span>Alerta marcado como elegível com sucesso! Ele agora pertence à aba <strong>Eligible for EM</strong>.</span>
             </div>
             <button
               type="button"
@@ -426,7 +431,7 @@ export default function AlertDetailsClient({
               }}
               className="underline hover:text-emerald-300 font-medium cursor-pointer"
             >
-              Ver na aba Validated Alerts →
+              Ver na aba Eligible for EM →
             </button>
           </div>
         )}
@@ -434,14 +439,14 @@ export default function AlertDetailsClient({
         {/* 2-Column Responsive Layout (matching SLB design) */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           
-          {/* ── Left Column (~33% width: cols 1-4): Workflow & Validation + Alert History ── */}
+          {/* ── Left Column (~33% width: cols 1-4): Workflow & Review + Alert History ── */}
           <div className="lg:col-span-4 space-y-6">
             
-            {/* Status & Validation Action Card */}
+            {/* Status & Review Action Card */}
             <div className="bg-[#111827] border border-[#1E293B] rounded-2xl p-5 shadow-sm space-y-4">
               <div className="flex items-center justify-between pb-3 border-b border-[#1E293B]">
                 <h3 className="text-xs font-semibold text-white">
-                  Workflow & Validation
+                  Workflow & Review
                 </h3>
                 <div title="Workflow and approval transitions" className="text-[#64748B] hover:text-[#94A3B8] cursor-pointer">
                   <Info size={14} />
@@ -508,40 +513,21 @@ export default function AlertDetailsClient({
                   </span>
                 </div>
 
-                {/* Surveillance Tier Metadata (only shown when alert belongs to a group/event) */}
+                {/* Severity Metadata (only shown when alert belongs to a group/event) */}
                 {currentAlert.eventId && (
                   <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-1">
-                      <span className="text-[#94A3B8] text-xs">Surveillance Tier:</span>
-                      <button
-                        type="button"
-                        onClick={() => setShowTierTooltip(!showTierTooltip)}
-                        className="text-[#64748B] hover:text-[#3B82F6] cursor-pointer"
-                        title="Tier Info"
-                      >
-                        <Info size={12} />
-                      </button>
-                    </div>
-                    <span className="font-semibold text-white text-xs">{currentAlert.tier || '—'}</span>
-                  </div>
-                )}
-
-                {showTierTooltip && currentAlert.eventId && (
-                  <div className="bg-[#0B0F19] border border-[#1E293B] rounded-xl p-3 text-[11px] text-[#94A3B8] space-y-1.5">
-                    <div><strong className="text-white">Tier 4:</strong> No abnormality detected</div>
-                    <div><strong className="text-white">Tier 3:</strong> Slight deviation observed</div>
-                    <div><strong className="text-white">Tier 2:</strong> Confirmed anomaly; operable in degraded mode</div>
-                    <div><strong className="text-white">Tier 1:</strong> Critical; close to failure limits</div>
+                    <span className="text-[#94A3B8] text-xs">Severity:</span>
+                    <SeverityBadge severity={currentAlert.severity || currentAlert.tier} />
                   </div>
                 )}
 
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-[#94A3B8] text-xs">Validation Date:</span>
+                  <span className="text-[#94A3B8] text-xs">Review Date:</span>
                   <span className="font-mono text-[#94A3B8] text-xs">{validationDateDisplay}</span>
                 </div>
 
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-[#94A3B8] text-xs">Validated by:</span>
+                  <span className="text-[#94A3B8] text-xs">Reviewed by:</span>
                   <span className="text-[#94A3B8] font-mono text-xs">{validationByDisplay}</span>
                 </div>
 
@@ -627,14 +613,14 @@ export default function AlertDetailsClient({
                 <h3 className="text-xs font-semibold text-white">
                   Alert History
                 </h3>
-                <div title={`${alertHistory.length} validated alerts for this asset and rule`} className="text-[#64748B] hover:text-[#94A3B8] cursor-pointer">
+                <div title={`${alertHistory.length} eligible alerts for this asset and rule`} className="text-[#64748B] hover:text-[#94A3B8] cursor-pointer">
                   <Info size={14} />
                 </div>
               </div>
 
               {alertHistory.length === 0 ? (
                 <div className="text-xs text-[#64748B] italic py-2">
-                  No previous validated alerts recorded for this asset and rule.
+                  No previous eligible alerts recorded for this asset and rule.
                 </div>
               ) : (
                 <div className="space-y-3 divide-y divide-[#1E293B]/60">
@@ -920,14 +906,14 @@ export default function AlertDetailsClient({
         </div>
       </main>
 
-      {/* Validate Alert Confirmation Modal (matching image 5) */}
+      {/* Eligible for Event Manager Confirmation Modal */}
       <Dialog.Root open={showValidateConfirm} onOpenChange={setShowValidateConfirm}>
         <Dialog.Portal>
           <Dialog.Overlay className="fixed inset-0 bg-black/80 z-[70] backdrop-blur-sm transition-opacity" />
           <Dialog.Content className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[70] w-[450px] max-w-[92vw] bg-[#111827] rounded-2xl border border-[#1E293B] p-6 shadow-2xl select-none text-white outline-none font-sans">
             <div className="flex items-center justify-between mb-3">
               <Dialog.Title className="text-base font-semibold text-white">
-                Validate Alert
+                Confirm Eligible for Event Manager
               </Dialog.Title>
               <button
                 type="button"
@@ -939,7 +925,7 @@ export default function AlertDetailsClient({
             </div>
 
             <p className="text-xs text-[#94A3B8] mb-6 leading-relaxed">
-              Are you sure you want to validate alert <span className="font-mono font-semibold text-white">ALT-{currentAlert.id}</span>? Once validated, it will move to the <span className="font-medium text-white">Validated Alerts</span> tab.
+              Are you sure you want to mark alert <span className="font-mono font-semibold text-white">ALT-{currentAlert.id}</span> as eligible for Event Manager? Once confirmed, it will move to the <span className="font-medium text-white">Eligible for EM</span> tab.
             </p>
 
             <div className="flex justify-end gap-3 pt-4 border-t border-[#1E293B]">
@@ -955,7 +941,7 @@ export default function AlertDetailsClient({
                 onClick={handleConfirmValidation}
                 className="px-4 py-2 text-xs rounded-full bg-[#3B82F6] text-white font-medium hover:bg-[#2563EB] transition-colors cursor-pointer"
               >
-                Yes, validate
+                Yes, confirm
               </button>
             </div>
           </Dialog.Content>

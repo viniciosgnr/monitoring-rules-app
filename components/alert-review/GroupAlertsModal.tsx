@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { X, SlidersHorizontal, ChevronDown, ExternalLink } from 'lucide-react';
+import SeverityBadge from '@/components/ui/SeverityBadge';
 
 interface AlertRow {
   id: number;
@@ -19,8 +20,9 @@ interface GroupAlertsModalProps {
   onClose: () => void;
   selectedAlerts: AlertRow[];
   generatedEventId: string;
-  onConfirm?: (eventId: string, description: string, tier: string) => Promise<void>;
+  onConfirm?: (eventId: string, description: string, severity: string) => Promise<void>;
   mode?: 'create' | 'view';
+  initialSeverity?: string;
   initialTier?: string;
   initialDescription?: string;
 }
@@ -32,23 +34,24 @@ export default function GroupAlertsModal({
   generatedEventId,
   onConfirm,
   mode = 'create',
+  initialSeverity,
   initialTier,
   initialDescription,
 }: GroupAlertsModalProps) {
   const [description, setDescription] = useState('');
-  const [selectedTier, setSelectedTier] = useState('Select');
+  const [selectedSeverity, setSelectedSeverity] = useState('Select');
   const [error, setError] = useState<string | null>(null);
-  const [tierError, setTierError] = useState<string | null>(null);
+  const [severityError, setSeverityError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (open) {
       setDescription(initialDescription || '');
-      setSelectedTier(initialTier || 'Select');
+      setSelectedSeverity(initialSeverity || initialTier || 'Select');
       setError(null);
-      setTierError(null);
+      setSeverityError(null);
     }
-  }, [open, initialTier, initialDescription]);
+  }, [open, initialSeverity, initialTier, initialDescription]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -59,8 +62,8 @@ export default function GroupAlertsModal({
     if (!onConfirm) return;
 
     let hasError = false;
-    if (!selectedTier || selectedTier === 'Select' || selectedTier === 'Select tier') {
-      setTierError('Please select a Surveillance Tier before releasing alerts.');
+    if (!selectedSeverity || selectedSeverity === 'Select' || selectedSeverity === 'Select tier') {
+      setSeverityError('Please select a Severity before releasing alerts.');
       hasError = true;
     }
     if (!description.trim()) {
@@ -70,12 +73,12 @@ export default function GroupAlertsModal({
     if (hasError) return;
 
     setError(null);
-    setTierError(null);
+    setSeverityError(null);
     setLoading(true);
     try {
-      await onConfirm(generatedEventId, description.trim(), selectedTier);
+      await onConfirm(generatedEventId, description.trim(), selectedSeverity);
       setDescription('');
-      setSelectedTier('Select');
+      setSelectedSeverity('Select');
       onClose();
     } catch {
       setError('An error occurred while releasing alerts. Please try again.');
@@ -87,9 +90,9 @@ export default function GroupAlertsModal({
   const handleClose = () => {
     if (loading) return;
     setError(null);
-    setTierError(null);
+    setSeverityError(null);
     setDescription('');
-    setSelectedTier('Select');
+    setSelectedSeverity('Select');
     onClose();
   };
 
@@ -103,7 +106,7 @@ export default function GroupAlertsModal({
           <div className="flex items-center justify-between pb-4 border-b border-[#1E293B] shrink-0">
             <div className="flex items-center gap-2.5">
               <Dialog.Title className="text-base font-semibold text-white">
-                Release Validated Alerts
+                Release to Event Manager
               </Dialog.Title>
               <span className="px-2 py-0.5 rounded-md bg-[#1E293B] border border-[#334155]/40 text-[#94A3B8] text-xs font-medium font-sans">
                 {selectedAlerts.length} alert{selectedAlerts.length !== 1 ? 's' : ''}
@@ -198,28 +201,28 @@ export default function GroupAlertsModal({
                   </span>
                 </div>
 
-                {/* Surveillance Tier */}
+                {/* Severity */}
                 <div className="space-y-1.5">
                   <label className="text-xs text-[#94A3B8] block">
-                    Surveillance Tier <span className="text-[#60A5FA]">*</span>
+                    Severity <span className="text-[#60A5FA]">*</span>
                   </label>
                   {mode === 'view' ? (
-                    <div className="text-xs text-white font-medium py-1">
-                      {selectedTier && selectedTier !== 'Select tier' && selectedTier !== 'Select' ? selectedTier : 'Tier 3 - Good'}
+                    <div className="py-1">
+                      <SeverityBadge severity={selectedSeverity && selectedSeverity !== 'Select' ? selectedSeverity : 'Medium'} />
                     </div>
                   ) : (
                     <div className="relative">
                       <select
-                        value={selectedTier}
+                        value={selectedSeverity}
                         onChange={e => {
-                          setSelectedTier(e.target.value);
+                          setSelectedSeverity(e.target.value);
                           if (e.target.value !== 'Select') {
-                            setTierError(null);
+                            setSeverityError(null);
                           }
                         }}
                         disabled={loading}
                         className={`w-full bg-[#0B0F19] border rounded-lg px-3 py-2 text-xs text-white outline-none appearance-none transition-colors cursor-pointer ${
-                          tierError
+                          severityError
                             ? 'border-red-500'
                             : 'border-[#1E293B] hover:border-[#3B82F6] focus:border-[#3B82F6]'
                         }`}
@@ -227,16 +230,15 @@ export default function GroupAlertsModal({
                         <option value="Select" disabled className="bg-[#111827] text-[#64748B]">
                           Select
                         </option>
-                        <option value="Tier 4 - Good" className="bg-[#111827] text-white">Tier 4 - Good</option>
-                        <option value="Tier 3 - Good" className="bg-[#111827] text-white">Tier 3 - Good</option>
-                        <option value="Tier 2 - Degraded" className="bg-[#111827] text-white">Tier 2 - Degraded</option>
-                        <option value="Tier 1 - Critical" className="bg-[#111827] text-white">Tier 1 - Critical</option>
+                        <option value="Low" className="bg-[#111827] text-white">Low</option>
+                        <option value="Medium" className="bg-[#111827] text-white">Medium</option>
+                        <option value="High" className="bg-[#111827] text-white">High</option>
                       </select>
                       <ChevronDown size={14} className="absolute right-3 top-2.5 text-[#94A3B8] pointer-events-none" />
                     </div>
                   )}
-                  {tierError && (
-                    <span className="text-[11px] text-red-400 block">{tierError}</span>
+                  {severityError && (
+                    <span className="text-[11px] text-red-400 block">{severityError}</span>
                   )}
                 </div>
 

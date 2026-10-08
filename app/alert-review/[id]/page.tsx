@@ -1,6 +1,6 @@
 import { db } from '@/db';
 import { alerts, ruleInstances, equipment, monitoringRules, fpsos } from '@/db/schema';
-import { eq, and, ne, desc } from 'drizzle-orm';
+import { eq, and, ne, desc, inArray } from 'drizzle-orm';
 import { notFound } from 'next/navigation';
 import AlertDetailsClient from '@/components/alert-review/AlertDetailsClient';
 import type { Status } from '@/components/ui/StatusBadge';
@@ -34,7 +34,7 @@ export default async function AlertDetailsPage({ params, searchParams }: PagePro
       reviewedAt: alerts.reviewedAt,
       reviewedBy: alerts.reviewedBy,
       status: alerts.status,
-      tier: alerts.tier,
+      severity: alerts.severity,
       eventId: alerts.eventId,
       eventDescription: alerts.eventDescription,
       comment: alerts.comment,
@@ -72,7 +72,7 @@ export default async function AlertDetailsPage({ params, searchParams }: PagePro
         eq(ruleInstances.equipmentId, alertRaw.equipmentId),
         eq(ruleInstances.ruleId, alertRaw.ruleId),
         ne(alerts.id, alertRaw.id),
-        eq(alerts.status, 'validated')
+        inArray(alerts.status, ['validated', 'eligible_for_em'])
       )
     )
     .orderBy(desc(alerts.triggeredAt))
@@ -87,7 +87,7 @@ export default async function AlertDetailsPage({ params, searchParams }: PagePro
     reviewedAt: alertRaw.reviewedAt?.toLocaleString('pt-BR') ?? '',
     reviewedBy: alertRaw.reviewedBy ?? '',
     status: alertRaw.status as Status,
-    tier: alertRaw.tier ?? null,
+    severity: alertRaw.severity ?? null,
     eventId: alertRaw.eventId ?? null,
     eventDescription: alertRaw.eventDescription ?? null,
     comment: alertRaw.comment ?? null,

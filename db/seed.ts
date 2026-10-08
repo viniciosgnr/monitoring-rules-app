@@ -251,9 +251,9 @@ async function seed() {
         ? operatorEmails[j % operatorEmails.length]
         : null;
 
-      const tierPool = ['Good - Tier 4', 'Good - Tier 3', 'Degraded - Tier 2', 'Critical - Tier 1'];
-      const tier = status === 'validated'
-        ? tierPool[(idx * 3 + j) % tierPool.length]
+      const severityPool = ['Low', 'Medium', 'High'];
+      const severity = status === 'validated'
+        ? severityPool[(idx * 3 + j) % severityPool.length]
         : null;
 
       alertsValues.push({
@@ -264,7 +264,7 @@ async function seed() {
         reviewedAt,
         reviewedBy,
         status,
-        tier,
+        severity,
       });
     }
   }

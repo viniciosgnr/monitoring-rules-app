@@ -4,6 +4,7 @@ import * as Dialog from '@radix-ui/react-dialog';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { X, Info, Wrench, ChevronDown, Maximize2, Minimize2 } from 'lucide-react';
 import StatusBadge, { Status } from '@/components/ui/StatusBadge';
+import SeverityBadge from '@/components/ui/SeverityBadge';
 
 const ALL_STATUSES: Status[] = ['to_be_validated', 'validation_in_progress', 'validated', 'rejected'];
 
@@ -23,6 +24,7 @@ interface AlertRow {
   reviewedAt: string;
   reviewedBy: string;
   status: Status;
+  severity?: string | null;
   tier?: string | null;
   eventId?: string | null;
   eventDescription?: string | null;
@@ -38,7 +40,7 @@ interface EventDetailsModalProps {
   alert: AlertRow | null;
   allAlerts?: AlertRow[];
   statusScope?: 'for_validation' | 'validated_alerts';
-  onStatusChange?: (id: number, newStatus: Status, comment?: string, tier?: string) => Promise<void>;
+  onStatusChange?: (id: number, newStatus: Status, comment?: string, severity?: string) => Promise<void>;
 }
 
 export function getTimeseriesDescription(
@@ -275,18 +277,25 @@ export default function EventDetailsModal({
   const formattedStartDate = formatUtcDateTime(alert.triggeredAtRaw || alert.triggeredAt);
   const formattedEndDate = formatUtcDateTime(alert.endDateRaw || alert.endDate);
 
-  const validationDateDisplay = alert.status === 'validated'
-    ? (alert.reviewedAt || '—')
-    : '—';
-  const validationByDisplay = (alert.status === 'validation_in_progress' || alert.status === 'validated' || alert.status === 'rejected')
-    ? (alert.reviewedBy || '—')
-    : '—';
+  const validationDateDisplay =
+    alert.status === 'validated' || alert.status === 'eligible_for_em'
+      ? alert.reviewedAt || '—'
+      : '—';
+  const validationByDisplay =
+    alert.status === 'validation_in_progress' ||
+    alert.status === 'review_in_progress' ||
+    alert.status === 'validated' ||
+    alert.status === 'eligible_for_em' ||
+    alert.status === 'rejected'
+      ? alert.reviewedBy || '—'
+      : '—';
 
-  const availableStatuses: Status[] = alert.status === 'to_be_validated'
-    ? ['validation_in_progress', 'validated', 'rejected']
-    : alert.status === 'validation_in_progress'
-    ? ['validated', 'rejected']
-    : ALL_STATUSES.filter(s => s !== alert.status);
+  const availableStatuses: Status[] =
+    alert.status === 'to_be_validated' || alert.status === 'new'
+      ? ['validation_in_progress', 'validated', 'rejected']
+      : alert.status === 'validation_in_progress' || alert.status === 'review_in_progress'
+      ? ['validated', 'rejected']
+      : ALL_STATUSES.filter(s => s !== alert.status);
 
   // Mouse drag handlers for timeseries panning into the past
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -352,9 +361,7 @@ export default function EventDetailsModal({
               <Dialog.Title className="text-base font-semibold text-white">
                 Alert Details: ALT-{alert.id} - {alert.source || 'Monitoring Rules Engine'}
               </Dialog.Title>
-              <span className="px-2.5 py-1 rounded bg-[#1E293B] border border-[#334155]/40 text-[#E2E8F0] text-xs font-medium">
-                {alert.status === 'to_be_validated' ? 'To Be Validated' : alert.status === 'validation_in_progress' ? 'Validation in Progress' : alert.status === 'validated' ? 'Validated' : alert.status === 'rejected' ? 'Rejected' : 'Closed'}
-              </span>
+              <StatusBadge status={alert.status} />
             </div>
             <Dialog.Close className="text-[#64748B] hover:text-white transition-colors cursor-pointer">
               <X size={18} />
@@ -642,19 +649,21 @@ export default function EventDetailsModal({
                   </p>
                 </div>
 
-                {/* Surveillance Tier Metadata (only shown when alert belongs to an event) */}
+                {/* Severity Metadata (only shown when alert belongs to an event) */}
                 {alert.eventId && (
                   <div>
-                    <span className="text-[#64748B] block text-[11px] mb-0.5">Surveillance Tier</span>
-                    <span className="font-semibold text-white text-xs">{alert.tier || '—'}</span>
+                    <span className="text-[#64748B] block text-[11px] mb-1">Severity</span>
+                    <div>
+                      <SeverityBadge severity={alert.severity || alert.tier} />
+                    </div>
                   </div>
                 )}
                 <div>
-                  <span className="text-[#64748B] block text-[11px] mb-0.5">Validation Date</span>
+                  <span className="text-[#64748B] block text-[11px] mb-0.5">Review Date</span>
                   <span className="font-mono text-[#94A3B8]">{validationDateDisplay}</span>
                 </div>
                 <div>
-                  <span className="text-[#64748B] block text-[11px] mb-0.5">Validation By</span>
+                  <span className="text-[#64748B] block text-[11px] mb-0.5">Reviewed by</span>
                   <span className="text-[#94A3B8] font-mono">{validationByDisplay}</span>
                 </div>
 
@@ -766,14 +775,14 @@ export default function EventDetailsModal({
                             key={s}
                             onSelect={async () => {
                               if (alert && onStatusChange) {
-                                if (s === 'validation_in_progress') {
+                                if (s === 'validation_in_progress' || s === 'review_in_progress') {
                                   if (!commentText.trim()) {
-                                    setCommentError('Please enter a comment before setting Validation in Progress');
+                                    setCommentError('Please enter a comment before setting Review in Progress');
                                     return;
                                   }
                                   setCommentError(null);
                                   await onStatusChange(alert.id, s, commentText.trim());
-                                } else if (s === 'validated') {
+                                } else if (s === 'validated' || s === 'eligible_for_em') {
                                   setCommentError(null);
                                   setShowValidateConfirm(true);
                                 } else {
@@ -912,14 +921,14 @@ export default function EventDetailsModal({
       </Dialog.Portal>
     </Dialog.Root>
 
-    {/* Validate Alert Confirmation Modal */}
+    {/* Eligible for Event Manager Confirmation Modal */}
     <Dialog.Root open={showValidateConfirm} onOpenChange={setShowValidateConfirm}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 bg-black/80 z-[70] backdrop-blur-sm transition-opacity" />
         <Dialog.Content className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[70] w-[450px] max-w-[92vw] bg-[#111827] rounded-2xl border border-[#1E293B] p-6 shadow-2xl select-none text-white outline-none font-sans">
           <div className="flex items-center justify-between mb-3">
             <Dialog.Title className="text-base font-semibold text-white">
-              Validate Alert
+              Confirm Eligible for Event Manager
             </Dialog.Title>
             <button
               type="button"
@@ -931,7 +940,7 @@ export default function EventDetailsModal({
           </div>
 
           <p className="text-xs text-[#94A3B8] mb-6 leading-relaxed">
-            Are you sure you want to validate alert <span className="font-mono font-semibold text-white">ALT-{alert.id}</span>? Once validated, it will move to the <span className="font-medium text-white">Validated Alerts</span> tab.
+            Are you sure you want to mark alert <span className="font-mono font-semibold text-white">ALT-{alert.id}</span> as eligible? Once marked, it will move to the <span className="font-medium text-white">Eligible for EM</span> tab.
           </p>
 
           <div className="flex justify-end gap-3 pt-4 border-t border-[#1E293B]">
@@ -952,7 +961,7 @@ export default function EventDetailsModal({
               }}
               className="px-4 py-2 text-xs rounded-full bg-[#3B82F6] text-white font-medium hover:bg-[#2563EB] transition-colors cursor-pointer"
             >
-              Yes, validate
+              Yes, confirm
             </button>
           </div>
         </Dialog.Content>

@@ -32,6 +32,7 @@ interface AlertRow {
   reviewedAt: string;
   reviewedBy: string;
   status: Status;
+  severity?: string | null;
   tier?: string | null;
   eventId?: string | null;
   eventDescription?: string | null;
@@ -40,12 +41,14 @@ interface AlertRow {
   [key: string]: unknown;
 }
 
-const STATUS_ORDER: Record<Status, number> = {
+const STATUS_ORDER: Record<string, number> = {
+  new:                    0,
   to_be_validated:        0,
+  review_in_progress:     1,
   validation_in_progress: 1,
+  eligible_for_em:        2,
   validated:              2,
   rejected:               3,
-  closed:                 4,
 };
 
 export const CATEGORY_ORDER: Record<string, number> = {
@@ -326,28 +329,28 @@ export default function AlertTable({
     });
   }
 
-  async function handleStatus(id: number, status: Status, comment?: string, tier?: string) {
+  async function handleStatus(id: number, status: Status, comment?: string, severity?: string) {
     if (status === 'rejected') {
       setPendingRejectAlertId(id);
       return;
     }
 
     const targetRow = data.find(r => r.id === id);
-    const isValidated = status === 'validated';
-    const isValidationInProgress = status === 'validation_in_progress';
+    const isValidated = status === 'validated' || status === 'eligible_for_em';
+    const isValidationInProgress = status === 'validation_in_progress' || status === 'review_in_progress';
     const reviewedBy = (isValidated || isValidationInProgress) ? 'smetzner@slb.com' : (targetRow?.reviewedBy || '');
     const reviewedAt = isValidated ? new Date().toLocaleString('pt-BR') : '';
     const finalComment = comment !== undefined ? comment : (targetRow?.comment ?? null);
-    const finalTier = tier || targetRow?.tier;
-    setData(d => d.map(r => r.id === id ? { ...r, status, reviewedBy, reviewedAt, tier: finalTier, comment: finalComment } : r));
+    const finalSeverity = severity || targetRow?.severity || targetRow?.tier;
+    setData(d => d.map(r => r.id === id ? { ...r, status, reviewedBy, reviewedAt, severity: finalSeverity, comment: finalComment } : r));
     if (selectedAlertDetails?.id === id) {
       if (isValidated) {
         setSelectedAlertDetails(null);
       } else {
-        setSelectedAlertDetails(prev => prev ? { ...prev, status, reviewedBy, reviewedAt, tier: finalTier, comment: finalComment } : null);
+        setSelectedAlertDetails(prev => prev ? { ...prev, status, reviewedBy, reviewedAt, severity: finalSeverity, comment: finalComment } : null);
       }
     }
-    await updateAlertStatus(id, status, finalTier ?? undefined, finalComment ?? undefined);
+    await updateAlertStatus(id, status, finalSeverity ?? undefined, finalComment ?? undefined);
   }
 
   async function handleConfirmRejection(reasons: string[], comment: string) {
@@ -375,7 +378,7 @@ export default function AlertTable({
 
   const globalFilteredRows = useMemo(() => {
     return enrichedRows.filter(r => {
-      if (r.status === 'closed') return false;
+      if ((r.status as string) === 'closed') return false;
       if (selectedFpsos.length > 0 && !selectedFpsos.includes(r.fpso)) {
         return false;
       }
@@ -391,11 +394,11 @@ export default function AlertTable({
 
   // Reactive KPIs synced with global filters (FPSO, Time, Categories)
   const kpiToBeValidated = useMemo(() => {
-    return globalFilteredRows.filter(r => r.status === 'to_be_validated').length;
+    return globalFilteredRows.filter(r => r.status === 'to_be_validated' || r.status === 'new').length;
   }, [globalFilteredRows]);
 
   const kpiInProgress = useMemo(() => {
-    return globalFilteredRows.filter(r => r.status === 'validation_in_progress').length;
+    return globalFilteredRows.filter(r => r.status === 'validation_in_progress' || r.status === 'review_in_progress').length;
   }, [globalFilteredRows]);
 
   const kpiTotalForValidation = useMemo(() => {
@@ -403,7 +406,7 @@ export default function AlertTable({
   }, [kpiToBeValidated, kpiInProgress]);
 
   const validatedAlertsList = useMemo(() => {
-    return globalFilteredRows.filter(r => r.status === 'validated');
+    return globalFilteredRows.filter(r => r.status === 'validated' || r.status === 'eligible_for_em');
   }, [globalFilteredRows]);
 
   const kpiUnreleased = useMemo(() => {
@@ -418,9 +421,15 @@ export default function AlertTable({
 
   const scopedRows = useMemo(() => {
     if (statusScope === 'for_validation') {
-      return globalFilteredRows.filter(r => r.status === 'to_be_validated' || r.status === 'validation_in_progress');
+      return globalFilteredRows.filter(
+        r =>
+          r.status === 'to_be_validated' ||
+          r.status === 'new' ||
+          r.status === 'validation_in_progress' ||
+          r.status === 'review_in_progress'
+      );
     }
-    return globalFilteredRows.filter(r => r.status === 'validated');
+    return globalFilteredRows.filter(r => r.status === 'validated' || r.status === 'eligible_for_em');
   }, [globalFilteredRows, statusScope]);
 
   const columnOptions = useMemo(() => {
@@ -586,10 +595,10 @@ export default function AlertTable({
     return generateNextEventId(fpsoForEvent, data);
   }, [selectedAlertsForGrouping, selectedFpsos, data]);
 
-  const handleConfirmGrouping = async (generatedEventId: string, description: string, tier: string) => {
+  const handleConfirmGrouping = async (generatedEventId: string, description: string, severity: string) => {
     const idsToGroup = Array.from(selectedAlertIds);
-    setData(prev => prev.map(r => idsToGroup.includes(r.id) ? { ...r, eventId: generatedEventId, eventDescription: description, tier } : r));
-    await groupAlerts(idsToGroup, generatedEventId, description, tier);
+    setData(prev => prev.map(r => idsToGroup.includes(r.id) ? { ...r, eventId: generatedEventId, eventDescription: description, severity } : r));
+    await groupAlerts(idsToGroup, generatedEventId, description, severity);
     setSelectedAlertIds(new Set());
   };
 
@@ -597,20 +606,22 @@ export default function AlertTable({
 
   function downloadExcel() {
     const isValidationTab = statusScope === 'for_validation';
-    const sheetName = isValidationTab ? 'For Validation' : 'Validated Alerts';
-    const originTab = isValidationTab ? 'Alert Review - For Validation' : 'Alert Review - Validated Alerts';
-    const filename = isValidationTab ? 'alerts_for_validation.xlsx' : 'validated_alerts.xlsx';
+    const sheetName = isValidationTab ? 'To be reviewed' : 'Eligible for EM';
+    const originTab = isValidationTab ? 'Alert Review - To be reviewed' : 'Alert Review - Eligible for EM';
+    const filename = isValidationTab ? 'alerts_to_be_reviewed.xlsx' : 'alerts_eligible_for_em.xlsx';
 
     const headers = isValidationTab
       ? ['FPSO', 'Alert Ref.', 'Asset', 'Timeseries', 'System', 'Subsystem', 'Source', 'Creation Date', 'Status', 'Monitoring Rule ID']
       : ['FPSO', 'Group Ref.', 'Alert Ref.', 'Asset', 'Timeseries', 'System', 'Subsystem', 'Source', 'Start Date', 'End Date', 'Monitoring Rule ID'];
 
     const STATUS_TEXT: Record<string, string> = {
-      to_be_validated: 'To Be Validated',
-      validation_in_progress: 'Validation in Progress',
-      validated: 'Validated',
+      to_be_validated: 'New',
+      new: 'New',
+      validation_in_progress: 'Review in Progress',
+      review_in_progress: 'Review in Progress',
+      validated: 'Eligible for Event Manager',
+      eligible_for_em: 'Eligible for Event Manager',
       rejected: 'Rejected',
-      closed: 'Closed',
     };
 
     const dataRows = filtered.map(row => {
@@ -699,7 +710,7 @@ export default function AlertTable({
               }`}
             >
               {statusScope === 'for_validation' && <Check size={13} className="text-[#3B82F6] stroke-[3]" />}
-              <span>For Validation</span>
+              <span>To be reviewed</span>
             </button>
 
             <button
@@ -711,7 +722,7 @@ export default function AlertTable({
               }`}
             >
               {statusScope === 'validated_alerts' && <Check size={13} className="text-[#3B82F6] stroke-[3]" />}
-              <span>Validated Alerts</span>
+              <span>Eligible for EM</span>
             </button>
           </div>
 
@@ -752,22 +763,22 @@ export default function AlertTable({
         {statusScope === 'for_validation' ? (
           <>
             <KpiCard
-              title="To be validated"
+              title="New"
               value={kpiToBeValidated}
-              subtitle="Requires operator action"
-              tooltip="Alerts that have been triggered and are awaiting initial review by an operator."
+              subtitle="No review started"
+              tooltip="Alerts that have been triggered and no review activity has started."
             />
             <KpiCard
-              title="Validation in progress"
+              title="Review in progress"
               value={kpiInProgress}
-              subtitle="Under review"
+              subtitle="Under investigation"
               tooltip="Alerts currently being investigated or reviewed by an operator."
             />
             <KpiCard
               title="Total alerts"
               value={kpiTotalForValidation}
-              subtitle="Pending Validation"
-              tooltip="Total number of alerts awaiting validation or currently under review for the selected filters."
+              subtitle="To be reviewed"
+              tooltip="Total number of alerts awaiting review or currently under review for the selected filters."
             />
           </>
         ) : (
@@ -776,19 +787,19 @@ export default function AlertTable({
               title="Unreleased alerts"
               value={kpiUnreleased}
               subtitle="Pending release"
-              tooltip="Validated alerts that have not yet been grouped or released to Event Manager."
+              tooltip="Alerts eligible for Event Manager that have not yet been grouped or released."
             />
             <KpiCard
-              title="Released Alerts"
+              title="Released alerts"
               value={kpiReleased}
               subtitle="Released to Event Manager"
-              tooltip="Validated alerts that have been grouped and released to Event Manager."
+              tooltip="Alerts that have been grouped and released to Event Manager."
             />
             <KpiCard
-              title="Total validated"
+              title="Total eligible"
               value={kpiTotalValidated}
-              subtitle="Confirmed valid"
-              tooltip="Total number of validated alerts (both released and unreleased) for the selected filters."
+              subtitle="Eligible for EM"
+              tooltip="Total number of alerts eligible for Event Manager (both released and unreleased) for the selected filters."
             />
           </>
         )}
@@ -799,7 +810,7 @@ export default function AlertTable({
         <div className="flex items-center justify-between px-5 py-3.5 border-b border-[#1E293B] bg-[#0B0F19]/40 flex-wrap gap-3">
           <div className="flex items-center gap-3">
             <span className="text-xs font-semibold text-white">
-              {statusScope === 'for_validation' ? 'For Validation' : 'Validated Alerts'}
+              {statusScope === 'for_validation' ? 'To be reviewed' : 'Eligible for EM'}
             </span>
             {statusScope === 'validated_alerts' && selectedAlertIds.size > 0 && (
               <span className="text-xs text-[#94A3B8]">
@@ -997,7 +1008,7 @@ export default function AlertTable({
                             }}
                             className="px-3 py-1 text-xs rounded-full border border-[#1E293B] text-white hover:border-[#3B82F6] hover:text-[#3B82F6] transition-colors cursor-pointer whitespace-nowrap bg-[#0F1623]"
                           >
-                            {statusScope === 'for_validation' ? 'Validate' : 'Details'}
+                            {statusScope === 'for_validation' ? 'Review' : 'Details'}
                           </button>
                         </td>
                       </tr>
@@ -1034,7 +1045,7 @@ export default function AlertTable({
         selectedAlerts={selectedGroupAlerts}
         generatedEventId={selectedGroupEventId || ''}
         mode="view"
-        initialTier={selectedGroupAlerts[0]?.tier || ''}
+        initialSeverity={selectedGroupAlerts[0]?.severity || selectedGroupAlerts[0]?.tier || ''}
         initialDescription={selectedGroupAlerts[0]?.eventDescription || ''}
       />
 
@@ -1071,7 +1082,7 @@ export default function AlertTable({
               </Dialog.Close>
             </div>
             <p className="text-xs text-[#94A3B8] mb-6 leading-relaxed">
-              Are you sure you want to download the current {statusScope === 'for_validation' ? 'For Validation' : 'Validated'} alerts? This will export all filtered records in Excel (.xlsx) format.
+              Are you sure you want to download the current {statusScope === 'for_validation' ? 'To be reviewed' : 'Eligible for EM'} alerts? This will export all filtered records in Excel (.xlsx) format.
             </p>
 
             <div className="flex justify-end gap-3 pt-4 border-t border-[#1E293B]">
