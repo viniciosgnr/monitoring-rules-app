@@ -672,9 +672,8 @@ export default function AlertDetailsClient({
               <div className="text-xs text-[#E2E8F0] divide-y divide-[#1E293B]/60">
                 <div className="grid grid-cols-12 py-2.5">
                   <span className="col-span-4 text-[#94A3B8]">Asset</span>
-                  <span className="col-span-8 font-mono text-white font-medium flex items-center gap-2">
-                    <span>{currentAlert.equipmentCode}</span>
-                    <EquipmentBadge code={currentAlert.equipmentCode} />
+                  <span className="col-span-8 font-mono text-white font-medium">
+                    {currentAlert.equipmentCode}
                   </span>
                 </div>
 
