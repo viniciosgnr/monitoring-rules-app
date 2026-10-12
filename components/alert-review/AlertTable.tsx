@@ -146,6 +146,25 @@ export function generateNextGroupRef(fpsoCode: string, existingAlerts: AlertRow[
 
 export const generateNextEventId = generateNextGroupRef;
 
+export function generateNextEventRef(fpsoCode: string, existingAlerts: AlertRow[]): string {
+  const prefix = (fpsoCode || 'UNY').replace(/\s+/g, '');
+  const year = '26';
+  const regex = new RegExp(`^(?:MRM-)?${prefix}${year}-EVT-(\\d+)`, 'i');
+  let maxSeq = 0;
+  for (const a of existingAlerts) {
+    const candidate = a.eventRef || (a.eventId && a.eventId.includes('EVT') ? a.eventId : null);
+    if (candidate) {
+      const match = candidate.match(regex);
+      if (match) {
+        const seq = parseInt(match[1], 10);
+        if (!isNaN(seq) && seq > maxSeq) maxSeq = seq;
+      }
+    }
+  }
+  const nextSeq = String(maxSeq + 1).padStart(2, '0');
+  return `${prefix}${year}-EVT-${nextSeq}`;
+}
+
 function CategoryFilterDropdown({
   categories,
   selectedCategories,
@@ -441,6 +460,7 @@ export default function AlertTable({
       system: Array.from(new Set(scopedRows.map(r => r.system || '—'))).filter(Boolean).sort(),
       subsystem: Array.from(new Set(scopedRows.map(r => r.subsystem || '—'))).filter(Boolean).sort(),
       eventId: Array.from(new Set(scopedRows.map(r => r.eventId || '—'))).filter(Boolean).sort(),
+      eventRef: Array.from(new Set(scopedRows.map(r => r.eventRef || '—'))).filter(Boolean).sort(),
       ruleName: Array.from(new Set(scopedRows.map(r => r.ruleName))).filter(Boolean).sort(),
       source: Array.from(new Set(scopedRows.map(r => r.source))).filter(Boolean).sort(),
       triggeredAt: Array.from(new Set(scopedRows.map(r => r.triggeredAt ? r.triggeredAt.split(',')[0].trim() : ''))).filter(Boolean).sort(),
@@ -467,6 +487,8 @@ export default function AlertTable({
           val = r.endDate ? r.endDate.split(',')[0].trim() : '';
         } else if (colKey === 'reviewedAt') {
           val = r.reviewedAt ? r.reviewedAt.split(',')[0].trim() : '—';
+        } else if (colKey === 'eventRef') {
+          val = r.eventRef || '—';
         } else if (colKey === 'eventId') {
           val = r.eventId || '—';
         } else if (colKey === 'timeseries') {
@@ -500,9 +522,9 @@ export default function AlertTable({
           if (sortField === 'alertId') {
             return sortDirection === 'asc' ? a.id - b.id : b.id - a.id;
           }
-          if (sortField === 'eventId') {
-            const aVal = a.eventId || '';
-            const bVal = b.eventId || '';
+          if (sortField === 'eventRef' || sortField === 'eventId') {
+            const aVal = a.eventRef || a.eventId || '';
+            const bVal = b.eventRef || b.eventId || '';
             return sortDirection === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
           }
           if (sortField === 'triggeredAt') {
@@ -595,10 +617,16 @@ export default function AlertTable({
     return generateNextEventId(fpsoForEvent, data);
   }, [selectedAlertsForGrouping, selectedFpsos, data]);
 
-  const handleConfirmGrouping = async (generatedEventId: string, description: string, severity: string) => {
+  const currentGeneratedEventRef = useMemo(() => {
+    const fpsoForEvent = selectedAlertsForGrouping[0]?.fpso || selectedFpsos[0] || 'UNY';
+    return generateNextEventRef(fpsoForEvent, data);
+  }, [selectedAlertsForGrouping, selectedFpsos, data]);
+
+  const handleConfirmGrouping = async (generatedEventId: string, description: string, severity: string, generatedEventRef?: string) => {
     const idsToGroup = Array.from(selectedAlertIds);
-    setData(prev => prev.map(r => idsToGroup.includes(r.id) ? { ...r, eventId: generatedEventId, eventDescription: description, severity } : r));
-    await groupAlerts(idsToGroup, generatedEventId, description, severity);
+    const finalEventRef = generatedEventRef || currentGeneratedEventRef;
+    setData(prev => prev.map(r => idsToGroup.includes(r.id) ? { ...r, eventId: generatedEventId, eventRef: finalEventRef, eventDescription: description, severity } : r));
+    await groupAlerts(idsToGroup, generatedEventId, description, severity, finalEventRef);
     setSelectedAlertIds(new Set());
   };
 
@@ -612,7 +640,7 @@ export default function AlertTable({
 
     const headers = isValidationTab
       ? ['FPSO', 'Alert Ref.', 'Asset', 'Timeseries', 'System', 'Subsystem', 'Source', 'Creation Date', 'Status', 'Monitoring Rule ID']
-      : ['FPSO', 'Group Ref.', 'Alert Ref.', 'Asset', 'Timeseries', 'System', 'Subsystem', 'Source', 'Start Date', 'End Date', 'Monitoring Rule ID'];
+      : ['FPSO', 'Event Ref.', 'Alert Ref.', 'Asset', 'Timeseries', 'System', 'Subsystem', 'Source', 'Start Date', 'End Date', 'Monitoring Rule ID'];
 
     const STATUS_TEXT: Record<string, string> = {
       to_be_validated: 'New',
@@ -641,7 +669,7 @@ export default function AlertTable({
       }
       return [
         row.fpso || '',
-        row.eventId || '—',
+        row.eventRef || row.eventId || '—',
         `ALT-${row.id}`,
         row.equipmentCode || '',
         row.timeseries || '',
@@ -668,7 +696,7 @@ export default function AlertTable({
     if (statusScope === 'validated_alerts') {
       return [
         ['fpso', 'FPSO'],
-        ['eventId', 'Group Ref.'],
+        ['eventRef', 'Event Ref.'],
         ['alertId', 'Alert Ref.'],
         ['equipmentCode', 'Assets'],
         ['timeseries', 'Timeseries'],
@@ -846,7 +874,7 @@ export default function AlertTable({
                   <th className="w-8 px-3 py-3" />
                 )}
                 {cols.map(([field, label]) => {
-                  const isSortable = field === 'alertId' || field === 'eventId' || field === 'triggeredAt' || field === 'endDate';
+                  const isSortable = field === 'alertId' || field === 'eventRef' || field === 'eventId' || field === 'triggeredAt' || field === 'endDate';
                   const isCurrentSort = sortField === field;
                   return (
                     <th key={field} className="text-left px-2.5 py-2.5 text-xs font-normal text-[#94A3B8] whitespace-nowrap">
@@ -935,7 +963,15 @@ export default function AlertTable({
                         {/* Event Ref - only on Validated Alerts */}
                         {statusScope === 'validated_alerts' && (
                           <td className="px-2.5 py-2.5 font-mono text-xs whitespace-nowrap">
-                            {row.eventId ? (
+                            {row.eventRef ? (
+                              <button
+                                type="button"
+                                onClick={() => setSelectedGroupEventId(row.eventId || null)}
+                                className="text-[#38BDF8] hover:underline cursor-pointer font-mono font-medium text-xs transition-colors"
+                              >
+                                {row.eventRef}
+                              </button>
+                            ) : row.eventId ? (
                               <button
                                 type="button"
                                 onClick={() => setSelectedGroupEventId(row.eventId || null)}
@@ -1035,6 +1071,7 @@ export default function AlertTable({
         onClose={() => setShowGroupModal(false)}
         selectedAlerts={selectedAlertsForGrouping}
         generatedEventId={currentGeneratedEventId}
+        generatedEventRef={currentGeneratedEventRef}
         onConfirm={handleConfirmGrouping}
       />
 

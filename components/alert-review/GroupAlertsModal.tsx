@@ -20,7 +20,8 @@ interface GroupAlertsModalProps {
   onClose: () => void;
   selectedAlerts: AlertRow[];
   generatedEventId: string;
-  onConfirm?: (eventId: string, description: string, severity: string) => Promise<void>;
+  generatedEventRef?: string;
+  onConfirm?: (eventId: string, description: string, severity: string, eventRef?: string) => Promise<void>;
   mode?: 'create' | 'view';
   initialSeverity?: string;
   initialTier?: string;
@@ -32,6 +33,7 @@ export default function GroupAlertsModal({
   onClose,
   selectedAlerts,
   generatedEventId,
+  generatedEventRef,
   onConfirm,
   mode = 'create',
   initialSeverity,
@@ -76,7 +78,7 @@ export default function GroupAlertsModal({
     setSeverityError(null);
     setLoading(true);
     try {
-      await onConfirm(generatedEventId, description.trim(), selectedSeverity);
+      await onConfirm(generatedEventId, description.trim(), selectedSeverity, generatedEventRef);
       setDescription('');
       setSelectedSeverity('Select');
       onClose();
@@ -190,10 +192,10 @@ export default function GroupAlertsModal({
                 <div>
                   <span className="text-xs text-[#94A3B8] block mb-1">Event Ref.:</span>
                   <span className="font-mono text-xs">
-                    {mode === 'view' && selectedAlerts[0]?.eventRef ? (
+                    {(mode === 'view' ? selectedAlerts[0]?.eventRef : generatedEventRef) ? (
                       <span className="text-[#60A5FA] flex items-center gap-1 font-medium">
                         <ExternalLink size={12} />
-                        <span>{selectedAlerts[0].eventRef}</span>
+                        <span>{mode === 'view' ? selectedAlerts[0]?.eventRef : generatedEventRef}</span>
                       </span>
                     ) : (
                       <span className="text-white text-xs">Pending sync</span>

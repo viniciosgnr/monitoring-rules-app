@@ -31,14 +31,17 @@ export async function updateAlertStatus(id: number, status: Status, severity?: s
   revalidatePath('/alert-review');
 }
 
-export async function groupAlerts(alertIds: number[], eventId: string, eventDescription: string, severity?: string) {
+export async function groupAlerts(alertIds: number[], eventId: string, eventDescription: string, severity?: string, eventRef?: string) {
   if (!alertIds || alertIds.length === 0) return;
-  const updateData: { eventId: string; eventDescription: string; severity?: string } = {
+  const updateData: { eventId: string; eventDescription: string; severity?: string; eventRef?: string } = {
     eventId,
     eventDescription,
   };
   if (severity) {
     updateData.severity = severity;
+  }
+  if (eventRef) {
+    updateData.eventRef = eventRef;
   }
   await db.update(alerts)
     .set(updateData)
