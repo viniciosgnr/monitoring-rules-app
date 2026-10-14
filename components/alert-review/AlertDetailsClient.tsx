@@ -421,7 +421,7 @@ export default function AlertDetailsClient({
           <div className="flex items-center justify-between gap-3 px-4 py-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs">
             <div className="flex items-center gap-2">
               <Check size={14} className="stroke-[3]" />
-              <span>Alerta marcado como elegível com sucesso! Ele agora pertence à aba <strong>Eligible for EM</strong>.</span>
+              <span>Alerta marcado como elegível com sucesso! Ele agora pertence à aba <strong>Eligible for Event Manager</strong>.</span>
             </div>
             <button
               type="button"
@@ -431,7 +431,7 @@ export default function AlertDetailsClient({
               }}
               className="underline hover:text-emerald-300 font-medium cursor-pointer"
             >
-              Ver na aba Eligible for EM →
+              Ver na aba Eligible for Event Manager →
             </button>
           </div>
         )}
@@ -924,7 +924,7 @@ export default function AlertDetailsClient({
             </div>
 
             <p className="text-xs text-[#94A3B8] mb-6 leading-relaxed">
-              Are you sure you want to mark alert <span className="font-mono font-semibold text-white">ALT-{currentAlert.id}</span> as eligible for Event Manager? Once confirmed, it will move to the <span className="font-medium text-white">Eligible for EM</span> tab.
+              Are you sure you want to mark alert <span className="font-mono font-semibold text-white">ALT-{currentAlert.id}</span> as eligible for Event Manager? Once confirmed, it will move to the <span className="font-medium text-white">Eligible for Event Manager</span> tab.
             </p>
 
             <div className="flex justify-end gap-3 pt-4 border-t border-[#1E293B]">

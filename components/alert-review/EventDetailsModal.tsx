@@ -940,7 +940,7 @@ export default function EventDetailsModal({
           </div>
 
           <p className="text-xs text-[#94A3B8] mb-6 leading-relaxed">
-            Are you sure you want to mark alert <span className="font-mono font-semibold text-white">ALT-{alert.id}</span> as eligible? Once marked, it will move to the <span className="font-medium text-white">Eligible for EM</span> tab.
+            Are you sure you want to mark alert <span className="font-mono font-semibold text-white">ALT-{alert.id}</span> as eligible? Once marked, it will move to the <span className="font-medium text-white">Eligible for Event Manager</span> tab.
           </p>
 
           <div className="flex justify-end gap-3 pt-4 border-t border-[#1E293B]">
