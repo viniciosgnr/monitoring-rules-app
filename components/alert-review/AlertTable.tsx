@@ -634,8 +634,8 @@ export default function AlertTable({
 
   function downloadExcel() {
     const isValidationTab = statusScope === 'for_validation';
-    const sheetName = isValidationTab ? 'To be reviewed' : 'Eligible for EM';
-    const originTab = isValidationTab ? 'Alert Review - To be reviewed' : 'Alert Review - Eligible for EM';
+    const sheetName = isValidationTab ? 'To be Reviewed' : 'Eligible for EM';
+    const originTab = isValidationTab ? 'Alert Review - To be Reviewed' : 'Alert Review - Eligible for EM';
     const filename = isValidationTab ? 'alerts_to_be_reviewed.xlsx' : 'alerts_eligible_for_em.xlsx';
 
     const headers = isValidationTab
@@ -738,7 +738,7 @@ export default function AlertTable({
               }`}
             >
               {statusScope === 'for_validation' && <Check size={13} className="text-[#3B82F6] stroke-[3]" />}
-              <span>To be reviewed</span>
+              <span>To be Reviewed</span>
             </button>
 
             <button
@@ -805,7 +805,7 @@ export default function AlertTable({
             <KpiCard
               title="Total alerts"
               value={kpiTotalForValidation}
-              subtitle="To be reviewed"
+              subtitle="To be Reviewed"
               tooltip="Total number of alerts awaiting review or currently under review for the selected filters."
             />
           </>
@@ -838,7 +838,7 @@ export default function AlertTable({
         <div className="flex items-center justify-between px-5 py-3.5 border-b border-[#1E293B] bg-[#0B0F19]/40 flex-wrap gap-3">
           <div className="flex items-center gap-3">
             <span className="text-xs font-semibold text-white">
-              {statusScope === 'for_validation' ? 'To be reviewed' : 'Eligible for EM'}
+              {statusScope === 'for_validation' ? 'To be Reviewed' : 'Eligible for EM'}
             </span>
             {statusScope === 'validated_alerts' && selectedAlertIds.size > 0 && (
               <span className="text-xs text-[#94A3B8]">
@@ -1119,7 +1119,7 @@ export default function AlertTable({
               </Dialog.Close>
             </div>
             <p className="text-xs text-[#94A3B8] mb-6 leading-relaxed">
-              Are you sure you want to download the current {statusScope === 'for_validation' ? 'To be reviewed' : 'Eligible for EM'} alerts? This will export all filtered records in Excel (.xlsx) format.
+              Are you sure you want to download the current {statusScope === 'for_validation' ? 'To be Reviewed' : 'Eligible for EM'} alerts? This will export all filtered records in Excel (.xlsx) format.
             </p>
 
             <div className="flex justify-end gap-3 pt-4 border-t border-[#1E293B]">
