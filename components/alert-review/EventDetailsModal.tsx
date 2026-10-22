@@ -5,6 +5,7 @@ import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { X, Info, Wrench, ChevronDown, Maximize2, Minimize2 } from 'lucide-react';
 import StatusBadge, { Status } from '@/components/ui/StatusBadge';
 import SeverityBadge from '@/components/ui/SeverityBadge';
+import { formatAlertRef } from '@/lib/systemUtils';
 
 const ALL_STATUSES: Status[] = ['to_be_validated', 'validation_in_progress', 'validated', 'rejected'];
 
@@ -39,7 +40,7 @@ interface EventDetailsModalProps {
   onClose: () => void;
   alert: AlertRow | null;
   allAlerts?: AlertRow[];
-  statusScope?: 'for_validation' | 'validated_alerts';
+  statusScope?: 'for_validation' | 'validated_alerts' | 'rejected_alerts';
   onStatusChange?: (id: number, newStatus: Status, comment?: string, severity?: string) => Promise<void>;
 }
 
@@ -359,7 +360,7 @@ export default function EventDetailsModal({
           <div className="flex items-center justify-between border-b border-[#1E293B] pb-4 mb-5">
             <div className="flex items-center gap-3">
               <Dialog.Title className="text-base font-semibold text-white">
-                Alert Details: ALT-{alert.id} - {alert.source || 'Monitoring Rules Engine'}
+                Alert Details: {formatAlertRef(alert.id, alert.ruleName, alert.source)} - {alert.source || 'Monitoring Rules Engine'}
               </Dialog.Title>
               <StatusBadge status={alert.status} />
             </div>
@@ -390,7 +391,7 @@ export default function EventDetailsModal({
                 </div>
                 <div className="grid grid-cols-3 py-1.5 border-b border-[#1E293B]/60">
                   <span className="text-[#94A3B8]">Alert Ref.</span>
-                  <span className="col-span-2 font-mono text-white">ALT-{alert.id}</span>
+                  <span className="col-span-2 font-mono text-white">{formatAlertRef(alert.id, alert.ruleName, alert.source)}</span>
                 </div>
                 <div className="grid grid-cols-3 py-1.5 border-b border-[#1E293B]/60">
                   <span className="text-[#94A3B8]">Alert description</span>
@@ -670,11 +671,12 @@ export default function EventDetailsModal({
                 {/* Validation Comment Field */}
                 <div>
                   {(() => {
-                    const isReadOnly = statusScope === 'validated_alerts' || alert.status === 'validated' || alert.status === 'rejected';
+                    const isReadOnly = statusScope === 'validated_alerts' || statusScope === 'rejected_alerts' || alert.status === 'validated' || alert.status === 'eligible_for_em' || alert.status === 'rejected';
+                    const isRejected = statusScope === 'rejected_alerts' || alert.status === 'rejected';
                     return (
                       <>
                         <div className="flex items-center gap-1.5 mb-1.5">
-                          <span className="text-[#64748B] text-[11px]">Comment</span>
+                          <span className="text-[#64748B] text-[11px] font-medium">{isRejected ? 'Justification' : 'Comment'}</span>
                           {!isReadOnly && alert.status === 'to_be_validated' && (
                             <span className="text-[#94A3B8] text-[10px] font-normal">(required for In Progress)</span>
                           )}
@@ -940,7 +942,7 @@ export default function EventDetailsModal({
           </div>
 
           <p className="text-xs text-[#94A3B8] mb-6 leading-relaxed">
-            Are you sure you want to mark alert <span className="font-mono font-semibold text-white">ALT-{alert.id}</span> as eligible? Once marked, it will move to the <span className="font-medium text-white">Eligible for Event Manager</span> tab.
+            Are you sure you want to mark alert <span className="font-mono font-semibold text-white">{formatAlertRef(alert.id, alert.ruleName, alert.source)}</span> as eligible? Once marked, it will move to the <span className="font-medium text-white">Eligible for Event Manager</span> tab.
           </p>
 
           <div className="flex justify-end gap-3 pt-4 border-t border-[#1E293B]">

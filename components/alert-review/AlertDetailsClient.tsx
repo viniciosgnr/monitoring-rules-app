@@ -13,6 +13,7 @@ import EquipmentBadge from '@/components/ui/EquipmentBadge';
 import SeverityBadge from '@/components/ui/SeverityBadge';
 import RejectEventModal from '@/components/alert-review/RejectEventModal';
 import { updateAlertStatus } from '@/app/actions/alerts';
+import { formatAlertRef } from '@/lib/systemUtils';
 
 export interface AlertDetailData {
   id: number;
@@ -52,7 +53,7 @@ export interface AlertHistoryItem {
 interface AlertDetailsClientProps {
   alert: AlertDetailData;
   alertHistory: AlertHistoryItem[];
-  fromTab?: 'for_validation' | 'validated_alerts';
+  fromTab?: 'for_validation' | 'validated_alerts' | 'rejected_alerts';
 }
 
 export function formatUtcDateTime(raw?: string | null): string {
@@ -278,7 +279,7 @@ export default function AlertDetailsClient({
     : '—';
 
   // Read-only state for validated or rejected alerts (approval workflow respect)
-  const isReadOnly = currentAlert.status === 'validated' || currentAlert.status === 'rejected' || fromTab === 'validated_alerts';
+  const isReadOnly = currentAlert.status === 'validated' || (currentAlert.status as string) === 'eligible_for_em' || currentAlert.status === 'rejected' || fromTab === 'validated_alerts' || fromTab === 'rejected_alerts';
 
   // Forward-only valid transitions (cannot revert to previous steps)
   const availableStatuses: Status[] =
@@ -378,13 +379,18 @@ export default function AlertDetailsClient({
     }
   };
 
-  const isAlertValidated = currentAlert.status === 'validated';
-  const effectiveBackTab = (isAlertValidated || fromTab === 'validated_alerts') ? 'validated_alerts' : 'for_validation';
+  const isAlertValidated = currentAlert.status === 'validated' || (currentAlert.status as string) === 'eligible_for_em';
+  const isAlertRejected = currentAlert.status === 'rejected';
+  const effectiveBackTab = (isAlertRejected || fromTab === 'rejected_alerts')
+    ? 'rejected_alerts'
+    : (isAlertValidated || fromTab === 'validated_alerts')
+    ? 'validated_alerts'
+    : 'for_validation';
   const backUrl = `/alert-review?from=${effectiveBackTab}`;
 
   return (
     <>
-      <Topbar breadcrumb={`Alert Review / ALT-${currentAlert.id}`} />
+      <Topbar breadcrumb={`Alert Review / ${formatAlertRef(currentAlert.id, currentAlert.ruleName, currentAlert.source)}`} />
       <NavTabs title="Alert Review" />
 
       <main className="px-6 py-5 space-y-5 max-w-[1600px] mx-auto select-none">
@@ -402,7 +408,7 @@ export default function AlertDetailsClient({
             >
               <ArrowLeft size={16} className="text-[#94A3B8] group-hover:text-[#38BDF8] transition-colors" />
               <h1 className="text-sm md:text-base font-semibold text-white tracking-tight flex items-center gap-2">
-                <span>Alert Details: ALT-{currentAlert.id} - {currentAlert.source || 'Monitoring Rules Engine'}</span>
+                <span>Alert Details: {formatAlertRef(currentAlert.id, currentAlert.ruleName, currentAlert.source)} - {currentAlert.source || 'Monitoring Rules Engine'}</span>
               </h1>
             </button>
           </div>
@@ -531,12 +537,14 @@ export default function AlertDetailsClient({
                   <span className="text-[#94A3B8] font-mono text-xs">{validationByDisplay}</span>
                 </div>
 
-                {/* In read-only mode, Comment is presented as a clean row */}
+                {/* In read-only mode, Comment / Justification is presented as a clean row */}
                 {isReadOnly && (
                   <div className="flex items-start justify-between gap-2">
-                    <span className="text-[#94A3B8] text-xs">Comment:</span>
-                    <span className="text-[#E2E8F0] text-xs text-right max-w-[200px] leading-relaxed">
-                      {currentAlert.comment || 'A monitoring alert has been triggered, potentially indicating a failure.'}
+                    <span className="text-[#94A3B8] text-xs">
+                      {currentAlert.status === 'rejected' ? 'Justification:' : 'Comment:'}
+                    </span>
+                    <span className="text-[#E2E8F0] text-xs text-right max-w-[200px] leading-relaxed select-text">
+                      {currentAlert.comment || (currentAlert.status === 'rejected' ? 'No justification provided' : 'A monitoring alert has been triggered, potentially indicating a failure.')}
                     </span>
                   </div>
                 )}
@@ -684,7 +692,7 @@ export default function AlertDetailsClient({
 
                 <div className="grid grid-cols-12 py-2.5">
                   <span className="col-span-4 text-[#94A3B8]">Alert Ref.</span>
-                  <span className="col-span-8 font-mono text-[#3B82F6] font-bold">ALT-{currentAlert.id}</span>
+                  <span className="col-span-8 font-mono text-[#3B82F6] font-bold">{formatAlertRef(currentAlert.id, currentAlert.ruleName, currentAlert.source)}</span>
                 </div>
 
                 <div className="grid grid-cols-12 py-2.5">
@@ -924,7 +932,7 @@ export default function AlertDetailsClient({
             </div>
 
             <p className="text-xs text-[#94A3B8] mb-6 leading-relaxed">
-              Are you sure you want to mark alert <span className="font-mono font-semibold text-white">ALT-{currentAlert.id}</span> as eligible for Event Manager? Once confirmed, it will move to the <span className="font-medium text-white">Eligible for Event Manager</span> tab.
+              Are you sure you want to mark alert <span className="font-mono font-semibold text-white">{formatAlertRef(currentAlert.id, currentAlert.ruleName, currentAlert.source)}</span> as eligible for Event Manager? Once confirmed, it will move to the <span className="font-medium text-white">Eligible for Event Manager</span> tab.
             </p>
 
             <div className="flex justify-end gap-3 pt-4 border-t border-[#1E293B]">

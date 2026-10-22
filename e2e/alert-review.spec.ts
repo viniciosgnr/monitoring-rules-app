@@ -57,4 +57,33 @@ test.describe('Alert Review Page', () => {
       }
     }
   });
+
+  test('should toggle to Rejected Alerts tab, display KPIs and Justification column', async ({ page }) => {
+    const rejectedBtn = page.getByRole('button', { name: 'Rejected Alerts' });
+    await expect(rejectedBtn).toBeVisible();
+
+    // Switch to Rejected Alerts tab
+    await rejectedBtn.click();
+    await expect(rejectedBtn).toHaveClass(/text-\[#3B82F6\]/);
+
+    // Verify Rejected Alerts KPI Cards
+    await expect(page.locator('text=Rejected alerts').first()).toBeVisible();
+    await expect(page.locator('text=Rejection Rate').first()).toBeVisible();
+    await expect(page.locator('text=Top Category').first()).toBeVisible();
+
+    // Verify Table Header & Justification Column
+    await expect(page.locator('th', { hasText: 'Justification' })).toBeVisible();
+    await expect(page.locator('th', { hasText: 'Monitoring Rule ID' })).toBeVisible();
+  });
+
+  test('should format Alert Ref with ALT-[MRTYPE]-[SEQ]', async ({ page }) => {
+    // Wait for the table to render
+    const table = page.locator('table');
+    await expect(table).toBeVisible();
+
+    // Check that Alert Ref follows ALT-[MRTYPE]-[SEQ] format
+    const alertRef = page.locator('td', { hasText: /^ALT-(SPK|DRF|NDP|THR|SEE)-\d+$/ }).first();
+    await expect(alertRef).toBeVisible();
+  });
 });
+

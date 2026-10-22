@@ -12,6 +12,7 @@ import { updateAlertStatus, groupAlerts } from '@/app/actions/alerts';
 import { ChevronDown, ChevronRight, Check, ArrowUpDown, ArrowUp, ArrowDown, Download, X } from 'lucide-react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { exportBrandedExcel } from '@/lib/excelExportUtils';
+import { formatAlertRef } from '@/lib/systemUtils';
 import type { Status } from '@/components/ui/StatusBadge';
 
 interface AlertRow {
@@ -267,12 +268,14 @@ function CategoryFilterDropdown({
 
 import FpsosFilterDropdown from '@/components/ui/FpsosFilterDropdown';
 
+export type StatusScope = 'for_validation' | 'validated_alerts' | 'rejected_alerts';
+
 export default function AlertTable({
   rows,
   initialScope = 'for_validation',
 }: {
   rows: AlertRow[];
-  initialScope?: 'for_validation' | 'validated_alerts';
+  initialScope?: StatusScope;
 }) {
   const router = useRouter();
   const [data, setData]                       = useState(rows);
@@ -283,7 +286,7 @@ export default function AlertTable({
 
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedFilters, setSelectedFilters] = useState<Record<string, string[]>>({});
-  const [statusScope, setStatusScope]         = useState<'for_validation' | 'validated_alerts'>(initialScope);
+  const [statusScope, setStatusScope]         = useState<StatusScope>(initialScope);
   const [selectedAlertDetails, setSelectedAlertDetails] = useState<AlertRow | null>(null);
   const [pendingRejectAlertId, setPendingRejectAlertId]   = useState<number | null>(null);
   const [selectedAlertIds, setSelectedAlertIds]           = useState<Set<number>>(new Set());
@@ -438,6 +441,41 @@ export default function AlertTable({
 
   const kpiTotalValidated = validatedAlertsList.length;
 
+  const kpiRejectedCount = useMemo(() => {
+    return globalFilteredRows.filter(r => r.status === 'rejected').length;
+  }, [globalFilteredRows]);
+
+  const kpiRejectionRate = useMemo(() => {
+    const totalReviewed = kpiTotalValidated + kpiRejectedCount;
+    return totalReviewed > 0 ? ((kpiRejectedCount / totalReviewed) * 100).toFixed(1) + '%' : '—';
+  }, [kpiTotalValidated, kpiRejectedCount]);
+
+  const kpiTopRejectedCategory = useMemo(() => {
+    const rejectedAlerts = globalFilteredRows.filter(r => r.status === 'rejected');
+    if (rejectedAlerts.length === 0) return { category: '—', subtitle: 'No rejected alerts' };
+
+    const counts: Record<string, number> = {};
+    for (const r of rejectedAlerts) {
+      const cat = getCategory(r) || 'General';
+      counts[cat] = (counts[cat] || 0) + 1;
+    }
+
+    let topCat = '—';
+    let maxCount = 0;
+    for (const [cat, cnt] of Object.entries(counts)) {
+      if (cnt > maxCount) {
+        maxCount = cnt;
+        topCat = cat;
+      }
+    }
+
+    const pct = ((maxCount / rejectedAlerts.length) * 100).toFixed(0);
+    return {
+      category: topCat,
+      subtitle: `${maxCount} alert${maxCount > 1 ? 's' : ''} (${pct}%)`,
+    };
+  }, [globalFilteredRows]);
+
   const scopedRows = useMemo(() => {
     if (statusScope === 'for_validation') {
       return globalFilteredRows.filter(
@@ -448,13 +486,16 @@ export default function AlertTable({
           r.status === 'review_in_progress'
       );
     }
-    return globalFilteredRows.filter(r => r.status === 'validated' || r.status === 'eligible_for_em');
+    if (statusScope === 'validated_alerts') {
+      return globalFilteredRows.filter(r => r.status === 'validated' || r.status === 'eligible_for_em');
+    }
+    return globalFilteredRows.filter(r => r.status === 'rejected');
   }, [globalFilteredRows, statusScope]);
 
   const columnOptions = useMemo(() => {
     const opts: Record<string, string[]> = {
       fpso: Array.from(new Set(scopedRows.map(r => r.fpso))).filter(Boolean).sort(),
-      alertId: Array.from(new Set(scopedRows.map(r => `ALT-${r.id}`))).filter(Boolean).sort(),
+      alertId: Array.from(new Set(scopedRows.map(r => formatAlertRef(r.id, r.ruleName, r.source)))).filter(Boolean).sort(),
       equipmentCode: Array.from(new Set(scopedRows.map(r => r.equipmentCode))).filter(Boolean).sort(),
       timeseries: Array.from(new Set(scopedRows.map(r => r.timeseries || '—'))).filter(Boolean).sort(),
       system: Array.from(new Set(scopedRows.map(r => r.system || '—'))).filter(Boolean).sort(),
@@ -467,6 +508,7 @@ export default function AlertTable({
       endDate: Array.from(new Set(scopedRows.map(r => r.endDate ? r.endDate.split(',')[0].trim() : ''))).filter(Boolean).sort(),
       reviewedAt: Array.from(new Set(scopedRows.map(r => r.reviewedAt ? r.reviewedAt.split(',')[0].trim() : '—'))).filter(Boolean).sort(),
       status: Array.from(new Set(scopedRows.map(r => r.status))).filter(Boolean).sort(),
+      comment: Array.from(new Set(scopedRows.map(r => r.comment || '—'))).filter(Boolean).sort(),
     };
     return opts;
   }, [scopedRows]);
@@ -480,7 +522,7 @@ export default function AlertTable({
 
         let val = String((r as Record<string, unknown>)[colKey] ?? '');
         if (colKey === 'alertId') {
-          val = `ALT-${r.id}`;
+          val = formatAlertRef(r.id, r.ruleName, r.source);
         } else if (colKey === 'triggeredAt') {
           val = r.triggeredAt ? r.triggeredAt.split(',')[0].trim() : '';
         } else if (colKey === 'endDate') {
@@ -499,6 +541,8 @@ export default function AlertTable({
           val = r.subsystem || '—';
         } else if (colKey === 'ruleName') {
           val = r.ruleName;
+        } else if (colKey === 'comment') {
+          val = r.comment || '—';
         }
         return selectedList.includes(val);
       });
@@ -634,13 +678,25 @@ export default function AlertTable({
 
   function downloadExcel() {
     const isValidationTab = statusScope === 'for_validation';
-    const sheetName = isValidationTab ? 'To be Reviewed' : 'Eligible for Event Manager';
-    const originTab = isValidationTab ? 'Alert Review - To be Reviewed' : 'Alert Review - Eligible for Event Manager';
-    const filename = isValidationTab ? 'alerts_to_be_reviewed.xlsx' : 'alerts_eligible_for_em.xlsx';
+    const isValidatedTab = statusScope === 'validated_alerts';
+
+    const sheetName = isValidationTab
+      ? 'To be Reviewed'
+      : isValidatedTab
+      ? 'Eligible for Event Manager'
+      : 'Rejected Alerts';
+    const originTab = `Alert Review - ${sheetName}`;
+    const filename = isValidationTab
+      ? 'alerts_to_be_reviewed.xlsx'
+      : isValidatedTab
+      ? 'alerts_eligible_for_em.xlsx'
+      : 'alerts_rejected.xlsx';
 
     const headers = isValidationTab
       ? ['FPSO', 'Alert Ref.', 'Asset', 'Timeseries', 'System', 'Subsystem', 'Source', 'Creation Date', 'Status', 'Monitoring Rule ID']
-      : ['FPSO', 'Event Ref.', 'Alert Ref.', 'Asset', 'Timeseries', 'System', 'Subsystem', 'Source', 'Start Date', 'End Date', 'Monitoring Rule ID'];
+      : isValidatedTab
+      ? ['FPSO', 'Event Ref.', 'Alert Ref.', 'Asset', 'Timeseries', 'System', 'Subsystem', 'Source', 'Start Date', 'End Date', 'Monitoring Rule ID']
+      : ['FPSO', 'Alert Ref.', 'Assets', 'Timeseries', 'System', 'Subsystem', 'Source', 'Start Date', 'End Date', 'Monitoring Rule ID', 'Justification'];
 
     const STATUS_TEXT: Record<string, string> = {
       to_be_validated: 'New',
@@ -653,10 +709,11 @@ export default function AlertTable({
     };
 
     const dataRows = filtered.map(row => {
+      const formattedAlertRef = formatAlertRef(row.id, row.ruleName, row.source);
       if (isValidationTab) {
         return [
           row.fpso || '',
-          `ALT-${row.id}`,
+          formattedAlertRef,
           row.equipmentCode || '',
           row.timeseries || '',
           row.system || '',
@@ -667,10 +724,24 @@ export default function AlertTable({
           row.ruleName || '',
         ];
       }
+      if (isValidatedTab) {
+        return [
+          row.fpso || '',
+          row.eventRef || row.eventId || '—',
+          formattedAlertRef,
+          row.equipmentCode || '',
+          row.timeseries || '',
+          row.system || '',
+          row.subsystem || '',
+          row.source || '',
+          row.triggeredAt || '',
+          row.endDate || '—',
+          row.ruleName || '',
+        ];
+      }
       return [
         row.fpso || '',
-        row.eventRef || row.eventId || '—',
-        `ALT-${row.id}`,
+        formattedAlertRef,
         row.equipmentCode || '',
         row.timeseries || '',
         row.system || '',
@@ -679,6 +750,7 @@ export default function AlertTable({
         row.triggeredAt || '',
         row.endDate || '—',
         row.ruleName || '',
+        row.comment || '—',
       ];
     });
 
@@ -706,6 +778,21 @@ export default function AlertTable({
         ['triggeredAt', 'Start Date'],
         ['endDate', 'End Date'],
         ['ruleName', 'Monitoring Rule ID'],
+      ];
+    }
+    if (statusScope === 'rejected_alerts') {
+      return [
+        ['fpso', 'FPSO'],
+        ['alertId', 'Alert Ref.'],
+        ['equipmentCode', 'Assets'],
+        ['timeseries', 'Timeseries'],
+        ['system', 'System'],
+        ['subsystem', 'Subsystem'],
+        ['source', 'Source'],
+        ['triggeredAt', 'Start Date'],
+        ['endDate', 'End Date'],
+        ['ruleName', 'Monitoring Rule ID'],
+        ['comment', 'Justification'],
       ];
     }
     return [
@@ -751,6 +838,18 @@ export default function AlertTable({
             >
               {statusScope === 'validated_alerts' && <Check size={13} className="text-[#3B82F6] stroke-[3]" />}
               <span>Eligible for Event Manager</span>
+            </button>
+
+            <button
+              onClick={() => setStatusScope('rejected_alerts')}
+              className={`flex items-center gap-1.5 px-3.5 py-1 rounded-full transition-all cursor-pointer font-semibold ${
+                statusScope === 'rejected_alerts'
+                  ? 'bg-[#1E293B] text-[#3B82F6] shadow-sm'
+                  : 'text-[#E2E8F0] hover:text-white'
+              }`}
+            >
+              {statusScope === 'rejected_alerts' && <Check size={13} className="text-[#3B82F6] stroke-[3]" />}
+              <span>Rejected Alerts</span>
             </button>
           </div>
 
@@ -809,7 +908,7 @@ export default function AlertTable({
               tooltip="Total number of alerts awaiting review or currently under review for the selected filters."
             />
           </>
-        ) : (
+        ) : statusScope === 'validated_alerts' ? (
           <>
             <KpiCard
               title="Unreleased alerts"
@@ -830,6 +929,27 @@ export default function AlertTable({
               tooltip="Total number of alerts eligible for Event Manager (both released and unreleased) for the selected filters."
             />
           </>
+        ) : (
+          <>
+            <KpiCard
+              title="Rejected alerts"
+              value={kpiRejectedCount}
+              subtitle="Active filters"
+              tooltip="Total number of rejected alerts (false alarms or dismissed) matching the active filters."
+            />
+            <KpiCard
+              title="Rejection Rate"
+              value={kpiRejectionRate}
+              subtitle="Of reviewed alerts"
+              tooltip="Proportion of alerts rejected relative to total reviewed alerts: Rejected / (Eligible + Rejected)."
+            />
+            <KpiCard
+              title="Top Category"
+              value={kpiTopRejectedCategory.category}
+              subtitle={kpiTopRejectedCategory.subtitle}
+              tooltip="Monitoring rule category with the highest volume of rejected alerts."
+            />
+          </>
         )}
       </div>
 
@@ -838,7 +958,7 @@ export default function AlertTable({
         <div className="flex items-center justify-between px-5 py-3.5 border-b border-[#1E293B] bg-[#0B0F19]/40 flex-wrap gap-3">
           <div className="flex items-center gap-3">
             <span className="text-xs font-semibold text-white">
-              {statusScope === 'for_validation' ? 'To be Reviewed' : 'Eligible for Event Manager'}
+              {statusScope === 'for_validation' ? 'To be Reviewed' : statusScope === 'validated_alerts' ? 'Eligible for Event Manager' : 'Rejected Alerts'}
             </span>
             {statusScope === 'validated_alerts' && selectedAlertIds.size > 0 && (
               <span className="text-xs text-[#94A3B8]">
@@ -987,7 +1107,7 @@ export default function AlertTable({
 
                         {/* Alert ID */}
                         <td className="px-2.5 py-2.5 text-white font-mono text-xs whitespace-nowrap">
-                          ALT-{row.id}
+                          {formatAlertRef(row.id, row.ruleName, row.source)}
                         </td>
 
                         {/* Asset */}
@@ -1031,10 +1151,30 @@ export default function AlertTable({
                           </>
                         )}
 
+                        {/* Date columns for Rejected Alerts */}
+                        {statusScope === 'rejected_alerts' && (
+                          <>
+                            {/* Start Date */}
+                            <td className="px-2.5 py-2.5 text-[#94A3B8] text-xs whitespace-nowrap">{row.triggeredAt}</td>
+
+                            {/* End Date */}
+                            <td className="px-2.5 py-2.5 text-[#94A3B8] text-xs whitespace-nowrap">{row.endDate || '—'}</td>
+                          </>
+                        )}
+
                         {/* MR ID */}
                         <td className="px-2.5 py-2.5 text-white font-mono text-xs whitespace-nowrap font-medium">
                           {row.ruleName}
                         </td>
+
+                        {/* Justification column for Rejected Alerts */}
+                        {statusScope === 'rejected_alerts' && (
+                          <td className="px-2.5 py-2.5 text-xs text-[#E2E8F0]">
+                            <div className="max-w-[220px] truncate select-text" title={row.comment || '—'}>
+                              {row.comment || '—'}
+                            </div>
+                          </td>
+                        )}
 
                         {/* Action Column: Validate / Details button */}
                         <td className="px-2.5 py-2.5 text-center sticky right-0 bg-[#0F1623] z-10 shadow-[-6px_0_10px_-3px_rgba(0,0,0,0.4)]">
@@ -1119,7 +1259,7 @@ export default function AlertTable({
               </Dialog.Close>
             </div>
             <p className="text-xs text-[#94A3B8] mb-6 leading-relaxed">
-              Are you sure you want to download the current {statusScope === 'for_validation' ? 'To be Reviewed' : 'Eligible for Event Manager'} alerts? This will export all filtered records in Excel (.xlsx) format.
+              Are you sure you want to download the current {statusScope === 'for_validation' ? 'To be Reviewed' : statusScope === 'validated_alerts' ? 'Eligible for Event Manager' : 'Rejected Alerts'} alerts? This will export all filtered records in Excel (.xlsx) format.
             </p>
 
             <div className="flex justify-end gap-3 pt-4 border-t border-[#1E293B]">

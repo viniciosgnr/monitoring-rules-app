@@ -13,9 +13,9 @@ interface PageProps {
 }
 
 export default async function AlertDetailsPage({ params, searchParams }: PageProps) {
-  // Parse ID supporting both "21440" and "ALT-21440"
-  const rawId = params.id.replace(/^alt-?/i, '');
-  const alertId = parseInt(rawId, 10);
+  // Parse ID supporting "ALT-SPK-001", "ALT-21440", and "21440"
+  const digitsMatch = params.id.match(/\d+$/);
+  const alertId = digitsMatch ? parseInt(digitsMatch[0], 10) : NaN;
   if (isNaN(alertId)) {
     notFound();
   }

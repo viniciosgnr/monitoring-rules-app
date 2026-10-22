@@ -16,6 +16,8 @@ interface PageProps {
 export default async function AlertReviewPage({ searchParams }: PageProps) {
   const initialScope = (searchParams?.from === 'validated_alerts' || searchParams?.tab === 'validated_alerts')
     ? 'validated_alerts'
+    : (searchParams?.from === 'rejected_alerts' || searchParams?.tab === 'rejected_alerts')
+    ? 'rejected_alerts'
     : 'for_validation';
 
   const rows = await db

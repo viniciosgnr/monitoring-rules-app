@@ -4,12 +4,14 @@ import React, { useState, useEffect } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { X, SlidersHorizontal, ChevronDown, ExternalLink } from 'lucide-react';
 import SeverityBadge from '@/components/ui/SeverityBadge';
+import { formatAlertRef } from '@/lib/systemUtils';
 
 interface AlertRow {
   id: number;
   fpso: string;
   equipmentCode: string;
   ruleName: string;
+  source?: string;
   timeseries?: string;
   eventRef?: string | null;
   [key: string]: unknown;
@@ -163,7 +165,7 @@ export default function GroupAlertsModal({
                             {alert.equipmentCode}
                           </td>
                           <td className="py-3 px-3 font-mono text-white text-xs whitespace-nowrap">
-                            ALT-{alert.id}
+                            {formatAlertRef(alert.id, alert.ruleName, alert.source as string | undefined)}
                           </td>
                           <td className="py-3 px-3 font-mono text-xs text-[#94A3B8] max-w-[170px] truncate" title={alert.timeseries}>
                             {alert.timeseries || '—'}
