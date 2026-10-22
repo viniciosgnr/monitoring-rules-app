@@ -172,14 +172,18 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
         return tTime >= periodStart.getTime() && tTime <= periodEnd.getTime();
       });
 
-      const totalEvaluations = instanceAlerts.length;
+      const alertsCount = instanceAlerts.length;
       const falsePositives = instanceAlerts.filter(a => a.status === 'rejected').length;
-      const correctActions = instanceAlerts.filter(a => a.status === 'validated' || a.status === 'closed').length;
-      const alertsCount = totalEvaluations;
+      const correctActions = instanceAlerts.filter(a => a.status === 'eligible_for_em').length;
+      const totalEvaluations = correctActions + falsePositives;
       
       const accuracy = totalEvaluations > 0
         ? parseFloat(((correctActions / totalEvaluations) * 100).toFixed(1))
-        : 90.0;
+        : null;
+
+      const fpRate = totalEvaluations > 0
+        ? parseFloat(((falsePositives / totalEvaluations) * 100).toFixed(1))
+        : null;
 
       return {
         ...inst,
@@ -188,6 +192,7 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
         totalEvaluations,
         correctActions,
         accuracy,
+        fpRate,
       };
     });
   }, [ruleInstances, alertsList, periodBoundaries]);
@@ -234,7 +239,7 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
       let valB = 0;
       if (accSortField === 'evaluations') { valA = a.totalEvaluations; valB = b.totalEvaluations; }
       else if (accSortField === 'correct') { valA = a.correctActions; valB = b.correctActions; }
-      else if (accSortField === 'accuracy') { valA = a.accuracy; valB = b.accuracy; }
+      else if (accSortField === 'accuracy') { valA = a.accuracy ?? -1; valB = b.accuracy ?? -1; }
       return accSortDir === 'asc' ? valA - valB : valB - valA;
     });
   }, [filteredInstances, accuracyRuleSelected, accuracyRuleOpts, accuracyEquipSelected, accuracyEquipOpts, accSortField, accSortDir]);
@@ -251,11 +256,11 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
     return [...rows].sort((a, b) => {
       let valA = 0;
       let valB = 0;
-      if (fpSortField === 'alerts') { valA = a.alertsCount; valB = b.alertsCount; }
+      if (fpSortField === 'alerts') { valA = a.totalEvaluations; valB = b.totalEvaluations; }
       else if (fpSortField === 'fp') { valA = a.falsePositives; valB = b.falsePositives; }
       else if (fpSortField === 'fpRate') {
-        valA = (a.falsePositives / a.alertsCount) * 100;
-        valB = (b.falsePositives / b.alertsCount) * 100;
+        valA = a.fpRate ?? -1;
+        valB = b.fpRate ?? -1;
       }
       return fpSortDir === 'asc' ? valA - valB : valB - valA;
     });
@@ -287,21 +292,19 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
       return ((totalCorrect / totalEvals) * 100).toFixed(1) + '%';
     }
     
-    const avg = filteredInstances.reduce((sum, inst) => sum + inst.accuracy, 0) / Math.max(1, filteredInstances.length);
-    return avg.toFixed(1) + '%';
+    return '—';
   }, [filteredInstances]);
 
   const globalFalsePositiveRate = useMemo(() => {
-    const totalAlerts = filteredInstances.reduce((sum, inst) => sum + inst.alertsCount, 0);
+    const totalEvals = filteredInstances.reduce((sum, inst) => sum + inst.totalEvaluations, 0);
     const totalFP = filteredInstances.reduce((sum, inst) => sum + inst.falsePositives, 0);
 
-    if (totalAlerts > 0) {
-      return ((totalFP / totalAlerts) * 100).toFixed(1) + '%';
+    if (totalEvals > 0) {
+      return ((totalFP / totalEvals) * 100).toFixed(1) + '%';
     }
 
-    const accNum = parseFloat(globalAccuracy);
-    return (100 - (isNaN(accNum) ? 87.5 : accNum)).toFixed(1) + '%';
-  }, [filteredInstances, globalAccuracy]);
+    return '—';
+  }, [filteredInstances]);
 
   const periodSubtitle = useMemo(() => {
     if (period === 'Last Week') return 'Last week';
@@ -354,13 +357,13 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
         return tTime >= periodStart.getTime() && tTime <= end.getTime();
       });
 
-      const cumTotal = cumulativeAlerts.length;
       const cumFps = cumulativeAlerts.filter(a => a.status === 'rejected').length;
-      const cumCorrect = cumulativeAlerts.filter(a => a.status === 'validated' || a.status === 'closed').length;
+      const cumCorrect = cumulativeAlerts.filter(a => a.status === 'eligible_for_em').length;
+      const cumEvaluations = cumCorrect + cumFps;
 
       // Cumulative accuracy (%) and false positive rate (%) matching top KPI totals at the last point
-      const accuracy = cumTotal > 0 ? parseFloat(((cumCorrect / cumTotal) * 100).toFixed(1)) : 90;
-      const falsePositives = cumTotal > 0 ? parseFloat(((cumFps / cumTotal) * 100).toFixed(1)) : 10.0;
+      const accuracy = cumEvaluations > 0 ? parseFloat(((cumCorrect / cumEvaluations) * 100).toFixed(1)) : 100;
+      const falsePositives = cumEvaluations > 0 ? parseFloat(((cumFps / cumEvaluations) * 100).toFixed(1)) : 0;
 
       return {
         label,
@@ -371,11 +374,10 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
         normalizedDpCount: intervalAlerts.filter(a => getRuleFriendlyCategory(a.ruleName) === 'Normalized dP').length,
         surgeCount: intervalAlerts.filter(a => getRuleFriendlyCategory(a.ruleName) === 'Surge').length,
         trendCount: intervalAlerts.filter(a => getRuleFriendlyCategory(a.ruleName) === 'Trend').length,
-        toBeValidatedCount: intervalAlerts.filter(a => a.status === 'to_be_validated').length,
-        validationInProgressCount: intervalAlerts.filter(a => a.status === 'validation_in_progress').length,
-        validatedCount: intervalAlerts.filter(a => a.status === 'validated').length,
+        newCount: intervalAlerts.filter(a => a.status === 'new').length,
+        reviewInProgressCount: intervalAlerts.filter(a => a.status === 'review_in_progress').length,
+        eligibleForEmCount: intervalAlerts.filter(a => a.status === 'eligible_for_em').length,
         rejectedCount: intervalAlerts.filter(a => a.status === 'rejected').length,
-        closedCount: intervalAlerts.filter(a => a.status === 'closed').length,
       };
     });
   }, [alertsList, periodBoundaries, selectedFpso, selectedEquipments, selectedCategories, equipments]);
@@ -402,11 +404,10 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
   const statusAlertsChartData = useMemo(() => {
     return trendData.map(d => ({
       timeKey: d.label,
-      'To Be Validated': d.toBeValidatedCount,
-      'Validation in Progress': d.validationInProgressCount,
-      Validated: d.validatedCount,
-      Rejected: d.rejectedCount,
-      Closed: d.closedCount,
+      'New': d.newCount,
+      'Review in Progress': d.reviewInProgressCount,
+      'Eligible for Event Manager': d.eligibleForEmCount,
+      'Rejected': d.rejectedCount,
     }));
   }, [trendData]);
 
@@ -605,7 +606,7 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
                             <td className="px-4 py-3 text-slate-400 font-mono">{inst.equipmentCode}</td>
                             <td className="px-4 py-3 text-right text-slate-400">{inst.totalEvaluations}</td>
                             <td className="px-4 py-3 text-right text-status-ok font-medium">{inst.correctActions}</td>
-                            <td className="px-4 py-3 text-right font-semibold text-accent-blue">{inst.accuracy}%</td>
+                            <td className="px-4 py-3 text-right font-semibold text-accent-blue">{inst.accuracy !== null ? `${inst.accuracy}%` : '—'}</td>
                           </tr>
                         );
                       })
@@ -699,9 +700,9 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
                             <td className="px-4 py-3 text-slate-400 font-mono">{inst.fpsoCode}</td>
                             <td className="px-4 py-3 font-medium text-slate-300">{inst.ruleName}</td>
                             <td className="px-4 py-3 text-slate-400 font-mono">{inst.equipmentCode}</td>
-                            <td className="px-4 py-3 text-right text-slate-400">{inst.alertsCount}</td>
+                            <td className="px-4 py-3 text-right text-slate-400">{inst.totalEvaluations}</td>
                             <td className="px-4 py-3 text-right text-status-warn font-medium">{inst.falsePositives}</td>
-                            <td className="px-4 py-3 text-right font-semibold text-status-warn">{fpRate}%</td>
+                            <td className="px-4 py-3 text-right font-semibold text-status-warn">{inst.fpRate !== null ? `${inst.fpRate}%` : '—'}</td>
                           </tr>
                         );
                       })
