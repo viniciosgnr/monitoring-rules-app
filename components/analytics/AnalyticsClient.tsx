@@ -693,10 +693,8 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
                         <td colSpan={6} className="px-4 py-8 text-center text-text-muted italic bg-bg-panel/5">No instances found</td>
                       </tr>
                     ) : (
-                      filteredFpRows.map(inst => {
-                        const fpRate = inst.alertsCount > 0 ? ((inst.falsePositives / inst.alertsCount) * 100).toFixed(1) : '0';
-                        return (
-                          <tr key={inst.id} className="border-b border-border-panel hover:bg-bg-panel/10 transition-colors">
+                      filteredFpRows.map(inst => (
+                        <tr key={inst.id} className="border-b border-border-panel hover:bg-bg-panel/10 transition-colors">
                             <td className="px-4 py-3 text-slate-400 font-mono">{inst.fpsoCode}</td>
                             <td className="px-4 py-3 font-medium text-slate-300">{inst.ruleName}</td>
                             <td className="px-4 py-3 text-slate-400 font-mono">{inst.equipmentCode}</td>
@@ -704,8 +702,7 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
                             <td className="px-4 py-3 text-right text-status-warn font-medium">{inst.falsePositives}</td>
                             <td className="px-4 py-3 text-right font-semibold text-status-warn">{inst.fpRate !== null ? `${inst.fpRate}%` : '—'}</td>
                           </tr>
-                        );
-                      })
+                      ))
                     )}
                   </tbody>
                 </table>
