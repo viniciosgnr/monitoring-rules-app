@@ -8,7 +8,8 @@ import FalsePositiveChart from './FalsePositiveChart';
 import RuleAlertsChart from './RuleAlertsChart';
 import StatusAlertsChart from './StatusAlertsChart';
 import DaysToTreatChart from './DaysToTreatChart';
-import { SlidersHorizontal, Maximize2, ArrowUp, ArrowDown, ArrowUpDown, Clock, BarChart3, Percent } from 'lucide-react';
+import InfoTooltip from '@/components/ui/InfoTooltip';
+import { SlidersHorizontal, Maximize2, ArrowUp, ArrowDown, ArrowUpDown, BarChart3, Percent } from 'lucide-react';
 
 const PERIODS = ['Last Week', 'Last Month', 'Last 6 month', '1 Year', 'All time'];
 const CATEGORIES_LIST = ['Drift', 'Spike', 'Surge', 'Trend', 'Normalized dP'];
@@ -76,11 +77,6 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
   const [accuracyEquipSelected, setAccuracyEquipSelected] = useState<string[]>([]);
   const [fpRuleSelected, setFpRuleSelected] = useState<string[]>([]);
   const [fpEquipSelected, setFpEquipSelected] = useState<string[]>([]);
-
-  // Local column filters for Bad Actors List
-  const [badFpsoSelected, setBadFpsoSelected] = useState<string[]>([]);
-  const [badRuleSelected, setBadRuleSelected] = useState<string[]>([]);
-  const [badEquipSelected, setBadEquipSelected] = useState<string[]>([]);
 
   // Sorting state for Breakdown Tables
   const [accSortField, setAccSortField] = useState<'evaluations' | 'correct' | 'accuracy' | null>(null);
@@ -220,10 +216,6 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
   const fpRuleOpts = useMemo(() => Array.from(new Set(filteredInstances.map(i => i.ruleName))).filter(Boolean).sort(), [filteredInstances]);
   const fpEquipOpts = useMemo(() => Array.from(new Set(filteredInstances.map(i => i.equipmentCode))).filter(Boolean).sort(), [filteredInstances]);
 
-  const badFpsoOpts = useMemo(() => Array.from(new Set(filteredInstances.map(i => i.fpsoCode))).filter(Boolean).sort(), [filteredInstances]);
-  const badRuleOpts = useMemo(() => Array.from(new Set(filteredInstances.map(i => i.ruleName))).filter(Boolean).sort(), [filteredInstances]);
-  const badEquipOpts = useMemo(() => Array.from(new Set(filteredInstances.map(i => i.equipmentCode))).filter(Boolean).sort(), [filteredInstances]);
-
   const filteredAccuracyRows = useMemo(() => {
     const rows = filteredInstances.filter(inst => {
       const matchRule = accuracyRuleSelected.length === 0 || accuracyRuleSelected.length === accuracyRuleOpts.length || accuracyRuleSelected.includes(inst.ruleName);
@@ -265,19 +257,13 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
     });
   }, [filteredInstances, fpRuleSelected, fpRuleOpts, fpEquipSelected, fpEquipOpts, fpSortField, fpSortDir]);
 
-  // Calculate Bad Actors List (up to 30) by highest alerts count
+  // Calculate Bad Actors List (up to 30) by highest alerts count, strictly respecting global filters
   const badActorsList = useMemo(() => {
     return [...filteredInstances]
-      .filter(inst => {
-        if (inst.alertsCount === 0) return false;
-        const matchFpso = badFpsoSelected.length === 0 || badFpsoSelected.length === badFpsoOpts.length || badFpsoSelected.includes(inst.fpsoCode);
-        const matchRule = badRuleSelected.length === 0 || badRuleSelected.length === badRuleOpts.length || badRuleSelected.includes(inst.ruleName);
-        const matchEquip = badEquipSelected.length === 0 || badEquipSelected.length === badEquipOpts.length || badEquipSelected.includes(inst.equipmentCode);
-        return matchFpso && matchRule && matchEquip;
-      })
+      .filter(inst => inst.alertsCount > 0)
       .sort((a, b) => b.alertsCount - a.alertsCount)
       .slice(0, 30);
-  }, [filteredInstances, badFpsoSelected, badFpsoOpts, badRuleSelected, badRuleOpts, badEquipSelected, badEquipOpts]);
+  }, [filteredInstances]);
 
   // Calculate KPI card values dynamically
   const globalAccuracy = useMemo(() => {
@@ -565,19 +551,25 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
           title="Accuracy"
           value={globalAccuracy}
           subtitle={periodSubtitle}
-          tooltip="Ratio of validated alerts (eligible for Event Manager) over total reviewed alerts. Calculated as: Eligible / (Eligible + Rejected)."
+          formula="(Eligible for Event Manager) / (Eligible for Event Manager + Rejected) × 100"
+          tooltip="Percentual de alertas tratados confirmados como verdadeiros positivos em relação ao total de alertas com resolução final."
+          statusList={['Eligible for Event Manager', 'Rejected']}
         />
         <KpiCard
           title="False Positive Rate"
           value={globalFalsePositiveRate}
           subtitle={periodSubtitle}
-          tooltip="Percentage of reviewed alerts rejected by operators as false alarms. Calculated as: Rejected / (Eligible + Rejected)."
+          formula="(Rejected) / (Eligible for Event Manager + Rejected) × 100"
+          tooltip="Percentual de alertas tratados descartados como falso positivo sobre o total de alertas tratados."
+          statusList={['Rejected', 'Eligible for Event Manager']}
         />
         <KpiCard
           title="Avg. Time to Treat"
           value={avgDaysToTreat}
           subtitle={periodSubtitle}
-          tooltip="Average lead time in days from alert creation (Created Date) to operator review completion (Review Date) for treated alerts."
+          formula="∑(Data Resolução - Data Disparo) / Total Tratados"
+          tooltip="Tempo médio em dias para operador tratar um alerta desde a criação até a conclusão da revisão."
+          statusList={['Eligible for Event Manager', 'Rejected']}
         />
       </div>
 
@@ -589,7 +581,15 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
             <div className="bg-bg-card border border-border-panel rounded-card p-4 flex flex-col justify-between">
               <div>
                 <div className="flex justify-between items-center mb-3">
-                  <h3 className="text-sm font-semibold text-text-primary">Accuracy Over Time</h3>
+                  <div className="flex items-center gap-1.5">
+                    <h3 className="text-sm font-semibold text-text-primary">Accuracy Over Time</h3>
+                    <InfoTooltip
+                      title="Accuracy Over Time"
+                      formula="(Eligible for Event Manager / Total Tratados) × 100"
+                      description="Evolução temporal da precisão por intervalo mensal/semanal conforme o filtro de tempo ativo."
+                      statusList={['Eligible for Event Manager', 'Rejected']}
+                    />
+                  </div>
                   <div className="flex items-center gap-2">
                     <SlidersHorizontal size={14} className="text-text-muted cursor-pointer hover:text-text-primary transition-colors" />
                     <Maximize2 size={14} className="text-text-muted cursor-pointer hover:text-text-primary transition-colors" />
@@ -603,7 +603,15 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
             <div className="bg-bg-card border border-border-panel rounded-card p-4 flex flex-col justify-between">
               <div>
                 <div className="flex justify-between items-center mb-3">
-                  <h3 className="text-sm font-semibold text-text-primary">False Positive Over Time</h3>
+                  <div className="flex items-center gap-1.5">
+                    <h3 className="text-sm font-semibold text-text-primary">False Positive Over Time</h3>
+                    <InfoTooltip
+                      title="False Positive Over Time"
+                      formula="(Rejected / Total Tratados) × 100"
+                      description="Evolução da proporção de alertas rejeitados (ruído) ao longo do tempo."
+                      statusList={['Rejected', 'Eligible for Event Manager']}
+                    />
+                  </div>
                   <div className="flex items-center gap-2">
                     <SlidersHorizontal size={14} className="text-text-muted cursor-pointer hover:text-text-primary transition-colors" />
                     <Maximize2 size={14} className="text-text-muted cursor-pointer hover:text-text-primary transition-colors" />
@@ -618,8 +626,16 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
             {/* Accuracy Breakdown Table Card */}
             <div className="bg-bg-card border border-border-panel rounded-card overflow-hidden">
-              <div className="px-4 py-3 border-b border-border-panel">
-                <h3 className="text-sm font-semibold text-text-primary">Accuracy Breakdown by Instance</h3>
+              <div className="px-4 py-3 border-b border-border-panel flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <h3 className="text-sm font-semibold text-text-primary">Accuracy Breakdown by Instance</h3>
+                  <InfoTooltip
+                    title="Accuracy Breakdown"
+                    formula="(Eligible for Event Manager) / Total Avaliações"
+                    description="Precisão individual de cada regra e equipamento no período filtrado."
+                    statusList={['Eligible for Event Manager', 'Rejected']}
+                  />
+                </div>
               </div>
               <div className="overflow-x-auto max-h-60 overflow-y-auto pr-1">
                 <table className="w-full text-xs">
@@ -711,8 +727,16 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
 
             {/* False Positive Breakdown Table Card */}
             <div className="bg-bg-card border border-border-panel rounded-card overflow-hidden">
-              <div className="px-4 py-3 border-b border-border-panel">
-                <h3 className="text-sm font-semibold text-text-primary">False Positive Breakdown by Instance</h3>
+              <div className="px-4 py-3 border-b border-border-panel flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <h3 className="text-sm font-semibold text-text-primary">False Positive Breakdown by Instance</h3>
+                  <InfoTooltip
+                    title="False Positive Breakdown"
+                    formula="Taxa FP = Rejected / Total Tratados"
+                    description="Decomposição do volume de alertas descartados (falsos positivos) e taxa de ruído por regra e equipamento."
+                    statusList={['Rejected', 'Eligible for Event Manager']}
+                  />
+                </div>
               </div>
               <div className="overflow-x-auto max-h-60 overflow-y-auto pr-1">
                 <table className="w-full text-xs">
@@ -812,10 +836,15 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 border-b border-[#1E293B]/60 pb-3">
               <div>
                 <div className="flex items-center gap-2">
-                  <Clock size={16} className="text-[#38BDF8]" />
                   <h3 className="text-sm font-semibold text-text-primary tracking-tight">
                     Days to Treat an Alert (Average)
                   </h3>
+                  <InfoTooltip
+                    title="Days to Treat an Alert (Average)"
+                    formula="∑(ReviewedAt - TriggeredAt) / Total Tratados"
+                    description="Média em dias para resolução de alertas das FPSOs filtradas desde a criação até a conclusão da revisão pelo operador."
+                    statusList={['Eligible for Event Manager', 'Rejected']}
+                  />
                 </div>
                 <p className="text-xs text-[#94A3B8] mt-0.5">
                   Monthly lead time in days per FPSO and Fleet Average from creation to operator resolution
@@ -839,6 +868,12 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
               <div className="flex justify-between items-center mb-3">
                 <div className="flex items-center gap-2">
                   <h3 className="text-sm font-semibold text-text-primary">Alerts Treated by Status</h3>
+                  <InfoTooltip
+                    title="Alerts Treated by Status"
+                    formula="Contagem por status ou % normalizada (100%)"
+                    description="Distribuição dos alertas por status oficiais de tratamento no período selecionado."
+                    statusList={['Eligible for Event Manager', 'Rejected', 'To Be Reviewed', 'New']}
+                  />
                   <span className="text-[10px] text-[#94A3B8] font-mono">
                     ({statusChartMode === 'percent' ? '100% Normalized' : 'Volume'})
                   </span>
@@ -883,7 +918,15 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
             {/* Alerts Treated by Monitoring Rule */}
             <div className="bg-bg-card border border-border-panel rounded-card p-4">
               <div className="flex justify-between items-center mb-3">
-                <h3 className="text-sm font-semibold text-text-primary">Alerts Treated by Monitoring Rule</h3>
+                <div className="flex items-center gap-1.5">
+                  <h3 className="text-sm font-semibold text-text-primary">Alerts Treated by Monitoring Rule</h3>
+                  <InfoTooltip
+                    title="Alerts Treated by Monitoring Rule"
+                    formula="∑(Alertas Tratados) por Regra"
+                    description="Volume total de alertas resolvidos agrupados por cada regra de monitoramento ativa."
+                    statusList={['Eligible for Event Manager', 'Rejected']}
+                  />
+                </div>
                 <div className="flex items-center gap-2">
                   <SlidersHorizontal size={14} className="text-text-muted cursor-pointer hover:text-text-primary transition-colors" />
                   <Maximize2 size={14} className="text-text-muted cursor-pointer hover:text-text-primary transition-colors" />
@@ -897,8 +940,16 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
           <div className="bg-[#0E131F] border border-[#232938] rounded-xl overflow-hidden mt-4 shadow-sm">
             <div className="px-5 py-4 border-b border-[#232938] flex flex-col md:flex-row md:items-center justify-between gap-4 bg-[#141824]/40">
               <div>
-                <h3 className="text-sm font-semibold text-white tracking-wide">Bad Actors List</h3>
-                <p className="text-xs text-[#94A3B8] mt-0.5">Most active rule configurations across FPSOs filtered by active criteria</p>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-semibold text-white tracking-wide">Bad Actors List</h3>
+                  <InfoTooltip
+                    title="Bad Actors List"
+                    formula="Top regras com maior volume de alertas"
+                    description="Ranking das regras com maior frequência de disparo e ruído (Rejected), respeitando os filtros globais de FPSO, tempo, ativos e categorias."
+                    statusList={['Eligible for Event Manager', 'Rejected', 'New', 'To Be Reviewed']}
+                  />
+                </div>
+                <p className="text-xs text-[#94A3B8] mt-0.5">Most active rule configurations across FPSOs filtered by global criteria</p>
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-xs text-[#94A3B8] font-mono">
@@ -911,45 +962,12 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
                   <tr className="border-b border-[#232938] bg-[#141824]/60 text-[#CBD5E1] select-none text-[11px] font-semibold sticky top-0 z-10 backdrop-blur-md">
-                    <th className="py-2.5 px-4 w-28">
-                      <div>FPSO</div>
-                      <ColumnFilterDropdown
-                        title="FPSO"
-                        options={badFpsoOpts}
-                        selectedValues={badFpsoSelected.length === 0 ? badFpsoOpts : badFpsoSelected}
-                        onChange={setBadFpsoSelected}
-                      />
-                    </th>
-                    <th className="py-2.5 px-4 min-w-[260px]">
-                      <div>Rule / Instance</div>
-                      <ColumnFilterDropdown
-                        title="Rule / Instance"
-                        options={badRuleOpts}
-                        selectedValues={badRuleSelected.length === 0 ? badRuleOpts : badRuleSelected}
-                        onChange={setBadRuleSelected}
-                      />
-                    </th>
-                    <th className="py-2.5 px-4 w-40">
-                      <div>Asset</div>
-                      <ColumnFilterDropdown
-                        title="Asset"
-                        options={badEquipOpts}
-                        selectedValues={badEquipSelected.length === 0 ? badEquipOpts : badEquipSelected}
-                        onChange={setBadEquipSelected}
-                      />
-                    </th>
-                    <th className="py-2.5 px-4 text-right w-24">
-                      <div>Accuracy</div>
-                      <div className="w-full mt-1.5 pb-1 border-b border-[#262E42] text-transparent select-none text-[11px]">&nbsp;</div>
-                    </th>
-                    <th className="py-2.5 px-4 text-right w-24">
-                      <div>FP Rate</div>
-                      <div className="w-full mt-1.5 pb-1 border-b border-[#262E42] text-transparent select-none text-[11px]">&nbsp;</div>
-                    </th>
-                    <th className="py-2.5 px-4 text-right w-24">
-                      <div className="text-[#F59E0B]">Alerts</div>
-                      <div className="w-full mt-1.5 pb-1 border-b border-[#262E42] text-transparent select-none text-[11px]">&nbsp;</div>
-                    </th>
+                    <th className="py-3 px-4 w-28">FPSO</th>
+                    <th className="py-3 px-4 min-w-[260px]">Rule / Instance</th>
+                    <th className="py-3 px-4 w-40">Asset</th>
+                    <th className="py-3 px-4 text-right w-24">Accuracy</th>
+                    <th className="py-3 px-4 text-right w-24">FP Rate</th>
+                    <th className="py-3 px-4 text-right w-24 text-[#F59E0B]">Alerts</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#1E2536] text-xs">
