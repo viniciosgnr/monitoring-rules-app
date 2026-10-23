@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { SlidersHorizontal, Check, ChevronDown } from 'lucide-react';
 
 interface ColumnFilterDropdownProps {
@@ -13,7 +13,7 @@ interface ColumnFilterDropdownProps {
 
 export default function ColumnFilterDropdown({
   options = [],
-  selectedValues,
+  selectedValues = [],
   onChange,
   placeholder = '',
   variant = 'table',
@@ -23,17 +23,10 @@ export default function ColumnFilterDropdown({
   const [stagedSelected, setStagedSelected] = useState<string[]>([]);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const uniqueOptions = Array.from(new Set(options)).filter(Boolean).sort();
-
-  // Sync staged selection when opening popover
-  useEffect(() => {
-    if (isOpen) {
-      setStagedSelected(
-        selectedValues.length === 0 ? [...uniqueOptions] : [...selectedValues]
-      );
-      setSearchTerm('');
-    }
-  }, [isOpen, selectedValues, uniqueOptions]);
+  const uniqueOptions = useMemo(
+    () => Array.from(new Set(options)).filter(Boolean).sort(),
+    [options]
+  );
 
   // Close when clicking outside
   useEffect(() => {
@@ -50,14 +43,29 @@ export default function ColumnFilterDropdown({
     };
   }, [isOpen]);
 
-  const filteredOptions = uniqueOptions.filter(opt =>
-    opt.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredOptions = useMemo(
+    () => uniqueOptions.filter(opt => opt.toLowerCase().includes(searchTerm.toLowerCase())),
+    [uniqueOptions, searchTerm]
   );
+
+  // Toggle open and initialize staged selection cleanly
+  const handleToggleOpen = () => {
+    if (!isOpen) {
+      setStagedSelected(
+        selectedValues.length === 0 || selectedValues.length === uniqueOptions.length
+          ? [...uniqueOptions]
+          : [...selectedValues]
+      );
+      setSearchTerm('');
+    }
+    setIsOpen(prev => !prev);
+  };
 
   const isAllStagedSelected =
     uniqueOptions.length > 0 && stagedSelected.length === uniqueOptions.length;
 
-  function handleToggleSelectAll() {
+  function handleToggleSelectAll(e: React.MouseEvent) {
+    e.stopPropagation();
     if (isAllStagedSelected) {
       setStagedSelected([]);
     } else {
@@ -65,19 +73,20 @@ export default function ColumnFilterDropdown({
     }
   }
 
-  function handleToggleOption(opt: string) {
-    if (stagedSelected.includes(opt)) {
-      setStagedSelected(stagedSelected.filter(v => v !== opt));
-    } else {
-      setStagedSelected([...stagedSelected, opt]);
-    }
+  function handleToggleOption(opt: string, e?: React.MouseEvent) {
+    if (e) e.stopPropagation();
+    setStagedSelected(prev =>
+      prev.includes(opt) ? prev.filter(v => v !== opt) : [...prev, opt]
+    );
   }
 
-  function handleReset() {
+  function handleReset(e: React.MouseEvent) {
+    e.stopPropagation();
     setStagedSelected([...uniqueOptions]);
   }
 
-  function handleApply() {
+  function handleApply(e: React.MouseEvent) {
+    e.stopPropagation();
     if (stagedSelected.length === 0 || stagedSelected.length === uniqueOptions.length) {
       onChange([]);
     } else {
@@ -87,9 +96,18 @@ export default function ColumnFilterDropdown({
   }
 
   const isFiltered = selectedValues.length > 0 && selectedValues.length < uniqueOptions.length;
-  const summaryText = isFiltered
-    ? `(${selectedValues.length})`
-    : '';
+  
+  // Calculate display label for select variant
+  let selectDisplayLabel = placeholder;
+  if (isFiltered) {
+    const cleanPlaceholder = placeholder.replace('All ', '');
+    selectDisplayLabel =
+      selectedValues.length === 1
+        ? `${cleanPlaceholder} (${selectedValues[0]})`
+        : `${cleanPlaceholder} (${selectedValues.length})`;
+  }
+
+  const summaryText = isFiltered ? `(${selectedValues.length})` : '';
 
   return (
     <div className={`relative font-normal ${variant === 'table' ? 'w-full mt-1.5' : ''}`} ref={dropdownRef}>
@@ -97,15 +115,15 @@ export default function ColumnFilterDropdown({
       {variant === 'select' ? (
         <button
           type="button"
-          onClick={() => setIsOpen(!isOpen)}
-          className={`flex items-center justify-between gap-2 px-3 py-1 text-xs rounded-full border transition-colors cursor-pointer ${
+          onClick={handleToggleOpen}
+          className={`flex items-center justify-between gap-2 px-3.5 py-1.5 text-xs rounded-full border transition-colors cursor-pointer ${
             isFiltered
-              ? 'bg-[#0B0F19] border-[#3B82F6] text-[#3B82F6] font-medium'
+              ? 'bg-[#0B0F19] border-[#3B82F6] text-[#60A5FA] font-medium'
               : 'bg-[#0B0F19] border-[#1E293B] text-white hover:border-[#3B82F6]'
           }`}
         >
-          <span className="truncate max-w-[120px]" title={summaryText || placeholder}>
-            {summaryText || placeholder}
+          <span className="truncate max-w-[140px]" title={selectDisplayLabel}>
+            {selectDisplayLabel}
           </span>
           <ChevronDown
             size={12}
@@ -115,10 +133,10 @@ export default function ColumnFilterDropdown({
           />
         </button>
       ) : (
-        /* SLB Table Inline Filter Trigger: discreet underline line with SlidersHorizontal icon */
+        /* SLB Table Inline Filter Trigger */
         <button
           type="button"
-          onClick={() => setIsOpen(!isOpen)}
+          onClick={handleToggleOpen}
           className={`w-full flex items-center justify-between gap-1 text-[11px] pb-1 border-b transition-colors cursor-pointer text-left ${
             isFiltered
               ? 'border-[#4D82F7] text-[#60A5FA]'
@@ -186,7 +204,7 @@ export default function ColumnFilterDropdown({
                 return (
                   <div
                     key={opt}
-                    onClick={() => handleToggleOption(opt)}
+                    onClick={e => handleToggleOption(opt, e)}
                     className="w-full flex items-center gap-2.5 px-2 py-1.5 rounded-lg text-xs text-[#E2E8F0] hover:bg-[#1E2538] transition-colors cursor-pointer"
                   >
                     <div

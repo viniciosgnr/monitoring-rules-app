@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { ChevronDown, SlidersHorizontal, Check } from 'lucide-react';
 
 interface FpsosFilterDropdownProps {
@@ -32,17 +32,10 @@ export default function FpsosFilterDropdown({
   const [stagedSelected, setStagedSelected] = useState<string[]>([]);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const allFpsos = Array.from(new Set(fpsos)).filter(Boolean).sort();
-
-  // Synchronize staged selection when opening dropdown
-  useEffect(() => {
-    if (isOpen) {
-      setStagedSelected(
-        selectedFpsos.length === 0 ? [...allFpsos] : [...selectedFpsos]
-      );
-      setSearchTerm('');
-    }
-  }, [isOpen, selectedFpsos, allFpsos]);
+  const allFpsos = useMemo(
+    () => Array.from(new Set(fpsos)).filter(Boolean).sort(),
+    [fpsos]
+  );
 
   // Close when clicking outside
   useEffect(() => {
@@ -59,9 +52,23 @@ export default function FpsosFilterDropdown({
     };
   }, [isOpen]);
 
-  const filteredFpsos = allFpsos.filter(f =>
-    f.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredFpsos = useMemo(
+    () => allFpsos.filter(f => f.toLowerCase().includes(searchTerm.toLowerCase())),
+    [allFpsos, searchTerm]
   );
+
+  // Toggle open and initialize staged selection cleanly
+  const handleToggleOpen = () => {
+    if (!isOpen) {
+      setStagedSelected(
+        selectedFpsos.length === 0 || selectedFpsos.length === allFpsos.length
+          ? [...allFpsos]
+          : [...selectedFpsos]
+      );
+      setSearchTerm('');
+    }
+    setIsOpen(prev => !prev);
+  };
 
   // Determine button label
   let label = '';
@@ -93,7 +100,8 @@ export default function FpsosFilterDropdown({
   const isAllStagedSelected =
     allFpsos.length > 0 && stagedSelected.length === allFpsos.length;
 
-  const handleToggleSelectAll = () => {
+  const handleToggleSelectAll = (e: React.MouseEvent) => {
+    e.stopPropagation();
     if (isAllStagedSelected) {
       setStagedSelected([]);
     } else {
@@ -101,20 +109,20 @@ export default function FpsosFilterDropdown({
     }
   };
 
-  const handleToggleStagedItem = (fpso: string) => {
-    if (stagedSelected.includes(fpso)) {
-      setStagedSelected(stagedSelected.filter(f => f !== fpso));
-    } else {
-      setStagedSelected([...stagedSelected, fpso]);
-    }
+  const handleToggleStagedItem = (fpso: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setStagedSelected(prev =>
+      prev.includes(fpso) ? prev.filter(f => f !== fpso) : [...prev, fpso]
+    );
   };
 
-  const handleReset = () => {
-    // Reset staged selection to all FPSOs
+  const handleReset = (e: React.MouseEvent) => {
+    e.stopPropagation();
     setStagedSelected([...allFpsos]);
   };
 
-  const handleApply = () => {
+  const handleApply = (e: React.MouseEvent) => {
+    e.stopPropagation();
     if (onMultiChange) {
       if (stagedSelected.length === 0 || stagedSelected.length === allFpsos.length) {
         onMultiChange([]);
@@ -129,7 +137,7 @@ export default function FpsosFilterDropdown({
     <div className="relative inline-block text-left" ref={dropdownRef}>
       <button
         type="button"
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={handleToggleOpen}
         className={
           buttonClassName ||
           "flex items-center gap-2 px-3.5 py-1.5 text-xs font-normal rounded-lg bg-[#0e131f] border border-[#232938] text-white hover:border-[#3b82f6] transition-colors cursor-pointer"
@@ -137,7 +145,7 @@ export default function FpsosFilterDropdown({
       >
         {showFilterIcon && <SlidersHorizontal size={13} className="text-[#94A3B8]" />}
         <span>{label}</span>
-        <ChevronDown size={13} className="text-[#94A3B8]" />
+        <ChevronDown size={13} className={`text-[#94A3B8] transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
       {isOpen && (
@@ -176,7 +184,7 @@ export default function FpsosFilterDropdown({
                 >
                   {isAllStagedSelected && <Check size={12} strokeWidth={3} />}
                 </div>
-                <span className="font-medium text-white">(Select All)</span>
+                <span className="font-medium text-white text-xs">(Select All)</span>
               </div>
             )}
 
@@ -191,7 +199,7 @@ export default function FpsosFilterDropdown({
                   return (
                     <div
                       key={fpso}
-                      onClick={() => handleToggleStagedItem(fpso)}
+                      onClick={e => handleToggleStagedItem(fpso, e)}
                       className="w-full flex items-center gap-2.5 px-2 py-1.5 rounded-lg text-xs text-[#e2e8f0] hover:bg-[#1e2538] transition-colors cursor-pointer"
                     >
                       <div
