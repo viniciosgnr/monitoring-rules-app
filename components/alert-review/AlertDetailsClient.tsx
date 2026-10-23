@@ -271,12 +271,21 @@ export default function AlertDetailsClient({
   const formattedStartDate = formatUtcDateTime(currentAlert.triggeredAtRaw || currentAlert.triggeredAt);
   const formattedEndDate = formatUtcDateTime(currentAlert.endDateRaw || currentAlert.endDate);
 
-  const validationDateDisplay = currentAlert.status === 'validated'
-    ? (currentAlert.reviewedAt || '—')
-    : '—';
-  const validationByDisplay = (currentAlert.status === 'validation_in_progress' || currentAlert.status === 'validated' || currentAlert.status === 'rejected')
-    ? (currentAlert.reviewedBy || '—')
-    : '—';
+  const validationDateDisplay =
+    currentAlert.status === 'validated' ||
+    (currentAlert.status as string) === 'eligible_for_em' ||
+    currentAlert.status === 'rejected'
+      ? (currentAlert.reviewedAt || '—')
+      : '—';
+
+  const validationByDisplay =
+    currentAlert.status === 'validation_in_progress' ||
+    (currentAlert.status as string) === 'review_in_progress' ||
+    currentAlert.status === 'validated' ||
+    (currentAlert.status as string) === 'eligible_for_em' ||
+    currentAlert.status === 'rejected'
+      ? (currentAlert.reviewedBy || '—')
+      : '—';
 
   // Read-only state for validated or rejected alerts (approval workflow respect)
   const isReadOnly = currentAlert.status === 'validated' || (currentAlert.status as string) === 'eligible_for_em' || currentAlert.status === 'rejected' || fromTab === 'validated_alerts' || fromTab === 'rejected_alerts';

@@ -6,10 +6,10 @@ test.describe('Analytics Page', () => {
     await expect(page).toHaveURL(/\/analytics/);
   });
 
-  test('should display top KPI cards for Accuracy, False Positive, and Coverage', async ({ page }) => {
+  test('should display top KPI cards for Accuracy, False Positive, and Avg. Time to Treat', async ({ page }) => {
     await expect(page.locator('text=Accuracy').first()).toBeVisible();
     await expect(page.locator('text=False Positive').first()).toBeVisible();
-    await expect(page.locator('text=Coverage').first()).toBeVisible();
+    await expect(page.locator('text=Avg. Time to Treat').first()).toBeVisible();
   });
 
   test('should display Overview & Trends charts and breakdown tables', async ({ page }) => {
@@ -22,15 +22,23 @@ test.describe('Analytics Page', () => {
     await expect(page.locator('text=False Positive Breakdown by Instance')).toBeVisible();
   });
 
-  test('should toggle to Alerts Treated tab and display status charts and Bad Actors List', async ({ page }) => {
+  test('should toggle to Alerts Treated tab and display Days to Treat, status charts, unit breakdown, and Bad Actors List', async ({ page }) => {
     const alertsTreatedBtn = page.getByRole('button', { name: 'Alerts Treated' });
     await expect(alertsTreatedBtn).toBeVisible();
 
     await alertsTreatedBtn.click();
 
-    // Verify sub-tab content
+    // Verify Days to Treat an Alert (Average)
+    await expect(page.locator('text=Days to Treat an Alert (Average)')).toBeVisible();
+
+    // Verify Charts
     await expect(page.locator('text=Alerts Treated by Monitoring Rule')).toBeVisible();
     await expect(page.locator('text=Alerts Treated by Status')).toBeVisible();
+
+    // Verify Alerts Treated per Unit (FPSO) table
+    await expect(page.locator('text=Alerts Treated per Unit (FPSO)')).toBeVisible();
+
+    // Verify Bad Actors List
     await expect(page.locator('text=Bad Actors List')).toBeVisible();
   });
 });

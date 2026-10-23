@@ -17,7 +17,7 @@ export async function updateAlertStatus(id: number, status: Status, severity?: s
     updateData.reviewedAt = new Date();
   } else if (status === 'rejected') {
     updateData.reviewedBy = 'Jon Doe';
-    updateData.reviewedAt = null;
+    updateData.reviewedAt = new Date();
   }
   if (severity !== undefined) {
     updateData.severity = severity;
