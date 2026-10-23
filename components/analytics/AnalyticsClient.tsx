@@ -711,12 +711,12 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
                     ) : (
                       filteredAccuracyRows.map(inst => (
                         <tr key={inst.id} className="border-b border-border-panel hover:bg-bg-panel/10 transition-colors">
-                          <td className="px-4 py-3 text-slate-400 font-mono">{inst.fpsoCode}</td>
-                          <td className="px-4 py-3 font-medium text-slate-300">{inst.ruleName}</td>
-                          <td className="px-4 py-3 text-slate-400 font-mono">{inst.equipmentCode}</td>
-                          <td className="px-4 py-3 text-right text-slate-400">{inst.totalEvaluations}</td>
-                          <td className="px-4 py-3 text-right text-status-success font-medium">{inst.correctActions}</td>
-                          <td className="px-4 py-3 text-right font-semibold text-status-success">{inst.accuracy !== null ? `${inst.accuracy}%` : '—'}</td>
+                          <td className="px-4 py-3 text-[#CBD5E1] font-mono">{inst.fpsoCode}</td>
+                          <td className="px-4 py-3 text-[#CBD5E1] font-normal">{inst.ruleName}</td>
+                          <td className="px-4 py-3 text-[#CBD5E1] font-mono">{inst.equipmentCode}</td>
+                          <td className="px-4 py-3 text-right text-[#CBD5E1] font-mono">{inst.totalEvaluations}</td>
+                          <td className="px-4 py-3 text-right text-[#CBD5E1] font-mono">{inst.correctActions}</td>
+                          <td className="px-4 py-3 text-right text-[#CBD5E1] font-mono">{inst.accuracy !== null ? `${inst.accuracy}%` : '—'}</td>
                         </tr>
                       ))
                     )}
@@ -812,13 +812,13 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
                     ) : (
                       filteredFpRows.map(inst => (
                         <tr key={inst.id} className="border-b border-border-panel hover:bg-bg-panel/10 transition-colors">
-                            <td className="px-4 py-3 text-slate-400 font-mono">{inst.fpsoCode}</td>
-                            <td className="px-4 py-3 font-medium text-slate-300">{inst.ruleName}</td>
-                            <td className="px-4 py-3 text-slate-400 font-mono">{inst.equipmentCode}</td>
-                            <td className="px-4 py-3 text-right text-slate-400">{inst.totalEvaluations}</td>
-                            <td className="px-4 py-3 text-right text-status-warn font-medium">{inst.falsePositives}</td>
-                            <td className="px-4 py-3 text-right font-semibold text-status-warn">{inst.fpRate !== null ? `${inst.fpRate}%` : '—'}</td>
-                          </tr>
+                          <td className="px-4 py-3 text-[#CBD5E1] font-mono">{inst.fpsoCode}</td>
+                          <td className="px-4 py-3 text-[#CBD5E1] font-normal">{inst.ruleName}</td>
+                          <td className="px-4 py-3 text-[#CBD5E1] font-mono">{inst.equipmentCode}</td>
+                          <td className="px-4 py-3 text-right text-[#CBD5E1] font-mono">{inst.totalEvaluations}</td>
+                          <td className="px-4 py-3 text-right text-[#CBD5E1] font-mono">{inst.falsePositives}</td>
+                          <td className="px-4 py-3 text-right text-[#CBD5E1] font-mono">{inst.fpRate !== null ? `${inst.fpRate}%` : '—'}</td>
+                        </tr>
                       ))
                     )}
                   </tbody>
@@ -967,7 +967,7 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
                     <th className="py-3 px-4 w-40">Asset</th>
                     <th className="py-3 px-4 text-right w-24">Accuracy</th>
                     <th className="py-3 px-4 text-right w-24">FP Rate</th>
-                    <th className="py-3 px-4 text-right w-24 text-[#F59E0B]">Alerts</th>
+                    <th className="py-3 px-4 text-right w-24">Alerts</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#1E2536] text-xs">
@@ -983,22 +983,22 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
                         key={inst.id}
                         className="hover:bg-[#161D2C] transition-colors"
                       >
-                        <td className="py-3 px-4 font-mono text-[#38BDF8] font-medium">
+                        <td className="py-3 px-4 font-mono text-[#CBD5E1]">
                           {inst.fpsoCode}
                         </td>
-                        <td className="py-3 px-4 font-medium text-white max-w-[320px] truncate" title={inst.ruleName}>
+                        <td className="py-3 px-4 text-[#CBD5E1] font-normal max-w-[320px] truncate" title={inst.ruleName}>
                           {inst.ruleName}
                         </td>
-                        <td className="py-3 px-4 font-mono text-[#94A3B8]">
+                        <td className="py-3 px-4 font-mono text-[#CBD5E1]">
                           {inst.equipmentCode}
                         </td>
-                        <td className="py-3 px-4 text-right font-mono font-medium text-[#22C55E]">
+                        <td className="py-3 px-4 text-right font-mono text-[#CBD5E1]">
                           {inst.accuracy !== null ? `${inst.accuracy}%` : '—'}
                         </td>
-                        <td className="py-3 px-4 text-right font-mono font-medium text-[#EF4444]">
+                        <td className="py-3 px-4 text-right font-mono text-[#CBD5E1]">
                           {inst.fpRate !== null ? `${inst.fpRate}%` : '—'}
                         </td>
-                        <td className="py-3 px-4 text-right font-mono font-bold text-[#F59E0B]">
+                        <td className="py-3 px-4 text-right font-mono text-[#CBD5E1]">
                           {inst.alertsCount}
                         </td>
                       </tr>
