@@ -1,6 +1,6 @@
 'use client';
 import React, { useState, useRef, useEffect } from 'react';
-import { ChevronDown, Filter, Search, Check } from 'lucide-react';
+import { ChevronDown, SlidersHorizontal, Check } from 'lucide-react';
 
 interface FpsosFilterDropdownProps {
   fpsos: string[];
@@ -29,8 +29,22 @@ export default function FpsosFilterDropdown({
 }: FpsosFilterDropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [stagedSelected, setStagedSelected] = useState<string[]>([]);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
+  const allFpsos = Array.from(new Set(fpsos)).filter(Boolean).sort();
+
+  // Synchronize staged selection when opening dropdown
+  useEffect(() => {
+    if (isOpen) {
+      setStagedSelected(
+        selectedFpsos.length === 0 ? [...allFpsos] : [...selectedFpsos]
+      );
+      setSearchTerm('');
+    }
+  }, [isOpen, selectedFpsos, allFpsos]);
+
+  // Close when clicking outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -45,8 +59,9 @@ export default function FpsosFilterDropdown({
     };
   }, [isOpen]);
 
-  const allFpsos = Array.from(new Set(fpsos)).filter(Boolean).sort();
-  const filteredFpsos = allFpsos.filter(f => f.toLowerCase().includes(searchTerm.toLowerCase()));
+  const filteredFpsos = allFpsos.filter(f =>
+    f.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   // Determine button label
   let label = '';
@@ -60,9 +75,7 @@ export default function FpsosFilterDropdown({
         label = `${baseLabel} (${selectedFpsos.length})`;
       }
     } else {
-      if (selectedFpsos.length === 0) {
-        label = 'Select FPSO';
-      } else if (selectedFpsos.length === allFpsos.length && allFpsos.length > 0) {
+      if (selectedFpsos.length === 0 || selectedFpsos.length === allFpsos.length) {
         label = 'All FPSOs';
       } else if (selectedFpsos.length === 1) {
         label = selectedFpsos[0];
@@ -76,30 +89,40 @@ export default function FpsosFilterDropdown({
     label = selectedFpso || (allFpsos[0] ?? 'Select FPSO');
   }
 
-  const isAllSelected = isMultiSelect && allFpsos.length > 0 && (selectedFpsos.length === allFpsos.length || selectedFpsos.length === 0);
+  // Staged selection helpers
+  const isAllStagedSelected =
+    allFpsos.length > 0 && stagedSelected.length === allFpsos.length;
 
-  const handleToggleAll = () => {
-    if (!onMultiChange) return;
-    if (isAllSelected) {
-      // Guard: At least 1 FPSO must remain selected. Reset to default (UNY or first FPSO)
-      const defaultFpso = allFpsos.includes('UNY') ? 'UNY' : (allFpsos[0] ?? '');
-      onMultiChange(defaultFpso ? [defaultFpso] : []);
+  const handleToggleSelectAll = () => {
+    if (isAllStagedSelected) {
+      setStagedSelected([]);
     } else {
-      onMultiChange([...allFpsos]);
+      setStagedSelected([...allFpsos]);
     }
   };
 
-  const handleToggleItem = (fpso: string) => {
-    if (!onMultiChange) return;
-    const currentSelected = selectedFpsos.length === 0 ? allFpsos : selectedFpsos;
-    if (currentSelected.includes(fpso)) {
-      // Guard: Do not allow unchecking if it's the only one selected
-      if (currentSelected.length <= 1) return;
-      onMultiChange(currentSelected.filter(f => f !== fpso));
+  const handleToggleStagedItem = (fpso: string) => {
+    if (stagedSelected.includes(fpso)) {
+      setStagedSelected(stagedSelected.filter(f => f !== fpso));
     } else {
-      const next = [...currentSelected, fpso];
-      onMultiChange(next.length === allFpsos.length ? [] : next);
+      setStagedSelected([...stagedSelected, fpso]);
     }
+  };
+
+  const handleReset = () => {
+    // Reset staged selection to all FPSOs
+    setStagedSelected([...allFpsos]);
+  };
+
+  const handleApply = () => {
+    if (onMultiChange) {
+      if (stagedSelected.length === 0 || stagedSelected.length === allFpsos.length) {
+        onMultiChange([]);
+      } else {
+        onMultiChange(stagedSelected);
+      }
+    }
+    setIsOpen(false);
   };
 
   return (
@@ -107,72 +130,81 @@ export default function FpsosFilterDropdown({
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className={buttonClassName || "flex items-center gap-2 px-3.5 py-1.5 text-xs font-normal rounded-lg bg-[#0B0F19] border border-[#1E293B] text-white hover:border-[#3B82F6] transition-colors cursor-pointer"}
+        className={
+          buttonClassName ||
+          "flex items-center gap-2 px-3.5 py-1.5 text-xs font-normal rounded-lg bg-[#0e131f] border border-[#232938] text-white hover:border-[#3b82f6] transition-colors cursor-pointer"
+        }
       >
-        {showFilterIcon && <Filter size={13} className="text-[#94A3B8]" />}
+        {showFilterIcon && <SlidersHorizontal size={13} className="text-[#94A3B8]" />}
         <span>{label}</span>
         <ChevronDown size={13} className="text-[#94A3B8]" />
       </button>
 
       {isOpen && (
-        <div className="absolute left-0 sm:right-0 sm:left-auto top-9 w-60 bg-[#111827] border border-[#1E293B] rounded-2xl shadow-2xl p-3 z-50 select-none">
-          {/* Multi-select Header Controls */}
-          {isMultiSelect && (
-            <div className="flex items-center justify-between border-b border-[#1E293B] pb-2 mb-2">
-              <span className="text-xs font-medium text-white">Filter FPSO</span>
-              <button
-                type="button"
-                onClick={handleToggleAll}
-                className="text-[11px] text-[#3B82F6] hover:underline cursor-pointer"
-              >
-                {isAllSelected ? 'Reset (UNY)' : 'Select All'}
-              </button>
-            </div>
-          )}
+        <div className="absolute left-0 sm:right-0 sm:left-auto top-10 w-56 bg-[#141824] border border-[#262e42] rounded-xl shadow-2xl p-3 z-50 select-none animate-in fade-in-50 duration-100">
+          {/* Header icon row (SLB style) */}
+          <div className="flex items-center justify-between pb-2 mb-2.5 border-b border-[#232a3d]">
+            <SlidersHorizontal size={15} className="text-[#94a3b8]" />
+          </div>
 
           {/* Search Input */}
-          <div className="relative mb-2">
-            <Search size={13} className="absolute left-3 top-2.5 text-[#64748B]" />
+          <div className="mb-2.5">
             <input
               type="text"
-              placeholder="Search FPSO..."
+              placeholder="Search..."
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
-              className="w-full bg-[#0B0F19] border border-[#1E293B] rounded-xl pl-8 pr-3 py-1.5 text-xs text-white placeholder-[#64748B] outline-none focus:border-[#3B82F6] transition-colors"
+              className="w-full bg-transparent border-b border-[#2b354c] pb-1 text-xs text-white placeholder-[#64748b] outline-none focus:border-[#4d82f7] transition-colors"
+              autoFocus
             />
           </div>
 
           {/* Options List */}
-          <div className="max-h-56 overflow-y-auto space-y-1 pr-1 custom-scrollbar">
+          <div className="max-h-52 overflow-y-auto space-y-1 pr-1 custom-scrollbar">
+            {/* (Select All) Checkbox */}
+            {isMultiSelect && (
+              <div
+                onClick={handleToggleSelectAll}
+                className="w-full flex items-center gap-2.5 px-2 py-1.5 rounded-lg text-xs text-[#e2e8f0] hover:bg-[#1e2538] transition-colors cursor-pointer"
+              >
+                <div
+                  className={`w-4 h-4 rounded-[4px] border flex items-center justify-center transition-colors flex-shrink-0 ${
+                    isAllStagedSelected
+                      ? 'bg-[#3b82f6] border-[#3b82f6] text-white'
+                      : 'border-[#3d4863] bg-[#0f1420]'
+                  }`}
+                >
+                  {isAllStagedSelected && <Check size={12} strokeWidth={3} />}
+                </div>
+                <span className="font-medium text-white">(Select All)</span>
+              </div>
+            )}
+
             {filteredFpsos.length === 0 ? (
-              <div className="px-2.5 py-2 text-xs text-[#64748B] italic text-center">No FPSO found</div>
+              <div className="px-2.5 py-3 text-xs text-[#64748B] italic text-center">
+                No FPSO found
+              </div>
             ) : (
               filteredFpsos.map(fpso => {
                 if (isMultiSelect) {
-                  const isChecked = selectedFpsos.length === 0 || selectedFpsos.includes(fpso);
-                  const isOnlyOne = isChecked && (selectedFpsos.length === 1 || (selectedFpsos.length === 0 && allFpsos.length === 1));
+                  const isChecked = stagedSelected.includes(fpso);
                   return (
-                    <label
+                    <div
                       key={fpso}
-                      onClick={() => handleToggleItem(fpso)}
-                      className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs transition-colors cursor-pointer ${
-                        isChecked
-                          ? 'bg-[#3B82F6]/15 text-[#60A5FA] font-medium'
-                          : 'text-[#E2E8F0] hover:bg-[#1E293B]'
-                      } ${isOnlyOne ? 'cursor-not-allowed opacity-90' : ''}`}
+                      onClick={() => handleToggleStagedItem(fpso)}
+                      className="w-full flex items-center gap-2.5 px-2 py-1.5 rounded-lg text-xs text-[#e2e8f0] hover:bg-[#1e2538] transition-colors cursor-pointer"
                     >
-                      <div className="flex items-center gap-2.5">
-                        <input
-                          type="checkbox"
-                          checked={isChecked}
-                          disabled={isOnlyOne}
-                          readOnly
-                          className="rounded border-[#1E293B] bg-[#0B0F19] text-[#3B82F6] focus:ring-0 cursor-pointer accent-[#3B82F6]"
-                        />
-                        <span className="font-mono">{fpso}</span>
+                      <div
+                        className={`w-4 h-4 rounded-[4px] border flex items-center justify-center transition-colors flex-shrink-0 ${
+                          isChecked
+                            ? 'bg-[#3b82f6] border-[#3b82f6] text-white'
+                            : 'border-[#3d4863] bg-[#0f1420]'
+                        }`}
+                      >
+                        {isChecked && <Check size={12} strokeWidth={3} />}
                       </div>
-                      {isChecked && <Check size={13} className="text-[#60A5FA]" />}
-                    </label>
+                      <span className="font-mono text-white text-xs">{fpso}</span>
+                    </div>
                   );
                 }
 
@@ -186,10 +218,10 @@ export default function FpsosFilterDropdown({
                       if (onChange) onChange(fpso);
                       setIsOpen(false);
                     }}
-                    className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs transition-colors cursor-pointer ${
+                    className={`w-full flex items-center justify-between px-2 py-1.5 rounded-lg text-xs transition-colors cursor-pointer ${
                       isSelected
-                        ? 'bg-[#3B82F6]/15 text-[#60A5FA] font-medium'
-                        : 'text-[#E2E8F0] hover:bg-[#1E293B]'
+                        ? 'bg-[#3B82F6]/20 text-[#60A5FA] font-medium'
+                        : 'text-[#E2E8F0] hover:bg-[#1E2538]'
                     }`}
                   >
                     <span className="font-mono">{fpso}</span>
@@ -199,6 +231,26 @@ export default function FpsosFilterDropdown({
               })
             )}
           </div>
+
+          {/* Footer Actions: Reset and Apply (SLB Style Pills) */}
+          {isMultiSelect && (
+            <div className="flex items-center justify-center gap-3 pt-3 mt-2 border-t border-[#232a3d]">
+              <button
+                type="button"
+                onClick={handleReset}
+                className="px-4 py-1 rounded-full text-xs font-medium text-[#e2e8f0] bg-[#121622] border border-[#343e56] hover:bg-[#1b2133] hover:border-[#4d5b7c] transition-colors cursor-pointer"
+              >
+                Reset
+              </button>
+              <button
+                type="button"
+                onClick={handleApply}
+                className="px-5 py-1 rounded-full text-xs font-semibold text-white bg-[#4d82f7] hover:bg-[#3b72e6] shadow-sm transition-colors cursor-pointer"
+              >
+                Apply
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>

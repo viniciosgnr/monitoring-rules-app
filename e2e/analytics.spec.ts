@@ -22,7 +22,7 @@ test.describe('Analytics Page', () => {
     await expect(page.locator('text=False Positive Breakdown by Instance')).toBeVisible();
   });
 
-  test('should toggle to Alerts Treated tab and display Days to Treat, status charts, unit breakdown, and Bad Actors List', async ({ page }) => {
+  test('should toggle to Alerts Treated tab and display Days to Treat, status charts, and Bad Actors List', async ({ page }) => {
     const alertsTreatedBtn = page.getByRole('button', { name: 'Alerts Treated' });
     await expect(alertsTreatedBtn).toBeVisible();
 
@@ -34,9 +34,6 @@ test.describe('Analytics Page', () => {
     // Verify Charts
     await expect(page.locator('text=Alerts Treated by Monitoring Rule')).toBeVisible();
     await expect(page.locator('text=Alerts Treated by Status')).toBeVisible();
-
-    // Verify Alerts Treated per Unit (FPSO) table
-    await expect(page.locator('text=Alerts Treated per Unit (FPSO)')).toBeVisible();
 
     // Verify Bad Actors List
     await expect(page.locator('text=Bad Actors List')).toBeVisible();

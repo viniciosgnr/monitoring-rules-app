@@ -1,34 +1,26 @@
 'use client';
-import { ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 export interface DaysToTreatPoint {
-  timeKey: string;
-  Fleet: number;
-  [fpsoCode: string]: number | string;
+  label: string;
+  days: number;
 }
 
 interface Props {
   data: DaysToTreatPoint[];
-  fpsos: string[];
 }
 
-const FPSO_COLORS: Record<string, string> = {
-  DNY: '#3B82F6', // Blue
-  ONE: '#6366F1', // Indigo
-  PTY: '#F59E0B', // Amber
-  UNY: '#8B5CF6', // Purple
-  ATD: '#10B981', // Emerald
-  MV24: '#EC4899', // Pink
-  MV26: '#14B8A6', // Teal
-};
+export default function DaysToTreatChart({ data }: Props) {
+  const values = (data || []).map(d => d.days).filter(v => typeof v === 'number' && !isNaN(v));
+  const maxVal = values.length > 0 ? Math.max(...values) : 5;
+  const yMax = Math.max(5, Math.ceil(maxVal + 1));
 
-export default function DaysToTreatChart({ data, fpsos }: Props) {
   return (
-    <ResponsiveContainer width="100%" height={260}>
-      <ComposedChart data={data} margin={{ top: 15, right: 15, left: -5, bottom: 15 }}>
+    <ResponsiveContainer width="100%" height={220}>
+      <LineChart data={data} margin={{ top: 15, right: 15, left: -10, bottom: 15 }}>
         <CartesianGrid strokeDasharray="3 3" stroke="#1E293B" opacity={0.5} />
         <XAxis
-          dataKey="timeKey"
+          dataKey="label"
           tick={{ fill: '#94A3B8', fontSize: 11 }}
           axisLine={false}
           tickLine={false}
@@ -39,10 +31,9 @@ export default function DaysToTreatChart({ data, fpsos }: Props) {
           axisLine={false}
           tickLine={false}
           unit=" d"
-          domain={[0, 'auto']}
+          domain={[0, yMax]}
         />
         <Tooltip
-          formatter={(val: unknown) => [typeof val === 'number' ? `${val.toFixed(2)} days` : '—']}
           contentStyle={{
             background: '#111827',
             border: '1px solid #1E293B',
@@ -50,36 +41,21 @@ export default function DaysToTreatChart({ data, fpsos }: Props) {
             color: '#E2E8F0',
             fontSize: 12,
           }}
+          cursor={{ stroke: '#1E293B' }}
+          formatter={(value: unknown) => [
+            typeof value === 'number' ? `${value.toFixed(1)} days` : '—',
+            'Days to Treat',
+          ]}
         />
-        <Legend
-          verticalAlign="top"
-          height={36}
-          iconSize={10}
-          wrapperStyle={{ fontSize: 11, color: '#94A3B8', paddingTop: 0 }}
-        />
-        {/* Bars for individual FPSOs */}
-        {fpsos.map((fpso, index) => (
-          <Bar
-            key={fpso}
-            dataKey={fpso}
-            name={fpso}
-            fill={FPSO_COLORS[fpso] || `hsl(${(index * 60) % 360}, 70%, 55%)`}
-            radius={[3, 3, 0, 0]}
-            maxBarSize={28}
-          />
-        ))}
-
-        {/* Fleet Average Line */}
         <Line
           type="monotone"
-          dataKey="Fleet"
-          name="Fleet Average"
-          stroke="#F8FAFC"
+          dataKey="days"
+          stroke="#3B82F6"
           strokeWidth={2.5}
-          dot={{ r: 3.5, fill: '#38BDF8', stroke: '#0B0F19', strokeWidth: 1.5 }}
-          activeDot={{ r: 5 }}
+          dot={{ fill: '#3B82F6', r: 5, strokeWidth: 0 }}
+          activeDot={{ r: 7, fill: '#3B82F6', stroke: '#111827', strokeWidth: 2 }}
         />
-      </ComposedChart>
+      </LineChart>
     </ResponsiveContainer>
   );
 }

@@ -78,6 +78,7 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
   const [fpEquipSelected, setFpEquipSelected] = useState<string[]>([]);
 
   // Local column filters for Bad Actors List
+  const [badFpsoSelected, setBadFpsoSelected] = useState<string[]>([]);
   const [badRuleSelected, setBadRuleSelected] = useState<string[]>([]);
   const [badEquipSelected, setBadEquipSelected] = useState<string[]>([]);
 
@@ -219,6 +220,7 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
   const fpRuleOpts = useMemo(() => Array.from(new Set(filteredInstances.map(i => i.ruleName))).filter(Boolean).sort(), [filteredInstances]);
   const fpEquipOpts = useMemo(() => Array.from(new Set(filteredInstances.map(i => i.equipmentCode))).filter(Boolean).sort(), [filteredInstances]);
 
+  const badFpsoOpts = useMemo(() => Array.from(new Set(filteredInstances.map(i => i.fpsoCode))).filter(Boolean).sort(), [filteredInstances]);
   const badRuleOpts = useMemo(() => Array.from(new Set(filteredInstances.map(i => i.ruleName))).filter(Boolean).sort(), [filteredInstances]);
   const badEquipOpts = useMemo(() => Array.from(new Set(filteredInstances.map(i => i.equipmentCode))).filter(Boolean).sort(), [filteredInstances]);
 
@@ -268,13 +270,14 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
     return [...filteredInstances]
       .filter(inst => {
         if (inst.alertsCount === 0) return false;
+        const matchFpso = badFpsoSelected.length === 0 || badFpsoSelected.length === badFpsoOpts.length || badFpsoSelected.includes(inst.fpsoCode);
         const matchRule = badRuleSelected.length === 0 || badRuleSelected.length === badRuleOpts.length || badRuleSelected.includes(inst.ruleName);
         const matchEquip = badEquipSelected.length === 0 || badEquipSelected.length === badEquipOpts.length || badEquipSelected.includes(inst.equipmentCode);
-        return matchRule && matchEquip;
+        return matchFpso && matchRule && matchEquip;
       })
       .sort((a, b) => b.alertsCount - a.alertsCount)
       .slice(0, 30);
-  }, [filteredInstances, badRuleSelected, badRuleOpts, badEquipSelected, badEquipOpts]);
+  }, [filteredInstances, badFpsoSelected, badFpsoOpts, badRuleSelected, badRuleOpts, badEquipSelected, badEquipOpts]);
 
   // Calculate KPI card values dynamically
   const globalAccuracy = useMemo(() => {
@@ -459,7 +462,7 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
     });
   }, [trendData, statusChartMode]);
 
-  // Days to Treat an Alert (Average) composed chart data
+  // Days to Treat an Alert (Average) line chart data - average of selected FPSOs
   const daysToTreatData = useMemo(() => {
     const { buckets } = periodBoundaries;
     const activeFpsos = selectedFpsos.length > 0 && selectedFpsos.length < allFpsos.length
@@ -467,12 +470,8 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
       : allFpsos;
 
     return buckets.map(({ label, start, end }) => {
-      const point: { timeKey: string; Fleet: number; [key: string]: number | string } = {
-        timeKey: label,
-        Fleet: 0,
-      };
-
       const bucketTreated = alertsList.filter(a => {
+        if (!activeFpsos.includes(a.fpsoCode)) return false;
         if (selectedEquipments.length > 0 && selectedEquipments.length < equipments.length && !selectedEquipments.includes(a.equipmentCode)) {
           return false;
         }
@@ -489,105 +488,20 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
         );
       });
 
-      // Fleet average in this bucket
+      let daysAvg = 0;
       if (bucketTreated.length > 0) {
-        const fleetTotal = bucketTreated.reduce((sum, a) => {
+        const totalDays = bucketTreated.reduce((sum, a) => {
           const diffDays = Math.max(0, (new Date(a.reviewedAt!).getTime() - new Date(a.triggeredAt).getTime()) / 86400000);
           return sum + diffDays;
         }, 0);
-        point.Fleet = parseFloat((fleetTotal / bucketTreated.length).toFixed(2));
-      } else {
-        point.Fleet = 0;
+        daysAvg = parseFloat((totalDays / bucketTreated.length).toFixed(1));
       }
 
-      // Per FPSO average
-      activeFpsos.forEach(fpso => {
-        const fpsoAlerts = bucketTreated.filter(a => a.fpsoCode === fpso);
-        if (fpsoAlerts.length > 0) {
-          const totalDays = fpsoAlerts.reduce((sum, a) => {
-            const diffDays = Math.max(0, (new Date(a.reviewedAt!).getTime() - new Date(a.triggeredAt).getTime()) / 86400000);
-            return sum + diffDays;
-          }, 0);
-          point[fpso] = parseFloat((totalDays / fpsoAlerts.length).toFixed(2));
-        } else {
-          point[fpso] = 0;
-        }
-      });
-
-      return point;
-    });
-  }, [alertsList, periodBoundaries, allFpsos, selectedFpsos, selectedEquipments, selectedCategories, equipments]);
-
-  // Breakdown Table: Alerts Treated per Unit (FPSO)
-  const fpsoTreatmentStats = useMemo(() => {
-    const { periodStart, periodEnd } = periodBoundaries;
-    const activeFpsos = selectedFpsos.length > 0 && selectedFpsos.length < allFpsos.length
-      ? selectedFpsos
-      : allFpsos;
-
-    const stats = activeFpsos.map(fpso => {
-      const fpsoAlerts = alertsList.filter(a => {
-        if (a.fpsoCode !== fpso) return false;
-        if (selectedEquipments.length > 0 && selectedEquipments.length < equipments.length && !selectedEquipments.includes(a.equipmentCode)) {
-          return false;
-        }
-        if (selectedCategories.length > 0 && selectedCategories.length < CATEGORIES_LIST.length) {
-          const friendlyCat = getRuleFriendlyCategory(a.ruleName);
-          if (!selectedCategories.includes(friendlyCat)) return false;
-        }
-        const tTime = new Date(a.triggeredAt).getTime();
-        return tTime >= periodStart.getTime() && tTime <= periodEnd.getTime();
-      });
-
-      const total = fpsoAlerts.length;
-      const eligible = fpsoAlerts.filter(a => a.status === 'eligible_for_em' || a.status === 'validated').length;
-      const rejected = fpsoAlerts.filter(a => a.status === 'rejected').length;
-      const pending = fpsoAlerts.filter(a => a.status === 'new' || a.status === 'review_in_progress' || a.status === 'to_be_validated' || a.status === 'validation_in_progress').length;
-
-      const treatedAlerts = fpsoAlerts.filter(a => (a.status === 'eligible_for_em' || a.status === 'validated' || a.status === 'rejected') && a.reviewedAt);
-      const avgDays = treatedAlerts.length > 0
-        ? (treatedAlerts.reduce((sum, a) => sum + Math.max(0, (new Date(a.reviewedAt!).getTime() - new Date(a.triggeredAt).getTime()) / 86400000), 0) / treatedAlerts.length).toFixed(2)
-        : '—';
-
-      const eligiblePct = total > 0 ? ((eligible / total) * 100).toFixed(1) : '0.0';
-      const rejectedPct = total > 0 ? ((rejected / total) * 100).toFixed(1) : '0.0';
-      const pendingPct = total > 0 ? ((pending / total) * 100).toFixed(1) : '0.0';
-
       return {
-        fpso,
-        total,
-        eligible,
-        eligiblePct,
-        rejected,
-        rejectedPct,
-        pending,
-        pendingPct,
-        avgDays,
+        label,
+        days: daysAvg,
       };
     });
-
-    // Calculate Fleet Total row
-    const fleetTotalAlerts = stats.reduce((sum, s) => sum + s.total, 0);
-    const fleetEligible = stats.reduce((sum, s) => sum + s.eligible, 0);
-    const fleetRejected = stats.reduce((sum, s) => sum + s.rejected, 0);
-    const fleetPending = stats.reduce((sum, s) => sum + s.pending, 0);
-
-    const fleetEligiblePct = fleetTotalAlerts > 0 ? ((fleetEligible / fleetTotalAlerts) * 100).toFixed(1) : '0.0';
-    const fleetRejectedPct = fleetTotalAlerts > 0 ? ((fleetRejected / fleetTotalAlerts) * 100).toFixed(1) : '0.0';
-    const fleetPendingPct = fleetTotalAlerts > 0 ? ((fleetPending / fleetTotalAlerts) * 100).toFixed(1) : '0.0';
-
-    return {
-      rows: stats,
-      totalRow: {
-        total: fleetTotalAlerts,
-        eligible: fleetEligible,
-        eligiblePct: fleetEligiblePct,
-        rejected: fleetRejected,
-        rejectedPct: fleetRejectedPct,
-        pending: fleetPending,
-        pendingPct: fleetPendingPct,
-      },
-    };
   }, [alertsList, periodBoundaries, allFpsos, selectedFpsos, selectedEquipments, selectedCategories, equipments]);
 
   return (
@@ -909,13 +823,13 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-[11px] font-mono text-[#94A3B8] bg-[#0B0F19] px-2.5 py-1 rounded-md border border-[#1E293B]">
-                  Fleet Avg: <strong className="text-white">{avgDaysToTreat}</strong>
+                  Average: <strong className="text-white">{avgDaysToTreat}</strong>
                 </span>
                 <SlidersHorizontal size={14} className="text-text-muted cursor-pointer hover:text-text-primary transition-colors" />
                 <Maximize2 size={14} className="text-text-muted cursor-pointer hover:text-text-primary transition-colors" />
               </div>
             </div>
-            <DaysToTreatChart data={daysToTreatData} fpsos={allFpsos} />
+            <DaysToTreatChart data={daysToTreatData} />
           </div>
 
           {/* Middle Section: 2 Charts Grid (Status & Rule Type) */}
@@ -979,96 +893,9 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
             </div>
           </div>
 
-          {/* Third Section: Table ALERTS TREATED PER UNIT (FPSO) */}
-          <div className="bg-bg-card border border-border-panel rounded-card overflow-hidden">
-            <div className="px-5 py-3.5 border-b border-border-panel flex items-center justify-between bg-[#0F172A]/30">
-              <div>
-                <h3 className="text-sm font-semibold text-text-primary">Alerts Treated per Unit (FPSO)</h3>
-                <p className="text-xs text-[#94A3B8] mt-0.5">Status breakdown, resolution proportions, and average treatment lead time by vessel</p>
-              </div>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="border-b border-border-panel bg-bg-panel/40 select-none">
-                    <th className="text-left px-5 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary">
-                      FPSO Unit
-                    </th>
-                    <th className="text-right px-5 py-3 text-[10px] font-bold uppercase tracking-wider text-status-success">
-                      Eligible for EM (Ack)
-                    </th>
-                    <th className="text-right px-5 py-3 text-[10px] font-bold uppercase tracking-wider text-status-warn">
-                      Rejected (False Pos.)
-                    </th>
-                    <th className="text-right px-5 py-3 text-[10px] font-bold uppercase tracking-wider text-amber-400">
-                      Pending Review
-                    </th>
-                    <th className="text-right px-5 py-3 text-[10px] font-bold uppercase tracking-wider text-[#38BDF8]">
-                      Avg. Days to Treat
-                    </th>
-                    <th className="text-right px-5 py-3 text-[10px] font-bold uppercase tracking-wider text-white">
-                      Total Alerts
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border-panel">
-                  {fpsoTreatmentStats.rows.map(row => (
-                    <tr key={row.fpso} className="hover:bg-bg-panel/10 transition-colors">
-                      <td className="px-5 py-3 font-mono font-medium text-white flex items-center gap-2">
-                        <span className="w-2 h-2 rounded-full bg-[#3B82F6]" />
-                        {row.fpso}
-                      </td>
-                      <td className="px-5 py-3 text-right font-mono">
-                        <span className="text-status-success font-semibold">{row.eligiblePct}%</span>
-                        <span className="text-[#64748B] text-[11px] ml-1.5">({row.eligible})</span>
-                      </td>
-                      <td className="px-5 py-3 text-right font-mono">
-                        <span className="text-status-warn font-semibold">{row.rejectedPct}%</span>
-                        <span className="text-[#64748B] text-[11px] ml-1.5">({row.rejected})</span>
-                      </td>
-                      <td className="px-5 py-3 text-right font-mono">
-                        <span className="text-amber-400 font-semibold">{row.pendingPct}%</span>
-                        <span className="text-[#64748B] text-[11px] ml-1.5">({row.pending})</span>
-                      </td>
-                      <td className="px-5 py-3 text-right font-mono text-[#38BDF8] font-medium">
-                        {row.avgDays !== '—' ? `${row.avgDays} d` : '—'}
-                      </td>
-                      <td className="px-5 py-3 text-right font-mono text-white font-medium">
-                        {row.total}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-                <tfoot>
-                  <tr className="bg-[#0F172A]/80 font-bold border-t-2 border-[#1E293B]">
-                    <td className="px-5 py-3 text-white uppercase text-[11px]">Fleet Total</td>
-                    <td className="px-5 py-3 text-right font-mono text-status-success">
-                      {fpsoTreatmentStats.totalRow.eligiblePct}%
-                      <span className="text-[#94A3B8] font-normal text-[11px] ml-1.5">({fpsoTreatmentStats.totalRow.eligible})</span>
-                    </td>
-                    <td className="px-5 py-3 text-right font-mono text-status-warn">
-                      {fpsoTreatmentStats.totalRow.rejectedPct}%
-                      <span className="text-[#94A3B8] font-normal text-[11px] ml-1.5">({fpsoTreatmentStats.totalRow.rejected})</span>
-                    </td>
-                    <td className="px-5 py-3 text-right font-mono text-amber-400">
-                      {fpsoTreatmentStats.totalRow.pendingPct}%
-                      <span className="text-[#94A3B8] font-normal text-[11px] ml-1.5">({fpsoTreatmentStats.totalRow.pending})</span>
-                    </td>
-                    <td className="px-5 py-3 text-right font-mono text-[#38BDF8]">
-                      {avgDaysToTreat}
-                    </td>
-                    <td className="px-5 py-3 text-right font-mono text-white">
-                      {fpsoTreatmentStats.totalRow.total}
-                    </td>
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
-          </div>
-
-          {/* Fourth Section: Bad Actors List Card */}
-          <div className="bg-[#0B0F19] border border-[#1E293B] rounded-xl overflow-hidden mt-3 shadow-sm">
-            <div className="px-5 py-4 border-b border-[#1E293B] flex flex-col md:flex-row md:items-center justify-between gap-4 bg-[#0F172A]/30">
+          {/* Third Section: Bad Actors List Card (SLB Design) */}
+          <div className="bg-[#0E131F] border border-[#232938] rounded-xl overflow-hidden mt-4 shadow-sm">
+            <div className="px-5 py-4 border-b border-[#232938] flex flex-col md:flex-row md:items-center justify-between gap-4 bg-[#141824]/40">
               <div>
                 <h3 className="text-sm font-semibold text-white tracking-wide">Bad Actors List</h3>
                 <p className="text-xs text-[#94A3B8] mt-0.5">Most active rule configurations across FPSOs filtered by active criteria</p>
@@ -1083,72 +910,69 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
             <div className="overflow-x-auto max-h-96 overflow-y-auto">
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
-                  <tr className="border-b border-[#1E293B] bg-[#0F172A]/40 text-[#94A3B8] select-none text-[11px] uppercase tracking-wider font-semibold sticky top-0 z-10 backdrop-blur-md">
-                    <th className="py-3 px-4 w-12 text-center text-[#64748B]">#</th>
-                    <th className="py-3 px-4">
-                      <div className="flex items-center gap-1.5">
-                        <span>Rule / Instance</span>
-                        <ColumnFilterDropdown
-                          title="Rule / Instance"
-                          options={badRuleOpts}
-                          selectedValues={badRuleSelected.length === 0 ? badRuleOpts : badRuleSelected}
-                          onChange={setBadRuleSelected}
-                        />
-                      </div>
+                  <tr className="border-b border-[#232938] bg-[#141824]/60 text-[#CBD5E1] select-none text-[11px] font-semibold sticky top-0 z-10 backdrop-blur-md">
+                    <th className="py-2.5 px-4 w-28">
+                      <div>FPSO</div>
+                      <ColumnFilterDropdown
+                        title="FPSO"
+                        options={badFpsoOpts}
+                        selectedValues={badFpsoSelected.length === 0 ? badFpsoOpts : badFpsoSelected}
+                        onChange={setBadFpsoSelected}
+                      />
                     </th>
-                    <th className="py-3 px-4">
-                      <div className="flex items-center gap-1.5">
-                        <span>Asset</span>
-                        <ColumnFilterDropdown
-                          title="Asset"
-                          options={badEquipOpts}
-                          selectedValues={badEquipSelected.length === 0 ? badEquipOpts : badEquipSelected}
-                          onChange={setBadEquipSelected}
-                        />
-                      </div>
+                    <th className="py-2.5 px-4 min-w-[260px]">
+                      <div>Rule / Instance</div>
+                      <ColumnFilterDropdown
+                        title="Rule / Instance"
+                        options={badRuleOpts}
+                        selectedValues={badRuleSelected.length === 0 ? badRuleOpts : badRuleSelected}
+                        onChange={setBadRuleSelected}
+                      />
                     </th>
-                    <th className="py-3 px-4 font-mono">FPSO</th>
-                    <th className="py-3 px-4 text-right">Evaluations</th>
-                    <th className="py-3 px-4 text-right">Correct</th>
-                    <th className="py-3 px-4 text-right">FP</th>
-                    <th className="py-3 px-4 text-right">Accuracy</th>
-                    <th className="py-3 px-4 text-right">FP Rate</th>
-                    <th className="py-3 px-4 text-right font-bold text-[#F59E0B]">Alerts</th>
+                    <th className="py-2.5 px-4 w-40">
+                      <div>Asset</div>
+                      <ColumnFilterDropdown
+                        title="Asset"
+                        options={badEquipOpts}
+                        selectedValues={badEquipSelected.length === 0 ? badEquipOpts : badEquipSelected}
+                        onChange={setBadEquipSelected}
+                      />
+                    </th>
+                    <th className="py-2.5 px-4 text-right w-24">
+                      <div>Accuracy</div>
+                      <div className="w-full mt-1.5 pb-1 border-b border-[#262E42] text-transparent select-none text-[11px]">&nbsp;</div>
+                    </th>
+                    <th className="py-2.5 px-4 text-right w-24">
+                      <div>FP Rate</div>
+                      <div className="w-full mt-1.5 pb-1 border-b border-[#262E42] text-transparent select-none text-[11px]">&nbsp;</div>
+                    </th>
+                    <th className="py-2.5 px-4 text-right w-24">
+                      <div className="text-[#F59E0B]">Alerts</div>
+                      <div className="w-full mt-1.5 pb-1 border-b border-[#262E42] text-transparent select-none text-[11px]">&nbsp;</div>
+                    </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#1E293B]/60 text-xs">
+                <tbody className="divide-y divide-[#1E2536] text-xs">
                   {badActorsList.length === 0 ? (
                     <tr>
-                      <td colSpan={10} className="py-12 text-center text-[#64748B] italic">
+                      <td colSpan={6} className="py-12 text-center text-[#64748B] italic">
                         No active bad actor rules found for the selected filters and time period.
                       </td>
                     </tr>
                   ) : (
-                    badActorsList.map((inst, index) => (
+                    badActorsList.map(inst => (
                       <tr
                         key={inst.id}
-                        className="hover:bg-[#151D2E]/80 transition-colors group"
+                        className="hover:bg-[#161D2C] transition-colors"
                       >
-                        <td className="py-3 px-4 text-center font-mono text-[#64748B]">
-                          {index + 1}
+                        <td className="py-3 px-4 font-mono text-[#38BDF8] font-medium">
+                          {inst.fpsoCode}
                         </td>
-                        <td className="py-3 px-4 font-medium text-white max-w-[280px] truncate" title={inst.ruleName}>
+                        <td className="py-3 px-4 font-medium text-white max-w-[320px] truncate" title={inst.ruleName}>
                           {inst.ruleName}
                         </td>
                         <td className="py-3 px-4 font-mono text-[#94A3B8]">
                           {inst.equipmentCode}
-                        </td>
-                        <td className="py-3 px-4 font-mono text-[#38BDF8]">
-                          {inst.fpsoCode}
-                        </td>
-                        <td className="py-3 px-4 text-right font-mono text-[#94A3B8]">
-                          {inst.totalEvaluations}
-                        </td>
-                        <td className="py-3 px-4 text-right font-mono text-[#22C55E]">
-                          {inst.correctActions}
-                        </td>
-                        <td className="py-3 px-4 text-right font-mono text-[#EF4444]">
-                          {inst.falsePositives}
                         </td>
                         <td className="py-3 px-4 text-right font-mono font-medium text-[#22C55E]">
                           {inst.accuracy !== null ? `${inst.accuracy}%` : '—'}
