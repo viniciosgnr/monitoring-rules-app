@@ -366,10 +366,14 @@ export default function AlertDetailsClient({
       reviewedBy: updatedReviewer,
       reviewedAt: updatedDate,
       comment: fullComment,
+      severity: null,
+      eventId: null,
+      eventRef: null,
+      eventDescription: null,
     }));
     setCommentText(fullComment);
 
-    await updateAlertStatus(currentAlert.id, 'rejected', currentAlert.severity || currentAlert.tier || undefined, fullComment);
+    await updateAlertStatus(currentAlert.id, 'rejected', undefined, fullComment);
   };
 
   const handleSaveComment = async () => {
@@ -528,8 +532,8 @@ export default function AlertDetailsClient({
                   </span>
                 </div>
 
-                {/* Severity Metadata (only shown when alert belongs to a group/event) */}
-                {currentAlert.eventId && (
+                {/* Severity Metadata (only shown when alert belongs to a group/event and is not rejected) */}
+                {currentAlert.status !== 'rejected' && currentAlert.eventId && (
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-[#94A3B8] text-xs">Severity:</span>
                     <SeverityBadge severity={currentAlert.severity || currentAlert.tier} />

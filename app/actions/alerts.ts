@@ -6,7 +6,16 @@ import { revalidatePath } from 'next/cache';
 import type { Status } from '@/components/ui/StatusBadge';
 
 export async function updateAlertStatus(id: number, status: Status, severity?: string, comment?: string) {
-  const updateData: { status: Status; reviewedAt?: Date | null; reviewedBy?: string | null; severity?: string; comment?: string } = {
+  const updateData: {
+    status: Status;
+    reviewedAt?: Date | null;
+    reviewedBy?: string | null;
+    severity?: string | null;
+    comment?: string | null;
+    eventId?: string | null;
+    eventRef?: string | null;
+    eventDescription?: string | null;
+  } = {
     status,
   };
   if (status === 'validation_in_progress' || (status as string) === 'review_in_progress') {
@@ -18,8 +27,12 @@ export async function updateAlertStatus(id: number, status: Status, severity?: s
   } else if (status === 'rejected') {
     updateData.reviewedBy = 'Jon Doe';
     updateData.reviewedAt = new Date();
+    updateData.severity = null;
+    updateData.eventId = null;
+    updateData.eventRef = null;
+    updateData.eventDescription = null;
   }
-  if (severity !== undefined) {
+  if (status !== 'rejected' && severity !== undefined) {
     updateData.severity = severity;
   }
   if (comment !== undefined) {

@@ -78,6 +78,7 @@ export default async function AlertDetailsPage({ params, searchParams }: PagePro
     .orderBy(desc(alerts.triggeredAt))
     .limit(5);
 
+  const isRejected = alertRaw.status === 'rejected';
   const serializedAlert = {
     ...alertRaw,
     endDate: alertRaw.endDate.toLocaleString('pt-BR'),
@@ -87,11 +88,11 @@ export default async function AlertDetailsPage({ params, searchParams }: PagePro
     reviewedAt: alertRaw.reviewedAt?.toLocaleString('pt-BR') ?? '',
     reviewedBy: alertRaw.reviewedBy ?? '',
     status: alertRaw.status as Status,
-    severity: alertRaw.severity ?? null,
-    eventId: alertRaw.eventId ?? null,
-    eventDescription: alertRaw.eventDescription ?? null,
+    severity: isRejected ? null : (alertRaw.severity ?? null),
+    eventId: isRejected ? null : (alertRaw.eventId ?? null),
+    eventDescription: isRejected ? null : (alertRaw.eventDescription ?? null),
     comment: alertRaw.comment ?? null,
-    eventRef: alertRaw.eventRef ?? null,
+    eventRef: isRejected ? null : (alertRaw.eventRef ?? null),
     processingSteps: (alertRaw.processingSteps as Record<string, unknown>) ?? null,
   };
 

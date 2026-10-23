@@ -364,12 +364,26 @@ export default function AlertTable({
     const reviewedAt = isValidated ? new Date().toLocaleString('pt-BR') : '';
     const finalComment = comment !== undefined ? comment : (targetRow?.comment ?? null);
     const finalSeverity = severity || targetRow?.severity || targetRow?.tier;
-    setData(d => d.map(r => r.id === id ? { ...r, status, reviewedBy, reviewedAt, severity: finalSeverity, comment: finalComment } : r));
+    setData(d => d.map(r => r.id === id ? {
+      ...r,
+      status,
+      reviewedBy,
+      reviewedAt,
+      severity: finalSeverity,
+      comment: finalComment,
+    } : r));
     if (selectedAlertDetails?.id === id) {
       if (isValidated) {
         setSelectedAlertDetails(null);
       } else {
-        setSelectedAlertDetails(prev => prev ? { ...prev, status, reviewedBy, reviewedAt, severity: finalSeverity, comment: finalComment } : null);
+        setSelectedAlertDetails(prev => prev ? {
+          ...prev,
+          status,
+          reviewedBy,
+          reviewedAt,
+          severity: finalSeverity,
+          comment: finalComment,
+        } : null);
       }
     }
     await updateAlertStatus(id, status, finalSeverity ?? undefined, finalComment ?? undefined);
@@ -382,7 +396,17 @@ export default function AlertTable({
     const reviewedAt = new Date().toLocaleString('pt-BR');
     const fullComment = reasons.length > 0 ? `${reasons.join(', ')}${comment ? ` - ${comment}` : ''}` : comment;
 
-    setData(d => d.map(r => r.id === targetId ? { ...r, status: 'rejected' as Status, reviewedBy, reviewedAt, comment: fullComment } : r));
+    setData(d => d.map(r => r.id === targetId ? {
+      ...r,
+      status: 'rejected' as Status,
+      reviewedBy,
+      reviewedAt,
+      comment: fullComment,
+      severity: null,
+      eventId: null,
+      eventRef: null,
+      eventDescription: null,
+    } : r));
     if (selectedAlertDetails?.id === targetId) {
       setSelectedAlertDetails(null);
     }
