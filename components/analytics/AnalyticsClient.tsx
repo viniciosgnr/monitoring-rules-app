@@ -625,11 +625,12 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
           {/* Tables Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
             {/* Accuracy Breakdown Table Card */}
-            <div className="bg-bg-card border border-border-panel rounded-card overflow-hidden">
-              <div className="px-4 py-3 border-b border-border-panel flex items-center justify-between">
+            <div className="bg-bg-card border border-border-panel rounded-card">
+              <div className="px-4 py-3 border-b border-border-panel flex items-center justify-between relative z-20">
                 <div className="flex items-center gap-1.5">
                   <h3 className="text-sm font-semibold text-text-primary">Accuracy Breakdown by Instance</h3>
                   <InfoTooltip
+                    side="bottom"
                     title="Accuracy Breakdown"
                     formula="(Eligible for Event Manager) / Total Avaliações"
                     description="Precisão individual de cada regra e equipamento no período filtrado."
@@ -637,7 +638,7 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
                   />
                 </div>
               </div>
-              <div className="overflow-x-auto max-h-60 overflow-y-auto pr-1">
+              <div className="overflow-x-auto max-h-60 overflow-y-auto pr-1 rounded-b-card">
                 <table className="w-full text-xs">
                   <thead>
                     <tr className="border-b border-border-panel bg-bg-panel/40 select-none">
@@ -726,11 +727,12 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
             </div>
 
             {/* False Positive Breakdown Table Card */}
-            <div className="bg-bg-card border border-border-panel rounded-card overflow-hidden">
-              <div className="px-4 py-3 border-b border-border-panel flex items-center justify-between">
+            <div className="bg-bg-card border border-border-panel rounded-card">
+              <div className="px-4 py-3 border-b border-border-panel flex items-center justify-between relative z-20">
                 <div className="flex items-center gap-1.5">
                   <h3 className="text-sm font-semibold text-text-primary">False Positive Breakdown by Instance</h3>
                   <InfoTooltip
+                    side="bottom"
                     title="False Positive Breakdown"
                     formula="Taxa FP = Rejected / Total Tratados"
                     description="Decomposição do volume de alertas descartados (falsos positivos) e taxa de ruído por regra e equipamento."
@@ -738,7 +740,7 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
                   />
                 </div>
               </div>
-              <div className="overflow-x-auto max-h-60 overflow-y-auto pr-1">
+              <div className="overflow-x-auto max-h-60 overflow-y-auto pr-1 rounded-b-card">
                 <table className="w-full text-xs">
                   <thead>
                     <tr className="border-b border-border-panel bg-bg-panel/40 select-none">
@@ -937,12 +939,13 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
           </div>
 
           {/* Third Section: Bad Actors List Card (SLB Design) */}
-          <div className="bg-[#0E131F] border border-[#232938] rounded-xl overflow-hidden mt-4 shadow-sm">
-            <div className="px-5 py-4 border-b border-[#232938] flex flex-col md:flex-row md:items-center justify-between gap-4 bg-[#141824]/40">
+          <div className="bg-[#0E131F] border border-[#232938] rounded-xl mt-4 shadow-sm">
+            <div className="px-5 py-4 border-b border-[#232938] flex flex-col md:flex-row md:items-center justify-between gap-4 bg-[#141824]/40 rounded-t-xl relative z-20">
               <div>
                 <div className="flex items-center gap-2">
                   <h3 className="text-sm font-semibold text-white tracking-wide">Bad Actors List</h3>
                   <InfoTooltip
+                    side="bottom"
                     title="Bad Actors List"
                     formula="Top regras com maior volume de alertas"
                     description="Ranking das regras com maior frequência de disparo e ruído (Rejected), respeitando os filtros globais de FPSO, tempo, ativos e categorias."
@@ -958,7 +961,7 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
               </div>
             </div>
 
-            <div className="overflow-x-auto max-h-96 overflow-y-auto">
+            <div className="overflow-x-auto max-h-96 overflow-y-auto rounded-b-xl">
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
                   <tr className="border-b border-[#232938] bg-[#141824]/60 text-[#CBD5E1] select-none text-[11px] font-semibold sticky top-0 z-10 backdrop-blur-md">

@@ -8,6 +8,7 @@ interface InfoTooltipProps {
   description: string;
   statusList?: string[];
   align?: 'left' | 'right' | 'center';
+  side?: 'top' | 'bottom';
   className?: string;
   size?: number;
 }
@@ -18,6 +19,7 @@ export default function InfoTooltip({
   description,
   statusList,
   align = 'left',
+  side = 'top',
   className = '',
   size = 13,
 }: InfoTooltipProps) {
@@ -72,7 +74,9 @@ export default function InfoTooltip({
 
       {isVisible && (
         <div
-          className={`absolute bottom-full mb-2 ${alignmentClass} w-72 bg-[#121622] border border-[#262E42] rounded-xl shadow-2xl p-3 z-50 text-left pointer-events-none animate-in fade-in-50 zoom-in-95 duration-150`}
+          className={`absolute ${
+            side === 'bottom' ? 'top-full mt-2' : 'bottom-full mb-2'
+          } ${alignmentClass} w-72 bg-[#121622] border border-[#262E42] rounded-xl shadow-2xl p-3 z-50 text-left pointer-events-none animate-in fade-in-50 zoom-in-95 duration-150`}
         >
           {title && (
             <div className="font-semibold text-white text-xs mb-1.5 flex items-center justify-between border-b border-[#232A3D] pb-1.5">
@@ -101,7 +105,11 @@ export default function InfoTooltip({
 
           {/* Tooltip triangle tail */}
           <div
-            className={`absolute top-full -mt-[1px] w-0 h-0 border-x-4 border-x-transparent border-t-4 border-t-[#262E42] ${
+            className={`absolute ${
+              side === 'bottom'
+                ? 'bottom-full -mb-[1px] border-b-4 border-b-[#262E42] border-t-0'
+                : 'top-full -mt-[1px] border-t-4 border-t-[#262E42] border-b-0'
+            } w-0 h-0 border-x-4 border-x-transparent ${
               align === 'right'
                 ? 'right-2'
                 : align === 'center'

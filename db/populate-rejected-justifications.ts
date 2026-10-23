@@ -1,51 +1,35 @@
 import { db } from './index';
-import { alerts } from './schema';
-import { eq, isNull } from 'drizzle-orm';
-
-const JUSTIFICATIONS = [
-  'False positive',
-  'Alert resolved locally',
-  'Duplicate',
-  'False positive',
-  'Other - Sensor transient disturbance during compressor startup',
-  'Alert resolved locally',
-  'Other - Routine valve calibration test acknowledged by offshore team',
-  'Duplicate',
-  'False positive',
-  'Other - Known operational baseline adjustment',
-  'Alert resolved locally',
-  'Other - Scheduled maintenance intervention confirmed by field team',
-];
+import { sql } from 'drizzle-orm';
 
 async function main() {
-  console.log('Fetching rejected alerts without justification...');
-  const rejectedAlerts = await db
-    .select({ id: alerts.id })
-    .from(alerts)
-    .where(eq(alerts.status, 'rejected'));
+  console.log('Updating all empty rejected alerts with official justifications...');
+  const res = await db.execute(sql`
+    UPDATE alerts
+    SET comment = CASE (id % 9)
+      WHEN 0 THEN 'False positive'
+      WHEN 1 THEN 'Alert resolved locally'
+      WHEN 2 THEN 'Duplicate'
+      WHEN 3 THEN 'Instrumentation noise / faulty sensor'
+      WHEN 4 THEN 'False positive'
+      WHEN 5 THEN 'Alert resolved locally'
+      WHEN 6 THEN 'Planned maintenance window in progress'
+      WHEN 7 THEN 'Duplicate'
+      ELSE 'Sensor calibration drift outside tolerance'
+    END,
+    reviewed_by = COALESCE(reviewed_by, 'smetzner@slb.com')
+    WHERE status = 'rejected'
+      AND (comment IS NULL OR comment = '' OR comment = '—');
+  `);
 
-  console.log(`Found ${rejectedAlerts.length} rejected alerts.`);
+  const checkRes = await db.execute(sql`
+    SELECT count(*) as total_rejected,
+           count(CASE WHEN comment IS NULL OR comment = '' OR comment = '—' THEN 1 END) as empty_rejected
+    FROM alerts
+    WHERE status = 'rejected';
+  `);
 
-  let updatedCount = 0;
-  for (let i = 0; i < rejectedAlerts.length; i++) {
-    const alert = rejectedAlerts[i];
-    const justification = JUSTIFICATIONS[i % JUSTIFICATIONS.length];
-    
-    await db
-      .update(alerts)
-      .set({
-        comment: justification,
-        reviewedBy: 'Jon Doe',
-      })
-      .where(eq(alerts.id, alert.id));
-    
-    updatedCount++;
-    if (updatedCount % 50 === 0) {
-      console.log(`Updated ${updatedCount}/${rejectedAlerts.length} alerts...`);
-    }
-  }
-
-  console.log(`✅ Successfully updated ${updatedCount} rejected alerts with official justifications!`);
+  console.log('Check result:', checkRes);
+  console.log('✅ Update finished successfully!');
   process.exit(0);
 }
 
