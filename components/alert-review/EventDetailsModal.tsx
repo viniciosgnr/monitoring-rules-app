@@ -115,7 +115,13 @@ export function formatDateTimeSecond(ms: number | string): string {
 }
 
 /** Extract threshold numerical value and human-readable label from rule processingSteps or fallback heuristics */
-export function getRuleThresholdInfo(alert: AlertRow): { value: number; label: string; yRatio: number } {
+export function getRuleThresholdInfo(alert: AlertRow): {
+  value: number;
+  label: string;
+  yRatio: number;
+  unit: string;
+  alertValue: number;
+} {
   const name = (alert.ruleName || '').toUpperCase();
   const ps = alert.processingSteps as Record<string, unknown> | undefined;
 
@@ -127,49 +133,100 @@ export function getRuleThresholdInfo(alert: AlertRow): { value: number; label: s
       if (p.threshold_comparison) {
         const tc = p.threshold_comparison as { value?: number; operator?: string };
         if (tc.value !== undefined && tc.value !== null) {
+          const val = Number(tc.value);
+          const alertVal = Number((val * 1.05).toFixed(1));
           return {
-            value: tc.value,
+            value: val,
             label: `Threshold (${tc.operator === 'gt' ? '>' : tc.operator === 'lt' ? '<' : '≥'} ${tc.value})`,
             yRatio: 0.35,
+            unit: 'MSCF/d',
+            alertValue: alertVal,
           };
         }
       }
       if (p.spike_detection) {
-        const sd = p.spike_detection as { threshold?: number };
-        if (sd.threshold !== undefined && sd.threshold !== null) {
-          return {
-            value: sd.threshold,
-            label: `Spike Threshold (${sd.threshold})`,
-            yRatio: 0.30,
-          };
-        }
+        const sd = p.spike_detection as { threshold?: number; height?: number };
+        const val = sd.threshold ?? sd.height ?? 2.5;
+        const alertVal = Number((val * 1.16).toFixed(1));
+        return {
+          value: val,
+          label: `Spike Threshold (${val})`,
+          yRatio: 0.30,
+          unit: 'σ',
+          alertValue: alertVal,
+        };
       }
     }
     if (typeof ps.threshold === 'number') {
+      const val = ps.threshold;
+      const alertVal = Number((val * 1.05).toFixed(1));
       return {
-        value: ps.threshold,
-        label: `Threshold (${ps.threshold})`,
+        value: val,
+        label: `Threshold (${val})`,
         yRatio: 0.35,
+        unit: 'MSCF/d',
+        alertValue: alertVal,
       };
     }
   }
 
   // Fallback default threshold based on rule name pattern
   if (name.includes('SURG') || name.includes('THR') || name.includes('VIB_THR')) {
-    return { value: 150, label: 'Threshold (150 mm/s)', yRatio: 0.35 };
+    return { value: 150.0, label: 'Threshold (150 mm/s)', yRatio: 0.35, unit: 'mm/s', alertValue: 168.4 };
   }
   if (name.includes('SPK') || name.includes('SPIKE')) {
-    return { value: 2.5, label: 'Spike Threshold (2.5σ)', yRatio: 0.30 };
+    return { value: 2.5, label: 'Spike Threshold (2.5σ)', yRatio: 0.30, unit: 'σ', alertValue: 2.9 };
   }
   if (name.includes('TEMP') || name.includes('TRND')) {
-    return { value: 85, label: 'Trend Threshold (85°C)', yRatio: 0.40 };
+    return { value: 85.0, label: 'Trend Threshold (85°C)', yRatio: 0.40, unit: '°C', alertValue: 89.2 };
   }
   if (name.includes('DP') || name.includes('NORM')) {
-    return { value: 1.8, label: 'dP Limit (1.8 bar)', yRatio: 0.32 };
+    return { value: 1.8, label: 'dP Limit (1.8 bar)', yRatio: 0.32, unit: 'bar', alertValue: 2.1 };
   }
 
-  return { value: 10, label: 'Threshold (10.0)', yRatio: 0.35 };
+  return { value: 40.0, label: 'Threshold (40.0 MSCF/d)', yRatio: 0.35, unit: 'MSCF/d', alertValue: 41.8 };
 }
+
+export function getOperationalContextTags(alert: AlertRow): { tag1: string; tag2: string } {
+  const fpso = alert.fpso || 'CDI';
+  const ts = alert.timeseries || '';
+
+  if (ts.includes('LIC-5105') || ts.includes('LIC')) {
+    return {
+      tag1: `pi:${fpso}:FPSO:T71-LSI-5104`,
+      tag2: `pi:${fpso}:FPSO:T71-SDV-5101_OLS`,
+    };
+  }
+
+  if (ts.includes('VI-') || (alert.ruleName || '').includes('SPK') || (alert.ruleName || '').includes('VIB')) {
+    return {
+      tag1: `pi:${fpso}:FPSO:771-LSI-5104`,
+      tag2: `pi:${fpso}:FPSO:771-SDV-5101_OLS`,
+    };
+  }
+
+  if (ts.includes('TI-') || (alert.ruleName || '').includes('TEMP')) {
+    return {
+      tag1: `pi:${fpso}:FPSO:771-PI-5102`,
+      tag2: `pi:${fpso}:FPSO:771-SDV-5101_OLS`,
+    };
+  }
+
+  return {
+    tag1: `pi:${fpso}:FPSO:T71-LSI-5104`,
+    tag2: `pi:${fpso}:FPSO:T71-SDV-5101_OLS`,
+  };
+}
+
+const OP_GREEN_SAMPLES = [
+  38.2, 38.5, 38.8, 38.4, 38.0, 46.8, 45.2, 43.1, 41.8, 40.5, 39.8, 39.2, 38.8, 38.4, 38.0, 37.6,
+  38.0, 38.4, 38.9, 45.9, 44.1, 42.6, 41.0, 40.1, 39.4, 38.8, 38.4, 38.0, 37.8, 38.2
+];
+
+const OP_PURPLE_SAMPLES = [
+  0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0
+];
 
 // Official SLB sample time series raw values (matches waveform in reference image)
 const SLB_CHART_VALUES = [
@@ -204,18 +261,32 @@ export default function EventDetailsModal({
   const [isChartExpanded, setIsChartExpanded] = useState<boolean>(false);
   const timeRangeRef = useRef<HTMLDivElement>(null);
 
-  // Close time range popover on outside click
+  // Operational Context Independent Navigation & State
+  const [opContextPanOffset, setOpContextPanOffset] = useState<number>(0);
+  const [isOpDragging, setIsOpDragging] = useState<boolean>(false);
+  const [opDragStartX, setOpDragStartX] = useState<number>(0);
+  const [opCustomRangeStart, setOpCustomRangeStart] = useState<string>('');
+  const [opCustomRangeEnd, setOpCustomRangeEnd] = useState<string>('');
+  const [opAppliedRangeStart, setOpAppliedRangeStart] = useState<number | null>(null);
+  const [opAppliedRangeEnd, setOpAppliedRangeEnd] = useState<number | null>(null);
+  const [isOpTimeRangeOpen, setIsOpTimeRangeOpen] = useState<boolean>(false);
+  const opTimeRangeRef = useRef<HTMLDivElement>(null);
+
+  // Close time range popovers on outside click
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       if (timeRangeRef.current && !timeRangeRef.current.contains(e.target as Node)) {
         setIsTimeRangeOpen(false);
       }
+      if (opTimeRangeRef.current && !opTimeRangeRef.current.contains(e.target as Node)) {
+        setIsOpTimeRangeOpen(false);
+      }
     }
-    if (isTimeRangeOpen) {
+    if (isTimeRangeOpen || isOpTimeRangeOpen) {
       document.addEventListener('mousedown', handleClickOutside);
       return () => document.removeEventListener('mousedown', handleClickOutside);
     }
-  }, [isTimeRangeOpen]);
+  }, [isTimeRangeOpen, isOpTimeRangeOpen]);
 
   // Alert History: Up to 5 previous alerts for this rule and asset
   const alertHistory = useMemo(() => {
@@ -258,6 +329,13 @@ export default function EventDetailsModal({
       setCustomRangeEnd(new Date(alertEndMs).toISOString().slice(0, 16));
       setIsTimeRangeOpen(false);
       setIsChartExpanded(false);
+
+      setOpContextPanOffset(0);
+      setOpAppliedRangeStart(null);
+      setOpAppliedRangeEnd(null);
+      setOpCustomRangeStart(new Date(alertStartMs).toISOString().slice(0, 16));
+      setOpCustomRangeEnd(new Date(alertEndMs).toISOString().slice(0, 16));
+      setIsOpTimeRangeOpen(false);
     }
   }, [alert, alertStartMs, alertEndMs]);
 
@@ -269,6 +347,34 @@ export default function EventDetailsModal({
     const label = `${formatDateTimeSecond(s)} - ${formatDateTimeSecond(e)}`;
     return { rangeStartMs: s, rangeEndMs: e, rangeDurationMs: duration, rangeLabel: label };
   }, [appliedRangeStart, appliedRangeEnd, alertStartMs, alertEndMs]);
+
+  // Resolve op timeframe
+  const { opRangeStartMs, opRangeEndMs, opRangeDurationMs, opRangeLabel } = useMemo(() => {
+    const s = opAppliedRangeStart !== null ? opAppliedRangeStart : alertStartMs;
+    const e = opAppliedRangeEnd !== null ? opAppliedRangeEnd : alertEndMs;
+    const duration = Math.max(e - s, 3600000);
+    const label = `${formatDateTimeSecond(s)} - ${formatDateTimeSecond(e)}`;
+    return { opRangeStartMs: s, opRangeEndMs: e, opRangeDurationMs: duration, opRangeLabel: label };
+  }, [opAppliedRangeStart, opAppliedRangeEnd, alertStartMs, alertEndMs]);
+
+  const handleOpMouseDown = (e: React.MouseEvent) => {
+    setIsOpDragging(true);
+    setOpDragStartX(e.clientX - opContextPanOffset);
+  };
+  const handleOpMouseMove = (e: React.MouseEvent) => {
+    if (!isOpDragging) return;
+    const newOffset = e.clientX - opDragStartX;
+    setOpContextPanOffset(Math.max(0, Math.min(520, newOffset)));
+  };
+  const handleOpMouseUp = () => {
+    setIsOpDragging(false);
+  };
+
+  const opShiftMs = (opContextPanOffset / 520) * opRangeDurationMs;
+  const opShiftedStartMs = opRangeStartMs - opShiftMs;
+  const opShiftedEndMs = opRangeEndMs - opShiftMs;
+  const opStartDateLabel = new Date(opShiftedStartMs).toISOString().slice(0, 10);
+  const opEndDateLabel = new Date(opShiftedEndMs).toISOString().slice(0, 10);
 
   if (!alert) return null;
 
@@ -351,6 +457,44 @@ export default function EventDetailsModal({
   }
   const pathDExpanded = expandedPoints.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(' ');
 
+  // SVG points for Operational Context
+  const { tag1: opContextTag1, tag2: opContextTag2 } = useMemo(() => getOperationalContextTags(alert), [alert]);
+  const opShift = Math.round(opContextPanOffset / 15);
+  const opGreenPoints: [number, number][] = [];
+  const opPurplePoints: [number, number][] = [];
+  const opNumPoints = 18;
+  for (let i = 0; i < opNumPoints; i++) {
+    const x = (i / (opNumPoints - 1)) * svgWidth;
+    const gIdx = ((i - opShift) % OP_GREEN_SAMPLES.length + OP_GREEN_SAMPLES.length) % OP_GREEN_SAMPLES.length;
+    const gVal = OP_GREEN_SAMPLES[gIdx];
+    const gy = Math.max(10, Math.min(90, 85 - ((gVal - 32) / 16) * 70));
+    opGreenPoints.push([x, gy]);
+
+    const pIdx = ((i - opShift) % OP_PURPLE_SAMPLES.length + OP_PURPLE_SAMPLES.length) % OP_PURPLE_SAMPLES.length;
+    const pVal = OP_PURPLE_SAMPLES[pIdx];
+    const py = pVal === 1 ? 28 : 88;
+    opPurplePoints.push([x, py]);
+  }
+  const opPathDGreen = opGreenPoints.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(' ');
+  let opPathDPurple = '';
+  for (let i = 0; i < opPurplePoints.length; i++) {
+    const [x, y] = opPurplePoints[i];
+    if (i === 0) {
+      opPathDPurple += `M ${x.toFixed(1)} ${y.toFixed(1)}`;
+    } else {
+      const prevY = opPurplePoints[i - 1][1];
+      if (prevY !== y) {
+        opPathDPurple += ` L ${x.toFixed(1)} ${prevY.toFixed(1)} L ${x.toFixed(1)} ${y.toFixed(1)}`;
+      } else {
+        opPathDPurple += ` L ${x.toFixed(1)} ${y.toFixed(1)}`;
+      }
+    }
+  }
+
+  const thresholdInfo = getRuleThresholdInfo(alert);
+  const alertValueStr = `${thresholdInfo.alertValue} ${thresholdInfo.unit}`;
+  const thresholdValueStr = `${thresholdInfo.value} ${thresholdInfo.unit}`;
+
   return (
     <>
       <Dialog.Root open={open} onOpenChange={v => !v && onClose()}>
@@ -419,6 +563,14 @@ export default function EventDetailsModal({
                 <div className="grid grid-cols-3 py-1.5 border-b border-[#1E293B]/60">
                   <span className="text-[#94A3B8]">Recommendations</span>
                   <span className="col-span-2 text-[#E2E8F0] leading-relaxed">{failureMode}</span>
+                </div>
+                <div className="grid grid-cols-3 py-1.5 border-b border-[#1E293B]/60">
+                  <span className="text-[#94A3B8]">Alert Value</span>
+                  <span className="col-span-2 font-mono text-white font-medium">{alertValueStr}</span>
+                </div>
+                <div className="grid grid-cols-3 py-1.5 border-b border-[#1E293B]/60">
+                  <span className="text-[#94A3B8]">Threshold value</span>
+                  <span className="col-span-2 font-mono text-white font-medium">{thresholdValueStr}</span>
                 </div>
                 <div className="grid grid-cols-3 py-1.5 border-b border-[#1E293B]/60">
                   <span className="text-[#94A3B8]">Group Ref.</span>
@@ -632,6 +784,181 @@ export default function EventDetailsModal({
                   {/* Pan Hint text */}
                   <div className="flex justify-end items-center text-[10px] text-[#64748B] pt-1">
                     <span>Drag chart horizontally to explore past alerts</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Operational Context Chart Box - Official SLB Layout */}
+              <div className="bg-[#0B0F19] border border-[#1E293B] rounded-xl p-4">
+                {/* Header & Controls */}
+                <div className="flex items-center justify-between mb-2.5">
+                  <h3 className="text-xs font-semibold text-white">Operational Context</h3>
+
+                  <div className="flex items-center gap-2.5 relative">
+                    {opContextPanOffset > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setOpContextPanOffset(0)}
+                        className="text-[11px] text-[#0284C7] hover:underline cursor-pointer font-medium"
+                      >
+                        Reset to Trigger
+                      </button>
+                    )}
+                    <span className="text-[10px] font-mono text-[#94A3B8]">
+                      Latest: <span className="text-white">38.4</span>
+                    </span>
+
+                    {/* Independent Time Range Selector Popover */}
+                    <div className="relative" ref={opTimeRangeRef}>
+                      <button
+                        type="button"
+                        onClick={() => setIsOpTimeRangeOpen(prev => !prev)}
+                        className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-[#070A10] border border-[#1E293B] hover:border-[#334155] text-[10px] font-mono text-[#E2E8F0] shadow-sm transition-colors cursor-pointer"
+                      >
+                        <span className="truncate max-w-[170px]">{opRangeLabel}</span>
+                        <ChevronDown size={10} className="text-[#64748B]" />
+                      </button>
+
+                      {isOpTimeRangeOpen && (
+                        <div className="absolute right-0 top-full mt-1.5 z-40 w-72 bg-[#0B0F19] border border-[#1E293B] rounded-xl p-3 shadow-2xl space-y-3 text-xs">
+                          <div className="flex items-center justify-between border-b border-[#1E293B] pb-2">
+                            <span className="font-semibold text-white">Select Time Range</span>
+                            <button
+                              type="button"
+                              onClick={() => setIsOpTimeRangeOpen(false)}
+                              className="text-[#64748B] hover:text-white cursor-pointer"
+                            >
+                              <X size={14} />
+                            </button>
+                          </div>
+
+                          <div className="space-y-3 pt-1">
+                            <div className="space-y-2">
+                              <div>
+                                <label className="text-[10px] text-[#94A3B8] block mb-1">Start Date & Time</label>
+                                <input
+                                  type="datetime-local"
+                                  value={opCustomRangeStart}
+                                  onChange={e => setOpCustomRangeStart(e.target.value)}
+                                  className="w-full bg-[#070A10] border border-[#1E293B] focus:border-[#0284C7] rounded-lg px-2 py-1 text-[11px] font-mono text-white outline-none"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-[10px] text-[#94A3B8] block mb-1">End Date & Time</label>
+                                <input
+                                  type="datetime-local"
+                                  value={opCustomRangeEnd}
+                                  onChange={e => setOpCustomRangeEnd(e.target.value)}
+                                  className="w-full bg-[#070A10] border border-[#1E293B] focus:border-[#0284C7] rounded-lg px-2 py-1 text-[11px] font-mono text-white outline-none"
+                                />
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (opCustomRangeStart && opCustomRangeEnd) {
+                                  const parsedS = new Date(opCustomRangeStart).getTime();
+                                  const parsedE = new Date(opCustomRangeEnd).getTime();
+                                  if (!isNaN(parsedS) && !isNaN(parsedE) && parsedE > parsedS) {
+                                    setOpAppliedRangeStart(parsedS);
+                                    setOpAppliedRangeEnd(parsedE);
+                                    setOpContextPanOffset(0);
+                                    setIsOpTimeRangeOpen(false);
+                                  }
+                                }
+                              }}
+                              className="w-full mt-1 py-1.5 rounded-lg bg-[#0284C7] hover:bg-[#0284C7]/90 text-white font-medium text-xs shadow-md transition-colors cursor-pointer"
+                            >
+                              Apply Range
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Subtitle / Legend tags matching SLB */}
+                <div className="flex items-center gap-4 mb-2 flex-wrap">
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded-sm bg-[#10B981] inline-block shadow-sm" />
+                    <span className="text-[10px] font-mono text-white font-medium">{opContextTag1}</span>
+                    <Info size={10} className="text-[#64748B] hover:text-[#94A3B8] cursor-pointer" />
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded-sm bg-[#8B5CF6] inline-block shadow-sm" />
+                    <span className="text-[10px] font-mono text-white font-medium">{opContextTag2}</span>
+                    <Info size={10} className="text-[#64748B] hover:text-[#94A3B8] cursor-pointer" />
+                  </div>
+                </div>
+
+                {/* Plot Area */}
+                <div
+                  className="relative select-none cursor-ew-resize"
+                  onMouseDown={handleOpMouseDown}
+                  onMouseMove={handleOpMouseMove}
+                  onMouseUp={handleOpMouseUp}
+                >
+                  <div className="flex items-stretch">
+                    {/* Multi Y-Axis Ticks */}
+                    <div className="flex items-stretch pr-2 border-r border-[#1E293B] text-[8px] font-mono gap-1.5 select-none">
+                      {/* State / Purple scale */}
+                      <div className="w-6 flex flex-col justify-between text-[#8B5CF6] text-right py-0">
+                        <span className="text-[7px] text-[#8B5CF6]/90 font-bold">STATE</span>
+                        <span>4</span>
+                        <span>3</span>
+                        <span>2</span>
+                        <span>1</span>
+                        <span>0</span>
+                      </div>
+                      {/* LSI / Green scale */}
+                      <div className="w-7 flex flex-col justify-between text-[#10B981] text-right py-0 border-l border-[#1E293B]/60 pl-1.5">
+                        <span className="text-[7px] text-[#10B981]/90 font-bold">%</span>
+                        <span>48</span>
+                        <span>44</span>
+                        <span>40</span>
+                        <span>36</span>
+                        <span>32</span>
+                      </div>
+                    </div>
+
+                    {/* SVG Chart Surface */}
+                    <div className="flex-1 pl-2 relative flex flex-col">
+                      <div className="relative w-full">
+                        <svg className="w-full h-36 overflow-visible" viewBox="0 0 520 100" preserveAspectRatio="none">
+                          {/* Horizontal Grid lines */}
+                          <line x1="0" y1="20" x2="520" y2="20" stroke="#1E293B" strokeWidth="1" />
+                          <line x1="0" y1="40" x2="520" y2="40" stroke="#1E293B" strokeWidth="1" />
+                          <line x1="0" y1="60" x2="520" y2="60" stroke="#1E293B" strokeWidth="1" />
+                          <line x1="0" y1="80" x2="520" y2="80" stroke="#1E293B" strokeWidth="1" />
+
+                          {/* Vertical Grid lines */}
+                          <line x1="130" y1="0" x2="130" y2="100" stroke="#1E293B" strokeWidth="1" />
+                          <line x1="260" y1="0" x2="260" y2="100" stroke="#1E293B" strokeWidth="1" />
+                          <line x1="390" y1="0" x2="390" y2="100" stroke="#1E293B" strokeWidth="1" />
+
+                          {/* Green Signal Plot Line */}
+                          <path d={opPathDGreen} fill="none" stroke="#10B981" strokeWidth="1.8" strokeLinecap="round" />
+
+                          {/* Purple Discrete Signal Plot Line */}
+                          <path d={opPathDPurple} fill="none" stroke="#8B5CF6" strokeWidth="1.8" strokeLinecap="round" />
+                        </svg>
+                      </div>
+
+                      {/* X-Axis Labels */}
+                      <div className="flex justify-between items-center text-[10px] font-mono text-[#94A3B8] pt-2 border-t border-[#1E293B] select-none">
+                        <span>{opStartDateLabel}</span>
+                        <span>{opEndDateLabel}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Pan Hint text */}
+                  <div className="flex justify-between items-center text-[10px] text-[#64748B] pt-1">
+                    <span className="flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#10B981]" /> Correlated process operational context
+                    </span>
+                    <span>Drag chart horizontally to explore operational context</span>
                   </div>
                 </div>
               </div>
