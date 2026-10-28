@@ -458,7 +458,7 @@ export default function EventDetailsModal({
   const pathDExpanded = expandedPoints.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(' ');
 
   // SVG points for Operational Context
-  const { tag1: opContextTag1, tag2: opContextTag2 } = useMemo(() => getOperationalContextTags(alert), [alert]);
+  const { tag1: opContextTag1, tag2: opContextTag2 } = getOperationalContextTags(alert);
   const opShift = Math.round(opContextPanOffset / 15);
   const opGreenPoints: [number, number][] = [];
   const opPurplePoints: [number, number][] = [];
