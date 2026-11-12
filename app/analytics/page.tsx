@@ -4,6 +4,7 @@ import { eq } from 'drizzle-orm';
 import Topbar from '@/components/layout/Topbar';
 import NavTabs from '@/components/layout/NavTabs';
 import AnalyticsClient from '@/components/analytics/AnalyticsClient';
+import { getSystemFromTimeseries } from '@/lib/systemUtils';
 
 export const dynamic = 'force-dynamic';
 
@@ -31,6 +32,8 @@ export default async function AnalyticsPage() {
       status:        alerts.status,
       triggeredAt:   alerts.triggeredAt,
       reviewedAt:    alerts.reviewedAt,
+      reviewedBy:    alerts.reviewedBy,
+      timeseries:    ruleInstances.timeseries,
       ruleName:      monitoringRules.name,
       fpsoCode:      fpsos.code,
       equipmentCode: equipment.code,
@@ -47,6 +50,8 @@ export default async function AnalyticsPage() {
     status: a.status,
     triggeredAt: a.triggeredAt.toISOString(),
     reviewedAt: a.reviewedAt ? a.reviewedAt.toISOString() : null,
+    reviewedBy: a.reviewedBy ?? null,
+    system: getSystemFromTimeseries(a.timeseries || ''),
     ruleName: a.ruleName,
     fpsoCode: a.fpsoCode,
     equipmentCode: a.equipmentCode,

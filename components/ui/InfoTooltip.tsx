@@ -62,7 +62,7 @@ export default function InfoTooltip({
     >
       <button
         type="button"
-        aria-label="Informações sobre o cálculo"
+        aria-label="Calculation information"
         onClick={e => {
           e.stopPropagation();
           setIsVisible(prev => !prev);
@@ -81,13 +81,13 @@ export default function InfoTooltip({
           {title && (
             <div className="font-semibold text-white text-xs mb-1.5 flex items-center justify-between border-b border-[#232A3D] pb-1.5">
               <span>{title}</span>
-              <span className="text-[10px] text-[#38BDF8] font-mono">Definição</span>
+              <span className="text-[10px] text-[#38BDF8] font-mono">Definition</span>
             </div>
           )}
 
           {formula && (
             <div className="mb-2 bg-[#0A0D14] border border-[#1E2536] rounded-md px-2 py-1 text-[11px] font-mono text-[#60A5FA] break-words">
-              <span className="text-[#94A3B8] font-sans mr-1">Fórmula:</span>
+              <span className="text-[#94A3B8] font-sans mr-1">Formula:</span>
               {formula}
             </div>
           )}
@@ -98,7 +98,7 @@ export default function InfoTooltip({
 
           {statusList && statusList.length > 0 && (
             <div className="pt-1.5 border-t border-[#1E2536] text-[10px] text-[#94A3B8]">
-              <span className="font-medium text-[#E2E8F0]">Status considerados: </span>
+              <span className="font-medium text-[#E2E8F0]">Considered statuses: </span>
               {statusList.join(', ')}
             </div>
           )}

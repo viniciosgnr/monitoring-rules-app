@@ -162,10 +162,13 @@ async function seed() {
         nextRunDate = new Date(lastRunDate.getTime() + 7 * 86400000);
       }
 
+      const sysCodes = ['771', '771', '772', '773', '774', '775', '771', '772'];
+      const sysCode = sysCodes[i % sysCodes.length];
+
       return {
         ruleId:      data.ruleId,
         equipmentId: data.equipmentId,
-        timeseries:  `UNY:FPSO:771-VI-181${(i % 20) + 1}_X`,
+        timeseries:  `UNY:FPSO:${sysCode}-VI-181${(i % 20) + 1}_X`,
         schedule:    data.schedule,
         enabled,
         lastRunAt:   lastRunDate,
@@ -226,33 +229,34 @@ async function seed() {
       const inst = instances[instWeightsPool[poolIdx] % instances.length];
       const type = typePool[idx % typePool.length];
 
-      // Weighted status distribution: ~80% true positive (validated/closed), ~12% rejected (FP), ~8% pending
-      let status = 'validated';
+      // Weighted status distribution: ~80% eligible for EM (validated), ~12% rejected (FP), ~8% pending
+      let status = 'eligible_for_em';
       const randMod = (idx * 37 + day * 13 + j * 7) % 100;
       if (randMod < 80) {
-        status = 'validated';
+        status = 'eligible_for_em';
       } else if (randMod < 92) {
         status = 'rejected'; // False positive
       } else if (randMod < 96) {
-        status = 'validation_in_progress';
+        status = 'review_in_progress';
       } else {
-        status = 'to_be_validated';
+        status = 'new';
       }
 
       const hoursOffset = (j * 2 + (day * 3) % 4) % 24;
       const minutesOffset = (j * 17) % 60;
       const triggeredAt = new Date(nowMs - day * 24 * 60 * 60 * 1000 - hoursOffset * 60 * 60 * 1000 - minutesOffset * 60 * 1000);
       const endDate = new Date(triggeredAt.getTime() + 12 * 60 * 60 * 1000);
-      const reviewedAt = (status === 'validated' || status === 'rejected')
-        ? new Date(triggeredAt.getTime() + 2 * 60 * 60 * 1000)
+      const leadTimeHours = 1 + ((idx * 3 + j) % 6);
+      const reviewedAt = (status === 'eligible_for_em' || status === 'rejected')
+        ? new Date(triggeredAt.getTime() + leadTimeHours * 60 * 60 * 1000)
         : null;
       const operatorEmails = ['smetzner@slb.com', 'jdoe@slb.com', 'mrodrigues@slb.com', 'icaro.zelioli@sbmoffshore.com'];
-      const reviewedBy = status !== 'to_be_validated'
+      const reviewedBy = status !== 'new'
         ? operatorEmails[j % operatorEmails.length]
         : null;
 
       const severityPool = ['Low', 'Medium', 'High'];
-      const severity = status === 'validated'
+      const severity = status === 'eligible_for_em'
         ? severityPool[(idx * 3 + j) % severityPool.length]
         : null;
 

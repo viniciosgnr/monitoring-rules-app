@@ -8,6 +8,8 @@ import FalsePositiveChart from './FalsePositiveChart';
 import RuleAlertsChart from './RuleAlertsChart';
 import StatusAlertsChart from './StatusAlertsChart';
 import DaysToTreatChart from './DaysToTreatChart';
+import AlertsPerResponsibleChart from './AlertsPerResponsibleChart';
+import AlertsBySystemChart from './AlertsBySystemChart';
 import InfoTooltip from '@/components/ui/InfoTooltip';
 import { SlidersHorizontal, Maximize2, ArrowUp, ArrowDown, ArrowUpDown, BarChart3, Percent } from 'lucide-react';
 
@@ -27,9 +29,69 @@ interface AlertRow {
   status: string;
   triggeredAt: string;
   reviewedAt?: string | null;
+  reviewedBy?: string | null;
+  system?: string;
   ruleName: string;
   fpsoCode: string;
   equipmentCode: string;
+}
+
+const DEFAULT_SYSTEMS = [
+  'Gas System',
+  'Water Injection System',
+  'Utility System',
+  'Crude Oil System',
+  'Power Generation System',
+];
+
+const SYSTEM_SHORT_LABELS: Record<string, string> = {
+  'Gas System': 'Gas System',
+  'Water Injection System': 'Water Injection',
+  'Utility System': 'Utility System',
+  'Crude Oil System': 'Crude Oil',
+  'Power Generation System': 'Power Generation',
+};
+
+const KNOWN_RESPONSIBLE_MAP: Record<string, string> = {
+  'smetzner@slb.com': 'Metzner, S.',
+  'jdoe@slb.com': 'Doe, Jon',
+  'jon.doe@sbmoffshore.com': 'Doe, Jon',
+  'jon doe': 'Doe, Jon',
+  'mrodrigues@slb.com': 'Rodrigues, Marcos',
+  'icaro.zelioli@sbmoffshore.com': 'Zelioli, Icaro',
+};
+
+const DEFAULT_RESPONSIBLES = [
+  'Doe, Jon',
+  'Metzner, S.',
+  'Rodrigues, Marcos',
+  'Zelioli, Icaro',
+];
+
+function formatResponsibleName(raw?: string | null): string | null {
+  if (!raw || !raw.trim()) return null;
+  const trimmed = raw.trim();
+  const mapped = KNOWN_RESPONSIBLE_MAP[trimmed.toLowerCase()];
+  if (mapped) return mapped;
+
+  const localPart = trimmed.includes('@') ? trimmed.split('@')[0] : trimmed;
+  if (localPart.includes('.')) {
+    const parts = localPart.split('.').filter(Boolean);
+    if (parts.length >= 2) {
+      const first = parts[0].charAt(0).toUpperCase() + parts[0].slice(1).toLowerCase();
+      const last = parts[parts.length - 1].charAt(0).toUpperCase() + parts[parts.length - 1].slice(1).toLowerCase();
+      return `${last}, ${first}`;
+    }
+  }
+  if (localPart.includes(' ')) {
+    const parts = localPart.split(/\s+/).filter(Boolean);
+    if (parts.length >= 2) {
+      const first = parts.slice(0, -1).join(' ');
+      const last = parts[parts.length - 1];
+      return `${last}, ${first}`;
+    }
+  }
+  return trimmed;
 }
 
 interface Props {
@@ -383,6 +445,8 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
         label,
         accuracy,
         falsePositives,
+        cumCorrect,
+        cumFps,
         driftCount: intervalAlerts.filter(a => getRuleFriendlyCategory(a.ruleName) === 'Drift').length,
         spikeCount: intervalAlerts.filter(a => getRuleFriendlyCategory(a.ruleName) === 'Spike').length,
         normalizedDpCount: intervalAlerts.filter(a => getRuleFriendlyCategory(a.ruleName) === 'Normalized dP').length,
@@ -397,44 +461,153 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
   }, [alertsList, periodBoundaries, selectedFpsos, allFpsos, selectedEquipments, selectedCategories, equipments]);
 
   const accuracyChartData = useMemo(() => {
-    return trendData.map(d => ({ label: d.label, accuracy: d.accuracy }));
-  }, [trendData]);
-
-  const fpChartData = useMemo(() => {
-    return trendData.map(d => ({ label: d.label, falsePositives: d.falsePositives }));
-  }, [trendData]);
-
-  const ruleAlertsChartData = useMemo(() => {
     return trendData.map(d => ({
-      timeKey: d.label,
-      Drift: d.driftCount,
-      Spike: d.spikeCount,
-      'Normalized dP': d.normalizedDpCount,
-      Surge: d.surgeCount,
-      Trend: d.trendCount,
+      label: d.label,
+      accuracy: d.accuracy,
+      count: d.eligibleForEmCount,
+      totalTreated: d.eligibleForEmCount + d.rejectedCount,
     }));
   }, [trendData]);
 
-  // Status chart data (Count or 100% Percent stacked)
+  const fpChartData = useMemo(() => {
+    return trendData.map(d => ({
+      label: d.label,
+      falsePositives: d.falsePositives,
+      count: d.rejectedCount,
+      totalTreated: d.eligibleForEmCount + d.rejectedCount,
+    }));
+  }, [trendData]);
+
+  // Dynamic Top 5 Rule Families + Other calculation for scalability (supports 30+ rule families)
+  const TOP_RULE_PALETTE = ['#E595F7', '#9E28B5', '#C843E6', '#6929C4', '#3B82F6'];
+  const OTHER_COLOR = '#60A5FA';
+
+  const { ruleAlertsChartData, ruleActiveSeries } = useMemo(() => {
+    const { buckets, periodStart, periodEnd } = periodBoundaries;
+
+    // Filter relevant treated alerts in the active overall period
+    const periodFilteredAlerts = alertsList.filter(a => {
+      const isTreated = a.status === 'eligible_for_em' || a.status === 'validated' || a.status === 'rejected';
+      if (!isTreated) return false;
+      if (selectedFpsos.length > 0 && selectedFpsos.length < allFpsos.length && !selectedFpsos.includes(a.fpsoCode)) {
+        return false;
+      }
+      if (selectedEquipments.length > 0 && selectedEquipments.length < equipments.length && !selectedEquipments.includes(a.equipmentCode)) {
+        return false;
+      }
+      if (selectedCategories.length > 0 && selectedCategories.length < CATEGORIES_LIST.length) {
+        const friendlyCat = getRuleFriendlyCategory(a.ruleName);
+        if (!selectedCategories.includes(friendlyCat)) return false;
+      }
+      const tTime = new Date(a.triggeredAt).getTime();
+      return tTime >= periodStart.getTime() && tTime <= periodEnd.getTime();
+    });
+
+    // Count volume per rule category
+    const categoryTotals: Record<string, number> = {};
+    periodFilteredAlerts.forEach(a => {
+      const cat = getRuleFriendlyCategory(a.ruleName);
+      categoryTotals[cat] = (categoryTotals[cat] || 0) + 1;
+    });
+
+    const sortedCategories = Object.keys(categoryTotals).sort(
+      (a, b) => categoryTotals[b] - categoryTotals[a] || a.localeCompare(b)
+    );
+
+    // If selectedCategories is explicitly chosen and fewer than 6, respect user filter directly
+    const userFiltered = selectedCategories.length > 0 && selectedCategories.length < CATEGORIES_LIST.length;
+    let topCategories: string[] = [];
+    let hasOther = false;
+
+    if (userFiltered) {
+      topCategories = sortedCategories;
+    } else if (sortedCategories.length <= 5) {
+      topCategories = sortedCategories;
+    } else {
+      topCategories = sortedCategories.slice(0, 5);
+      hasOther = true;
+    }
+
+    const series: { key: string; color: string }[] = topCategories.map((cat, idx) => ({
+      key: cat,
+      color: TOP_RULE_PALETTE[idx % TOP_RULE_PALETTE.length],
+    }));
+
+    if (hasOther) {
+      series.push({ key: 'Other', color: OTHER_COLOR });
+    }
+
+    // Now aggregate each bucket according to the top categories + Other
+    const chartData = buckets.map(({ label, start, end }) => {
+      const bucketAlerts = alertsList.filter(a => {
+        const isTreated = a.status === 'eligible_for_em' || a.status === 'validated' || a.status === 'rejected';
+        if (!isTreated) return false;
+        if (selectedFpsos.length > 0 && selectedFpsos.length < allFpsos.length && !selectedFpsos.includes(a.fpsoCode)) {
+          return false;
+        }
+        if (selectedEquipments.length > 0 && selectedEquipments.length < equipments.length && !selectedEquipments.includes(a.equipmentCode)) {
+          return false;
+        }
+        if (selectedCategories.length > 0 && selectedCategories.length < CATEGORIES_LIST.length) {
+          const friendlyCat = getRuleFriendlyCategory(a.ruleName);
+          if (!selectedCategories.includes(friendlyCat)) return false;
+        }
+        const tTime = new Date(a.triggeredAt).getTime();
+        return tTime >= start.getTime() && tTime <= end.getTime();
+      });
+
+      const row: { timeKey: string; [key: string]: number | string } = { timeKey: label };
+      topCategories.forEach(cat => {
+        row[cat] = 0;
+      });
+      if (hasOther) {
+        row['Other'] = 0;
+      }
+
+      bucketAlerts.forEach(a => {
+        const cat = getRuleFriendlyCategory(a.ruleName);
+        if (topCategories.includes(cat)) {
+          (row[cat] as number) += 1;
+        } else if (hasOther) {
+          (row['Other'] as number) += 1;
+        }
+      });
+
+      return row;
+    });
+
+    return { ruleAlertsChartData: chartData, ruleActiveSeries: series };
+  }, [alertsList, periodBoundaries, selectedFpsos, allFpsos, selectedEquipments, selectedCategories, equipments]);
+
+  // Status chart data (Both counts and percentages available for rich tooltips)
   const statusAlertsChartData = useMemo(() => {
     return trendData.map(d => {
+      const total = d.newCount + d.reviewInProgressCount + d.eligibleForEmCount + d.rejectedCount;
+      const newPct = total > 0 ? parseFloat(((d.newCount / total) * 100).toFixed(1)) : 0;
+      const revPct = total > 0 ? parseFloat(((d.reviewInProgressCount / total) * 100).toFixed(1)) : 0;
+      const eligPct = total > 0 ? parseFloat(((d.eligibleForEmCount / total) * 100).toFixed(1)) : 0;
+      const rejPct = total > 0 ? parseFloat(((d.rejectedCount / total) * 100).toFixed(1)) : 0;
+
       if (statusChartMode === 'percent') {
-        const total = d.newCount + d.reviewInProgressCount + d.eligibleForEmCount + d.rejectedCount;
-        if (total === 0) {
-          return {
-            timeKey: d.label,
-            'New': 0,
-            'Review in Progress': 0,
-            'Eligible for Event Manager': 0,
-            'Rejected': 0,
-          };
-        }
         return {
           timeKey: d.label,
-          'New': parseFloat(((d.newCount / total) * 100).toFixed(1)),
-          'Review in Progress': parseFloat(((d.reviewInProgressCount / total) * 100).toFixed(1)),
-          'Eligible for Event Manager': parseFloat(((d.eligibleForEmCount / total) * 100).toFixed(1)),
-          'Rejected': parseFloat(((d.rejectedCount / total) * 100).toFixed(1)),
+          'New': newPct,
+          'Review in Progress': revPct,
+          'Eligible for Event Manager': eligPct,
+          'Rejected': rejPct,
+          _counts: {
+            'New': d.newCount,
+            'Review in Progress': d.reviewInProgressCount,
+            'Eligible for Event Manager': d.eligibleForEmCount,
+            'Rejected': d.rejectedCount,
+          },
+          _pcts: {
+            'New': newPct,
+            'Review in Progress': revPct,
+            'Eligible for Event Manager': eligPct,
+            'Rejected': rejPct,
+          },
+          _total: total,
         };
       }
 
@@ -444,16 +617,32 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
         'Review in Progress': d.reviewInProgressCount,
         'Eligible for Event Manager': d.eligibleForEmCount,
         'Rejected': d.rejectedCount,
+        _counts: {
+          'New': d.newCount,
+          'Review in Progress': d.reviewInProgressCount,
+          'Eligible for Event Manager': d.eligibleForEmCount,
+          'Rejected': d.rejectedCount,
+        },
+        _pcts: {
+          'New': newPct,
+          'Review in Progress': revPct,
+          'Eligible for Event Manager': eligPct,
+          'Rejected': rejPct,
+        },
+        _total: total,
       };
     });
   }, [trendData, statusChartMode]);
 
-  // Days to Treat an Alert (Average) line chart data - average of selected FPSOs
+  const activeFpsos = useMemo(() => {
+    return selectedFpsos.length > 0 && selectedFpsos.length < allFpsos.length
+      ? [...selectedFpsos].sort()
+      : allFpsos;
+  }, [selectedFpsos, allFpsos]);
+
+  // Days to Treat an Alert (Average) composed chart data - per FPSO bars + Fleet weighted average line
   const daysToTreatData = useMemo(() => {
     const { buckets } = periodBoundaries;
-    const activeFpsos = selectedFpsos.length > 0 && selectedFpsos.length < allFpsos.length
-      ? selectedFpsos
-      : allFpsos;
 
     return buckets.map(({ label, start, end }) => {
       const bucketTreated = alertsList.filter(a => {
@@ -474,21 +663,167 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
         );
       });
 
-      let daysAvg = 0;
+      let fleetAvg = 0;
       if (bucketTreated.length > 0) {
         const totalDays = bucketTreated.reduce((sum, a) => {
           const diffDays = Math.max(0, (new Date(a.reviewedAt!).getTime() - new Date(a.triggeredAt).getTime()) / 86400000);
           return sum + diffDays;
         }, 0);
-        daysAvg = parseFloat((totalDays / bucketTreated.length).toFixed(1));
+        fleetAvg = parseFloat((totalDays / bucketTreated.length).toFixed(1));
       }
 
-      return {
+      const point: {
+        label: string;
+        Fleet: number;
+        _counts?: Record<string, number>;
+        _totalAlerts?: number;
+        [fpsoCode: string]: number | string | Record<string, number> | undefined;
+      } = {
         label,
-        days: daysAvg,
+        Fleet: fleetAvg,
+        _counts: {},
+        _totalAlerts: bucketTreated.length,
+      };
+
+      activeFpsos.forEach(fpso => {
+        const fpsoAlerts = bucketTreated.filter(a => a.fpsoCode === fpso);
+        point._counts![fpso] = fpsoAlerts.length;
+        if (fpsoAlerts.length > 0) {
+          const fpsoTotalDays = fpsoAlerts.reduce((sum, a) => {
+            const diffDays = Math.max(0, (new Date(a.reviewedAt!).getTime() - new Date(a.triggeredAt).getTime()) / 86400000);
+            return sum + diffDays;
+          }, 0);
+          point[fpso] = parseFloat((fpsoTotalDays / fpsoAlerts.length).toFixed(1));
+        } else {
+          point[fpso] = 0;
+        }
+      });
+
+      return point;
+    });
+  }, [alertsList, periodBoundaries, activeFpsos, selectedEquipments, selectedCategories, equipments]);
+
+  // Alerts per Responsible (Eligible for Event Manager, Rejected & Review in Progress) stacked bar chart data
+  const alertsPerResponsibleData = useMemo(() => {
+    const { periodStart, periodEnd } = periodBoundaries;
+
+    // Collect all known responsibles (defaults + any others present in the DB)
+    const responsibleSet = new Set<string>(DEFAULT_RESPONSIBLES);
+    alertsList.forEach(a => {
+      const formatted = formatResponsibleName(a.reviewedBy);
+      if (formatted) responsibleSet.add(formatted);
+    });
+
+    const sortedResponsibles = Array.from(responsibleSet).sort((a, b) => a.localeCompare(b));
+    const countsMap: Record<string, { eligible: number; rejected: number; reviewInProgress: number }> = {};
+    sortedResponsibles.forEach(r => {
+      countsMap[r] = { eligible: 0, rejected: 0, reviewInProgress: 0 };
+    });
+
+    alertsList.forEach(a => {
+      const isEligible = a.status === 'eligible_for_em' || a.status === 'validated';
+      const isRejected = a.status === 'rejected';
+      const isReviewInProgress = a.status === 'review_in_progress' || a.status === 'validation_in_progress';
+      if (!isEligible && !isRejected && !isReviewInProgress) return;
+      if (!activeFpsos.includes(a.fpsoCode)) return;
+      if (selectedEquipments.length > 0 && selectedEquipments.length < equipments.length && !selectedEquipments.includes(a.equipmentCode)) {
+        return;
+      }
+      if (selectedCategories.length > 0 && selectedCategories.length < CATEGORIES_LIST.length) {
+        const friendlyCat = getRuleFriendlyCategory(a.ruleName);
+        if (!selectedCategories.includes(friendlyCat)) return;
+      }
+      const tTime = new Date(a.triggeredAt).getTime();
+      if (tTime < periodStart.getTime() || tTime > periodEnd.getTime()) return;
+
+      const formatted = formatResponsibleName(a.reviewedBy);
+      if (formatted) {
+        if (!countsMap[formatted]) {
+          countsMap[formatted] = { eligible: 0, rejected: 0, reviewInProgress: 0 };
+        }
+        if (isEligible) countsMap[formatted].eligible += 1;
+        else if (isRejected) countsMap[formatted].rejected += 1;
+        else if (isReviewInProgress) countsMap[formatted].reviewInProgress += 1;
+      }
+    });
+
+    return sortedResponsibles.map(responsible => {
+      const entry = countsMap[responsible] || { eligible: 0, rejected: 0, reviewInProgress: 0 };
+      return {
+        responsible,
+        eligible: entry.eligible,
+        rejected: entry.rejected,
+        reviewInProgress: entry.reviewInProgress,
+        total: entry.eligible + entry.rejected + entry.reviewInProgress,
       };
     });
-  }, [alertsList, periodBoundaries, allFpsos, selectedFpsos, selectedEquipments, selectedCategories, equipments]);
+  }, [alertsList, periodBoundaries, activeFpsos, selectedEquipments, selectedCategories, equipments]);
+
+  const totalResponsibleAlerts = useMemo(() => {
+    return alertsPerResponsibleData.reduce((sum, item) => sum + item.total, 0);
+  }, [alertsPerResponsibleData]);
+
+  // Alerts by System (All 4 statuses: Eligible for Event Manager, Rejected, Review in Progress, New) stacked bar chart data (sorted descending by volume)
+  const alertsBySystemData = useMemo(() => {
+    const { periodStart, periodEnd } = periodBoundaries;
+
+    const systemSet = new Set<string>(DEFAULT_SYSTEMS);
+    alertsList.forEach(a => {
+      if (a.system) systemSet.add(a.system);
+    });
+
+    const countsMap: Record<string, { eligible: number; rejected: number; reviewInProgress: number; newCount: number }> = {};
+    systemSet.forEach(s => {
+      countsMap[s] = { eligible: 0, rejected: 0, reviewInProgress: 0, newCount: 0 };
+    });
+
+    alertsList.forEach(a => {
+      const isEligible = a.status === 'eligible_for_em' || a.status === 'validated';
+      const isRejected = a.status === 'rejected';
+      const isReviewInProgress = a.status === 'review_in_progress' || a.status === 'validation_in_progress';
+      const isNew = a.status === 'new' || a.status === 'to_be_validated';
+      if (!isEligible && !isRejected && !isReviewInProgress && !isNew) return;
+      if (!activeFpsos.includes(a.fpsoCode)) return;
+      if (selectedEquipments.length > 0 && selectedEquipments.length < equipments.length && !selectedEquipments.includes(a.equipmentCode)) {
+        return;
+      }
+      if (selectedCategories.length > 0 && selectedCategories.length < CATEGORIES_LIST.length) {
+        const friendlyCat = getRuleFriendlyCategory(a.ruleName);
+        if (!selectedCategories.includes(friendlyCat)) return;
+      }
+      const tTime = new Date(a.triggeredAt).getTime();
+      if (tTime < periodStart.getTime() || tTime > periodEnd.getTime()) return;
+
+      const sys = a.system || 'Utility System';
+      if (!countsMap[sys]) {
+        countsMap[sys] = { eligible: 0, rejected: 0, reviewInProgress: 0, newCount: 0 };
+      }
+      if (isEligible) countsMap[sys].eligible += 1;
+      else if (isRejected) countsMap[sys].rejected += 1;
+      else if (isReviewInProgress) countsMap[sys].reviewInProgress += 1;
+      else if (isNew) countsMap[sys].newCount += 1;
+    });
+
+    return Array.from(systemSet)
+      .map(system => {
+        const entry = countsMap[system] || { eligible: 0, rejected: 0, reviewInProgress: 0, newCount: 0 };
+        const total = entry.eligible + entry.rejected + entry.reviewInProgress + entry.newCount;
+        return {
+          system,
+          shortLabel: SYSTEM_SHORT_LABELS[system] || system,
+          eligible: entry.eligible,
+          rejected: entry.rejected,
+          reviewInProgress: entry.reviewInProgress,
+          newCount: entry.newCount,
+          total,
+        };
+      })
+      .sort((a, b) => b.total - a.total || a.system.localeCompare(b.system));
+  }, [alertsList, periodBoundaries, activeFpsos, selectedEquipments, selectedCategories, equipments]);
+
+  const totalSystemAlerts = useMemo(() => {
+    return alertsBySystemData.reduce((sum, item) => sum + item.total, 0);
+  }, [alertsBySystemData]);
 
   return (
     <>
@@ -552,7 +887,7 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
           value={globalAccuracy}
           subtitle={periodSubtitle}
           formula="(Eligible for Event Manager) / (Eligible for Event Manager + Rejected) × 100"
-          tooltip="Percentual de alertas tratados confirmados como verdadeiros positivos em relação ao total de alertas com resolução final."
+          tooltip="Percentage of treated alerts confirmed as true positives relative to the total number of resolved alerts."
           statusList={['Eligible for Event Manager', 'Rejected']}
         />
         <KpiCard
@@ -560,15 +895,15 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
           value={globalFalsePositiveRate}
           subtitle={periodSubtitle}
           formula="(Rejected) / (Eligible for Event Manager + Rejected) × 100"
-          tooltip="Percentual de alertas tratados descartados como falso positivo sobre o total de alertas tratados."
+          tooltip="Percentage of treated alerts discarded as false positives relative to the total number of resolved alerts."
           statusList={['Rejected', 'Eligible for Event Manager']}
         />
         <KpiCard
           title="Avg. Time to Treat"
           value={avgDaysToTreat}
           subtitle={periodSubtitle}
-          formula="∑(Data Resolução - Data Disparo) / Total Tratados"
-          tooltip="Tempo médio em dias para operador tratar um alerta desde a criação até a conclusão da revisão."
+          formula="∑(ReviewedAt - TriggeredAt) / Total Treated"
+          tooltip="Average lead time in days for an operator to resolve an alert from creation to review completion."
           statusList={['Eligible for Event Manager', 'Rejected']}
         />
       </div>
@@ -585,8 +920,8 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
                     <h3 className="text-sm font-semibold text-text-primary">Accuracy Over Time</h3>
                     <InfoTooltip
                       title="Accuracy Over Time"
-                      formula="(Eligible for Event Manager / Total Tratados) × 100"
-                      description="Evolução temporal da precisão por intervalo mensal/semanal conforme o filtro de tempo ativo."
+                      formula="(Eligible for Event Manager / Total Treated) × 100"
+                      description="Cumulative progression of accuracy across daily or monthly intervals for the active time filter."
                       statusList={['Eligible for Event Manager', 'Rejected']}
                     />
                   </div>
@@ -607,8 +942,8 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
                     <h3 className="text-sm font-semibold text-text-primary">False Positive Over Time</h3>
                     <InfoTooltip
                       title="False Positive Over Time"
-                      formula="(Rejected / Total Tratados) × 100"
-                      description="Evolução da proporção de alertas rejeitados (ruído) ao longo do tempo."
+                      formula="(Rejected / Total Treated) × 100"
+                      description="Cumulative progression of the proportion of rejected (noise) alerts over time."
                       statusList={['Rejected', 'Eligible for Event Manager']}
                     />
                   </div>
@@ -632,8 +967,8 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
                   <InfoTooltip
                     side="bottom"
                     title="Accuracy Breakdown"
-                    formula="(Eligible for Event Manager) / Total Avaliações"
-                    description="Precisão individual de cada regra e equipamento no período filtrado."
+                    formula="(Eligible for Event Manager) / Total Evaluations × 100"
+                    description="Individual accuracy for each monitoring rule and asset instance in the filtered period."
                     statusList={['Eligible for Event Manager', 'Rejected']}
                   />
                 </div>
@@ -734,8 +1069,8 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
                   <InfoTooltip
                     side="bottom"
                     title="False Positive Breakdown"
-                    formula="Taxa FP = Rejected / Total Tratados"
-                    description="Decomposição do volume de alertas descartados (falsos positivos) e taxa de ruído por regra e equipamento."
+                    formula="FP Rate = Rejected / Total Evaluations × 100"
+                    description="Breakdown of discarded alerts (false positives) and noise rate per monitoring rule and asset."
                     statusList={['Rejected', 'Eligible for Event Manager']}
                   />
                 </div>
@@ -828,118 +1163,9 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
               </div>
             </div>
           </div>
-        </>
-      )}
 
-      {activeTab === 'bad_actors' && (
-        <div className="space-y-6">
-          {/* Top Section: Days to Treat an Alert (Average) */}
-          <div className="bg-bg-card border border-border-panel rounded-card p-5">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 border-b border-[#1E293B]/60 pb-3">
-              <div>
-                <div className="flex items-center gap-2">
-                  <h3 className="text-sm font-semibold text-text-primary tracking-tight">
-                    Days to Treat an Alert (Average)
-                  </h3>
-                  <InfoTooltip
-                    title="Days to Treat an Alert (Average)"
-                    formula="∑(ReviewedAt - TriggeredAt) / Total Tratados"
-                    description="Média em dias para resolução de alertas das FPSOs filtradas desde a criação até a conclusão da revisão pelo operador."
-                    statusList={['Eligible for Event Manager', 'Rejected']}
-                  />
-                </div>
-                <p className="text-xs text-[#94A3B8] mt-0.5">
-                  Monthly lead time in days per FPSO and Fleet Average from creation to operator resolution
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-[11px] font-mono text-[#94A3B8] bg-[#0B0F19] px-2.5 py-1 rounded-md border border-[#1E293B]">
-                  Average: <strong className="text-white">{avgDaysToTreat}</strong>
-                </span>
-                <SlidersHorizontal size={14} className="text-text-muted cursor-pointer hover:text-text-primary transition-colors" />
-                <Maximize2 size={14} className="text-text-muted cursor-pointer hover:text-text-primary transition-colors" />
-              </div>
-            </div>
-            <DaysToTreatChart data={daysToTreatData} />
-          </div>
-
-          {/* Middle Section: 2 Charts Grid (Status & Rule Type) */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Alerts Treated by Status with Count vs % Toggle */}
-            <div className="bg-bg-card border border-border-panel rounded-card p-4">
-              <div className="flex justify-between items-center mb-3">
-                <div className="flex items-center gap-2">
-                  <h3 className="text-sm font-semibold text-text-primary">Alerts Treated by Status</h3>
-                  <InfoTooltip
-                    title="Alerts Treated by Status"
-                    formula="Contagem por status ou % normalizada (100%)"
-                    description="Distribuição dos alertas por status oficiais de tratamento no período selecionado."
-                    statusList={['Eligible for Event Manager', 'Rejected', 'To Be Reviewed', 'New']}
-                  />
-                  <span className="text-[10px] text-[#94A3B8] font-mono">
-                    ({statusChartMode === 'percent' ? '100% Normalized' : 'Volume'})
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  {/* Mode Toggle Buttons */}
-                  <div className="flex items-center bg-[#0B0F19] border border-[#1E293B] rounded-lg p-0.5">
-                    <button
-                      type="button"
-                      onClick={() => setStatusChartMode('count')}
-                      className={`flex items-center gap-1 px-2.5 py-1 text-[11px] rounded-md transition-colors ${
-                        statusChartMode === 'count'
-                          ? 'bg-[#1E293B] text-white font-medium shadow-sm'
-                          : 'text-[#94A3B8] hover:text-white'
-                      }`}
-                      title="Show absolute alert counts"
-                    >
-                      <BarChart3 size={11} />
-                      <span>Vol</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setStatusChartMode('percent')}
-                      className={`flex items-center gap-1 px-2.5 py-1 text-[11px] rounded-md transition-colors ${
-                        statusChartMode === 'percent'
-                          ? 'bg-[#1E293B] text-white font-medium shadow-sm'
-                          : 'text-[#94A3B8] hover:text-white'
-                      }`}
-                      title="Show 100% normalized proportions"
-                    >
-                      <Percent size={11} />
-                      <span>%</span>
-                    </button>
-                  </div>
-                  <SlidersHorizontal size={14} className="text-text-muted cursor-pointer hover:text-text-primary transition-colors" />
-                  <Maximize2 size={14} className="text-text-muted cursor-pointer hover:text-text-primary transition-colors" />
-                </div>
-              </div>
-              <StatusAlertsChart data={statusAlertsChartData} mode={statusChartMode} />
-            </div>
-
-            {/* Alerts Treated by Monitoring Rule */}
-            <div className="bg-bg-card border border-border-panel rounded-card p-4">
-              <div className="flex justify-between items-center mb-3">
-                <div className="flex items-center gap-1.5">
-                  <h3 className="text-sm font-semibold text-text-primary">Alerts Treated by Monitoring Rule</h3>
-                  <InfoTooltip
-                    title="Alerts Treated by Monitoring Rule"
-                    formula="∑(Alertas Tratados) por Regra"
-                    description="Volume total de alertas resolvidos agrupados por cada regra de monitoramento ativa."
-                    statusList={['Eligible for Event Manager', 'Rejected']}
-                  />
-                </div>
-                <div className="flex items-center gap-2">
-                  <SlidersHorizontal size={14} className="text-text-muted cursor-pointer hover:text-text-primary transition-colors" />
-                  <Maximize2 size={14} className="text-text-muted cursor-pointer hover:text-text-primary transition-colors" />
-                </div>
-              </div>
-              <RuleAlertsChart data={ruleAlertsChartData} selectedCategories={selectedCategories} />
-            </div>
-          </div>
-
-          {/* Third Section: Bad Actors List Card (SLB Design) */}
-          <div className="bg-[#0E131F] border border-[#232938] rounded-xl mt-4 shadow-sm">
+          {/* Bottom Section: Bad Actors List Card (SLB Design) */}
+          <div className="bg-[#0E131F] border border-[#232938] rounded-xl mt-6 shadow-sm">
             <div className="px-5 py-4 border-b border-[#232938] flex flex-col md:flex-row md:items-center justify-between gap-4 bg-[#141824]/40 rounded-t-xl relative z-20">
               <div>
                 <div className="flex items-center gap-2">
@@ -947,9 +1173,9 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
                   <InfoTooltip
                     side="bottom"
                     title="Bad Actors List"
-                    formula="Top regras com maior volume de alertas"
-                    description="Ranking das regras com maior frequência de disparo e ruído (Rejected), respeitando os filtros globais de FPSO, tempo, ativos e categorias."
-                    statusList={['Eligible for Event Manager', 'Rejected', 'New', 'To Be Reviewed']}
+                    formula="Top rules ranked by highest alert volume"
+                    description="Ranking of rule instances with the highest trigger frequency and noise (Rejected), respecting global FPSO, period, asset, and category filters."
+                    statusList={['Eligible for Event Manager', 'Rejected', 'Review in Progress', 'New']}
                   />
                 </div>
                 <p className="text-xs text-[#94A3B8] mt-0.5">Most active rule configurations across FPSOs filtered by global criteria</p>
@@ -1009,6 +1235,178 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
                   )}
                 </tbody>
               </table>
+            </div>
+          </div>
+        </>
+      )}
+
+      {activeTab === 'bad_actors' && (
+        <div className="space-y-6">
+          {/* Top Section: Days to Treat an Alert (Average) */}
+          <div className="bg-bg-card border border-border-panel rounded-card p-5">
+            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 mb-3">
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-semibold text-text-primary tracking-tight">
+                    Days to Treat an Alert (Average)
+                  </h3>
+                  <InfoTooltip
+                    title="Days to Treat an Alert (Average)"
+                    formula="∑(ReviewedAt - TriggeredAt) / Total Treated"
+                    description="Average lead time in days per FPSO and weighted Fleet average from alert creation to operator resolution."
+                    statusList={['Eligible for Event Manager', 'Rejected']}
+                  />
+                </div>
+                <p className="text-xs text-[#94A3B8] mt-0.5">
+                  Monthly lead time in days per FPSO and Fleet Average from creation to operator resolution
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] font-mono text-[#94A3B8] bg-[#0B0F19] px-2.5 py-1 rounded-md border border-[#1E293B]">
+                  Average: <strong className="text-white">{avgDaysToTreat}</strong>
+                </span>
+                <SlidersHorizontal size={14} className="text-text-muted cursor-pointer hover:text-text-primary transition-colors" />
+                <Maximize2 size={14} className="text-text-muted cursor-pointer hover:text-text-primary transition-colors" />
+              </div>
+            </div>
+            <DaysToTreatChart data={daysToTreatData} fpsos={activeFpsos} />
+          </div>
+
+          {/* Middle Section: 2 Charts Grid (Status & Rule Type) */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Alerts by Status with Count vs % Toggle */}
+            <div className="bg-bg-card border border-border-panel rounded-card p-4">
+              <div className="flex justify-between items-center mb-3">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-semibold text-text-primary">Alerts by Status</h3>
+                  <InfoTooltip
+                    title="Alerts by Status"
+                    formula="Count by status or 100% normalized proportion"
+                    description="Distribution of alerts across official lifecycle statuses for the selected time period."
+                    statusList={['Eligible for Event Manager', 'Rejected', 'Review in Progress', 'New']}
+                  />
+                  <span className="text-[10px] text-[#94A3B8] font-mono">
+                    ({statusChartMode === 'percent' ? '100% Normalized' : 'Volume'})
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  {/* Mode Toggle Buttons */}
+                  <div className="flex items-center bg-[#0B0F19] border border-[#1E293B] rounded-lg p-0.5">
+                    <button
+                      type="button"
+                      onClick={() => setStatusChartMode('count')}
+                      className={`flex items-center gap-1 px-2.5 py-1 text-[11px] rounded-md transition-colors ${
+                        statusChartMode === 'count'
+                          ? 'bg-[#1E293B] text-white font-medium shadow-sm'
+                          : 'text-[#94A3B8] hover:text-white'
+                      }`}
+                      title="Show absolute alert counts"
+                    >
+                      <BarChart3 size={11} />
+                      <span>Vol</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setStatusChartMode('percent')}
+                      className={`flex items-center gap-1 px-2.5 py-1 text-[11px] rounded-md transition-colors ${
+                        statusChartMode === 'percent'
+                          ? 'bg-[#1E293B] text-white font-medium shadow-sm'
+                          : 'text-[#94A3B8] hover:text-white'
+                      }`}
+                      title="Show 100% normalized proportions"
+                    >
+                      <Percent size={11} />
+                      <span>%</span>
+                    </button>
+                  </div>
+                  <SlidersHorizontal size={14} className="text-text-muted cursor-pointer hover:text-text-primary transition-colors" />
+                  <Maximize2 size={14} className="text-text-muted cursor-pointer hover:text-text-primary transition-colors" />
+                </div>
+              </div>
+              <StatusAlertsChart data={statusAlertsChartData} mode={statusChartMode} />
+            </div>
+
+            {/* Alerts Treated by Monitoring Rule */}
+            <div className="bg-bg-card border border-border-panel rounded-card p-4">
+              <div className="flex justify-between items-center mb-3">
+                <div className="flex items-center gap-1.5">
+                  <h3 className="text-sm font-semibold text-text-primary">Alerts Treated by Monitoring Rule</h3>
+                  <InfoTooltip
+                    title="Alerts Treated by Monitoring Rule"
+                    formula="∑(Alerts) per Rule Category"
+                    description="Total volume of alerts grouped by each active monitoring rule category."
+                    statusList={['Eligible for Event Manager', 'Rejected']}
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <SlidersHorizontal size={14} className="text-text-muted cursor-pointer hover:text-text-primary transition-colors" />
+                  <Maximize2 size={14} className="text-text-muted cursor-pointer hover:text-text-primary transition-colors" />
+                </div>
+              </div>
+              <RuleAlertsChart data={ruleAlertsChartData} activeSeries={ruleActiveSeries} />
+            </div>
+          </div>
+
+          {/* Bottom Section: 2-Column Grid for Alerts by Responsible & Alerts by System */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Alerts by Responsible */}
+            <div className="bg-bg-card border border-border-panel rounded-card p-5">
+              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 mb-3">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-sm font-semibold text-text-primary tracking-tight">
+                      Alerts by Responsible
+                    </h3>
+                    <InfoTooltip
+                      title="Alerts by Responsible"
+                      formula="∑(Eligible for Event Manager + Rejected + Review in Progress) per Reviewer"
+                      description="Volume of alerts assigned or treated (Eligible for Event Manager, Rejected, and Review in Progress) per responsible reviewer for the selected period and global filters."
+                      statusList={['Eligible for Event Manager', 'Rejected', 'Review in Progress']}
+                    />
+                  </div>
+                  <p className="text-xs text-[#94A3B8] mt-0.5">
+                    Volume of alerts per responsible reviewer across review statuses
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] font-mono text-[#94A3B8] bg-[#0B0F19] px-2.5 py-1 rounded-md border border-[#1E293B] whitespace-nowrap">
+                    Total: <strong className="text-white">{totalResponsibleAlerts} alerts</strong>
+                  </span>
+                  <SlidersHorizontal size={14} className="text-text-muted cursor-pointer hover:text-text-primary transition-colors" />
+                  <Maximize2 size={14} className="text-text-muted cursor-pointer hover:text-text-primary transition-colors" />
+                </div>
+              </div>
+              <AlertsPerResponsibleChart data={alertsPerResponsibleData} />
+            </div>
+
+            {/* Alerts by System */}
+            <div className="bg-bg-card border border-border-panel rounded-card p-5">
+              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 mb-3">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-sm font-semibold text-text-primary tracking-tight">
+                      Alerts by System
+                    </h3>
+                    <InfoTooltip
+                      title="Alerts by System"
+                      formula="∑(All Alerts) per System"
+                      description="Distribution of alerts across all lifecycle statuses grouped by monitored process system in descending order of volume."
+                      statusList={['Eligible for Event Manager', 'Rejected', 'Review in Progress', 'New']}
+                    />
+                  </div>
+                  <p className="text-xs text-[#94A3B8] mt-0.5">
+                    Volume of alerts across all statuses per monitored system
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] font-mono text-[#94A3B8] bg-[#0B0F19] px-2.5 py-1 rounded-md border border-[#1E293B] whitespace-nowrap">
+                    Total: <strong className="text-white">{totalSystemAlerts} alerts</strong>
+                  </span>
+                  <SlidersHorizontal size={14} className="text-text-muted cursor-pointer hover:text-text-primary transition-colors" />
+                  <Maximize2 size={14} className="text-text-muted cursor-pointer hover:text-text-primary transition-colors" />
+                </div>
+              </div>
+              <AlertsBySystemChart data={alertsBySystemData} />
             </div>
           </div>
         </div>

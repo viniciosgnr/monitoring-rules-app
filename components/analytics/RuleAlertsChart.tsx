@@ -1,36 +1,106 @@
 'use client';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+
+export interface RuleCategorySeries {
+  key: string;
+  color: string;
+}
 
 interface Props {
   data: {
     timeKey: string;
-    Drift: number;
-    Spike: number;
-    'Normalized dP': number;
-    Surge: number;
-    Trend: number;
+    [categoryOrOther: string]: number | string;
   }[];
-  selectedCategories?: string[];
+  activeSeries: RuleCategorySeries[];
 }
 
-export default function RuleAlertsChart({ data, selectedCategories = [] }: Props) {
-  const showAll = selectedCategories.length === 0 || selectedCategories.length === 5;
+export default function RuleAlertsChart({ data, activeSeries }: Props) {
   return (
-    <ResponsiveContainer width="100%" height={220}>
-      <BarChart data={data} margin={{ top: 10, right: 10, left: -10, bottom: 15 }} barCategoryGap="30%">
-        <CartesianGrid strokeDasharray="3 3" stroke="#1E293B" opacity={0.5} />
-        <XAxis dataKey="timeKey" tick={{ fill: '#94A3B8', fontSize: 11 }} axisLine={false} tickLine={false} minTickGap={15} />
-        <YAxis tick={{ fill: '#94A3B8', fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} domain={[0, 40]} ticks={[0, 10, 20, 30, 40]} />
-        <Tooltip
-          contentStyle={{ background: '#111827', border: '1px solid #1E293B', borderRadius: 8, color: '#E2E8F0', fontSize: 12 }}
-        />
-        <Legend verticalAlign="top" height={36} iconType="rect" iconSize={10} wrapperStyle={{ fontSize: 10, color: '#94A3B8', paddingTop: 0 }} />
-        {(showAll || selectedCategories.includes('Drift')) && <Bar dataKey="Drift" stackId="a" fill="#C084FC" radius={[0, 0, 0, 0]} />}
-        {(showAll || selectedCategories.includes('Normalized dP')) && <Bar dataKey="Normalized dP" stackId="a" fill="#EC4899" radius={[0, 0, 0, 0]} />}
-        {(showAll || selectedCategories.includes('Spike')) && <Bar dataKey="Spike" stackId="a" fill="#D946EF" radius={[0, 0, 0, 0]} />}
-        {(showAll || selectedCategories.includes('Surge')) && <Bar dataKey="Surge" stackId="a" fill="#8B5CF6" radius={[0, 0, 0, 0]} />}
-        {(showAll || selectedCategories.includes('Trend')) && <Bar dataKey="Trend" stackId="a" fill="#3B82F6" radius={[3, 3, 0, 0]} />}
-      </BarChart>
-    </ResponsiveContainer>
+    <div>
+      {/* Official SLB Optisite Left-Aligned Legend */}
+      <div className="flex items-center flex-wrap gap-x-5 gap-y-2 mb-4 select-none">
+        {activeSeries.map(item => (
+          <div key={item.key} className="flex items-center gap-2">
+            <span
+              className="w-3.5 h-3.5 rounded-[3px] inline-block shrink-0"
+              style={{ backgroundColor: item.color }}
+            />
+            <span className="text-xs text-[#CBD5E1]">{item.key}</span>
+          </div>
+        ))}
+      </div>
+
+      <ResponsiveContainer width="100%" height={220}>
+        <BarChart data={data} margin={{ top: 10, right: 10, left: -15, bottom: 10 }}>
+          <XAxis
+            dataKey="timeKey"
+            tick={{ fill: '#94A3B8', fontSize: 11 }}
+            axisLine={{ stroke: '#1E293B' }}
+            tickLine={false}
+            minTickGap={15}
+          />
+          <YAxis
+            tick={{ fill: '#94A3B8', fontSize: 11 }}
+            axisLine={false}
+            tickLine={false}
+            allowDecimals={false}
+            domain={[0, 'auto']}
+          />
+          <Tooltip
+            cursor={{ fill: '#1E293B', opacity: 0.25 }}
+            content={({ active, payload, label }) => {
+              if (!active || !payload || payload.length === 0) return null;
+              const point = payload[0]?.payload as (Props['data'][0] | undefined);
+              if (!point) return null;
+
+              const total = activeSeries.reduce((sum, s) => sum + (Number(point[s.key]) || 0), 0);
+
+              return (
+                <div className="bg-[#111827] border border-[#1E293B] rounded-lg px-3 py-2.5 text-xs text-[#E2E8F0] shadow-lg space-y-1.5 min-w-[200px]">
+                  <div className="font-semibold text-white pb-1 border-b border-[#1E293B]">
+                    {label}
+                  </div>
+                  {activeSeries.map(s => {
+                    const count = Number(point[s.key]) || 0;
+                    const pct = total > 0 ? ((count / total) * 100).toFixed(1) : '0.0';
+
+                    return (
+                      <div key={s.key} className="flex items-center justify-between gap-4">
+                        <span className="flex items-center gap-1.5 text-[#CBD5E1]">
+                          <span
+                            className="w-2.5 h-2.5 rounded-[2px] inline-block shrink-0"
+                            style={{ backgroundColor: s.color }}
+                          />
+                          {s.key} :
+                        </span>
+                        <span className="font-mono text-white">
+                          {count} alerts ({pct}%)
+                        </span>
+                      </div>
+                    );
+                  })}
+                  <div className="flex items-center justify-between gap-4 pt-1 border-t border-[#1E293B]/80 text-[#94A3B8]">
+                    <span>Total Alerts :</span>
+                    <span className="font-mono font-semibold text-white">
+                      {total} alerts
+                    </span>
+                  </div>
+                </div>
+              );
+            }}
+          />
+          {activeSeries.map(item => (
+            <Bar
+              key={item.key}
+              dataKey={item.key}
+              stackId="a"
+              fill={item.color}
+              radius={[0, 0, 0, 0]}
+              barSize={24}
+            />
+          ))}
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
   );
 }
