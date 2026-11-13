@@ -464,7 +464,7 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
     return trendData.map(d => ({
       label: d.label,
       accuracy: d.accuracy,
-      count: d.eligibleForEmCount,
+      count: d.cumCorrect,
     }));
   }, [trendData]);
 
@@ -472,7 +472,7 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
     return trendData.map(d => ({
       label: d.label,
       falsePositives: d.falsePositives,
-      count: d.rejectedCount,
+      count: d.cumFps,
     }));
   }, [trendData]);
 
@@ -918,8 +918,8 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
                     <h3 className="text-sm font-semibold text-text-primary">Accuracy Over Time</h3>
                     <InfoTooltip
                       title="Accuracy Over Time"
-                      formula="(Eligible for Event Manager / Total Treated) × 100"
-                      description="Cumulative progression of accuracy across daily or monthly intervals for the active time filter."
+                      formula="(Cumulative Eligible for Event Manager / Cumulative Total Treated) × 100"
+                      description="Cumulative progression of accuracy across time intervals for the active filter."
                       statusList={['Eligible for Event Manager', 'Rejected']}
                     />
                   </div>
@@ -940,8 +940,8 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
                     <h3 className="text-sm font-semibold text-text-primary">False Positive Over Time</h3>
                     <InfoTooltip
                       title="False Positive Over Time"
-                      formula="(Rejected / Total Treated) × 100"
-                      description="Cumulative progression of the proportion of rejected (noise) alerts over time."
+                      formula="(Cumulative Rejected / Cumulative Total Treated) × 100"
+                      description="Cumulative progression of the proportion of rejected alerts (noise) over time."
                       statusList={['Rejected', 'Eligible for Event Manager']}
                     />
                   </div>
@@ -1331,8 +1331,8 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
                   <h3 className="text-sm font-semibold text-text-primary">Alerts Treated by Monitoring Rule</h3>
                   <InfoTooltip
                     title="Alerts Treated by Monitoring Rule"
-                    formula="∑(Alerts) per Rule Category"
-                    description="Total volume of alerts grouped by each active monitoring rule category."
+                    formula="∑(Eligible for Event Manager + Rejected) per Rule Family"
+                    description="Total volume of treated alerts grouped by Top 5 monitoring rule families + Other."
                     statusList={['Eligible for Event Manager', 'Rejected']}
                   />
                 </div>
