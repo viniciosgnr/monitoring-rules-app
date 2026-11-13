@@ -127,7 +127,7 @@ export default function DaysToTreatChart({ data, fpsos }: Props) {
                     const numDays = typeof daysVal === 'number' ? daysVal.toFixed(1) : '—';
                     const alertCount = point._counts ? point._counts[fpso] : undefined;
                     const countSuffix = typeof alertCount === 'number'
-                      ? (totalAlerts > 0 ? ` (${alertCount} alerts, ${((alertCount / totalAlerts) * 100).toFixed(0)}%)` : ` (${alertCount} alerts)`)
+                      ? ` (${alertCount} alerts)`
                       : '';
 
                     return (
