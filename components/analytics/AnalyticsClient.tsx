@@ -465,7 +465,6 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
       label: d.label,
       accuracy: d.accuracy,
       count: d.eligibleForEmCount,
-      totalTreated: d.eligibleForEmCount + d.rejectedCount,
     }));
   }, [trendData]);
 
@@ -474,7 +473,6 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
       label: d.label,
       falsePositives: d.falsePositives,
       count: d.rejectedCount,
-      totalTreated: d.eligibleForEmCount + d.rejectedCount,
     }));
   }, [trendData]);
 

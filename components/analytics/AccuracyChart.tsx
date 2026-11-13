@@ -2,7 +2,7 @@
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 interface Props {
-  data: { label: string; accuracy: number; count?: number; totalTreated?: number }[];
+  data: { label: string; accuracy: number; count?: number }[];
 }
 
 export default function AccuracyChart({ data }: Props) {
@@ -23,13 +23,9 @@ export default function AccuracyChart({ data }: Props) {
           contentStyle={{ background: '#111827', border: '1px solid #1E293B', borderRadius: 8, color: '#E2E8F0', fontSize: 12 }}
           cursor={{ stroke: '#1E293B' }}
           formatter={(value, _name, item) => {
-            const payload = item?.payload as { count?: number; totalTreated?: number } | undefined;
-            const count = payload?.count;
-            const total = payload?.totalTreated;
-            const suffix = typeof count === 'number'
-              ? (typeof total === 'number' && total > 0 ? ` (${count} of ${total} alerts)` : ` (${count} alerts)`)
-              : '';
-            return [`${value}%${suffix}`, 'Accuracy'];
+            const count = (item?.payload as { count?: number } | undefined)?.count;
+            const countSuffix = typeof count === 'number' ? ` (${count} alerts)` : '';
+            return [`${value}%${countSuffix}`, 'Accuracy'];
           }}
         />
         <Line
