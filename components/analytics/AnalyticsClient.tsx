@@ -11,7 +11,7 @@ import DaysToTreatChart from './DaysToTreatChart';
 import AlertsPerResponsibleChart from './AlertsPerResponsibleChart';
 import AlertsBySystemChart from './AlertsBySystemChart';
 import InfoTooltip from '@/components/ui/InfoTooltip';
-import { SlidersHorizontal, Maximize2, ArrowUp, ArrowDown, ArrowUpDown, BarChart3, Percent } from 'lucide-react';
+import { SlidersHorizontal, Maximize2, ArrowUp, ArrowDown, ArrowUpDown, BarChart3, Percent, FileDown, CheckCircle2, Loader2, FileText } from 'lucide-react';
 
 const PERIODS = ['Last Week', 'Last Month', 'Last 6 month', '1 Year', 'All time'];
 const CATEGORIES_LIST = ['Drift', 'Spike', 'Surge', 'Trend', 'Normalized dP'];
@@ -125,7 +125,9 @@ function Sel({ value, onChange, options }: { value: string; onChange: (v: string
 }
 
 export default function AnalyticsClient({ equipments, ruleInstances, alertsList }: Props) {
-  const [activeTab, setActiveTab] = useState<'overview' | 'bad_actors'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'bad_actors' | 'export'>('overview');
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportSuccess, setExportSuccess] = useState(false);
   const [period, setPeriod] = useState('Last Week');
   const allFpsos = useMemo(() => Array.from(new Set(ruleInstances.map(i => i.fpsoCode))).filter(Boolean).sort(), [ruleInstances]);
   const [selectedFpsos, setSelectedFpsos] = useState<string[]>([]);
@@ -464,7 +466,7 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
     return trendData.map(d => ({
       label: d.label,
       accuracy: d.accuracy,
-      count: d.cumCorrect,
+      count: d.eligibleForEmCount,
     }));
   }, [trendData]);
 
@@ -472,7 +474,7 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
     return trendData.map(d => ({
       label: d.label,
       falsePositives: d.falsePositives,
-      count: d.cumFps,
+      count: d.rejectedCount,
     }));
   }, [trendData]);
 
@@ -849,6 +851,16 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
           >
             Alerts Treated
           </button>
+          <button
+            onClick={() => setActiveTab('export')}
+            className={`px-4 py-1.5 text-xs rounded-lg transition-colors cursor-pointer ${
+              activeTab === 'export'
+                ? 'bg-[#1E293B] text-white font-medium shadow-sm'
+                : 'text-[#94A3B8] hover:text-white'
+            }`}
+          >
+            Export
+          </button>
         </div>
 
         {/* Global Filters Control Bar */}
@@ -878,33 +890,35 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
         </div>
       </div>
 
-      {/* Global KPI Cards: Accuracy -> False Positive (%) -> Avg. Time to Treat */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <KpiCard
-          title="Accuracy"
-          value={globalAccuracy}
-          subtitle={periodSubtitle}
-          formula="(Eligible for Event Manager) / (Eligible for Event Manager + Rejected) × 100"
-          tooltip="Percentage of treated alerts confirmed as true positives relative to the total number of resolved alerts."
-          statusList={['Eligible for Event Manager', 'Rejected']}
-        />
-        <KpiCard
-          title="False Positive Rate"
-          value={globalFalsePositiveRate}
-          subtitle={periodSubtitle}
-          formula="(Rejected) / (Eligible for Event Manager + Rejected) × 100"
-          tooltip="Percentage of treated alerts discarded as false positives relative to the total number of resolved alerts."
-          statusList={['Rejected', 'Eligible for Event Manager']}
-        />
-        <KpiCard
-          title="Avg. Time to Treat"
-          value={avgDaysToTreat}
-          subtitle={periodSubtitle}
-          formula="∑(ReviewedAt - TriggeredAt) / Total Treated"
-          tooltip="Average lead time in days for an operator to resolve an alert from creation to review completion."
-          statusList={['Eligible for Event Manager', 'Rejected']}
-        />
-      </div>
+      {/* Global KPI Cards: Only displayed on Overview & Trends and Alerts Treated tabs */}
+      {activeTab !== 'export' && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <KpiCard
+            title="Accuracy"
+            value={globalAccuracy}
+            subtitle={periodSubtitle}
+            formula="(Eligible for Event Manager) / (Eligible for Event Manager + Rejected) × 100"
+            tooltip="Percentage of treated alerts confirmed as true positives relative to the total number of resolved alerts."
+            statusList={['Eligible for Event Manager', 'Rejected']}
+          />
+          <KpiCard
+            title="False Positive Rate"
+            value={globalFalsePositiveRate}
+            subtitle={periodSubtitle}
+            formula="(Rejected) / (Eligible for Event Manager + Rejected) × 100"
+            tooltip="Percentage of treated alerts discarded as false positives relative to the total number of resolved alerts."
+            statusList={['Rejected', 'Eligible for Event Manager']}
+          />
+          <KpiCard
+            title="Avg. Time to Treat"
+            value={avgDaysToTreat}
+            subtitle={periodSubtitle}
+            formula="∑(ReviewedAt - TriggeredAt) / Total Treated"
+            tooltip="Average lead time in days for an operator to resolve an alert from creation to review completion."
+            statusList={['Eligible for Event Manager', 'Rejected']}
+          />
+        </div>
+      )}
 
       {activeTab === 'overview' && (
         <>
@@ -1406,6 +1420,147 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
               </div>
               <AlertsBySystemChart data={alertsBySystemData} />
             </div>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'export' && (
+        <div className="bg-bg-card border border-border-panel rounded-card p-6">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-border-panel">
+            <div>
+              <div className="flex items-center gap-2">
+                <FileText className="text-brand-primary" size={20} />
+                <h3 className="text-base font-semibold text-white tracking-tight">
+                  Executive Analytics Report Export
+                </h3>
+              </div>
+              <p className="text-xs text-[#94A3B8] mt-1">
+                Generate a publication-ready PDF report summarizing surveillance performance, active filter scopes, KPI benchmarks, and bad actors.
+              </p>
+            </div>
+            <div>
+              <button
+                type="button"
+                disabled={isExporting}
+                onClick={async () => {
+                  try {
+                    setIsExporting(true);
+                    setExportSuccess(false);
+
+                    const payload = {
+                      filters: {
+                        fpsos: selectedFpsos.length === 0 || selectedFpsos.length === allFpsos.length ? 'All FPSOs' : selectedFpsos.join(', '),
+                        period: period,
+                        equipments: selectedEquipments.length === 0 || selectedEquipments.length === equipments.length ? 'All Assets' : `${selectedEquipments.length} selected assets`,
+                        categories: selectedCategories.length === 0 || selectedCategories.length === CATEGORIES_LIST.length ? 'All Categories' : selectedCategories.join(', '),
+                      },
+                      kpis: {
+                        accuracy: globalAccuracy,
+                        fpRate: globalFalsePositiveRate,
+                        avgDays: avgDaysToTreat,
+                      },
+                      badActors: badActorsList.slice(0, 10).map(b => ({
+                        fpsoCode: b.fpsoCode,
+                        ruleName: b.ruleName,
+                        equipmentCode: b.equipmentCode,
+                        accuracy: b.accuracy,
+                        fpRate: b.fpRate,
+                        alertsCount: b.alertsCount,
+                      })),
+                      alertsBySystem: alertsBySystemData.map(s => ({
+                        system: s.system,
+                        eligible: s.eligible,
+                        rejected: s.rejected,
+                        reviewInProgress: s.reviewInProgress,
+                        total: s.total,
+                      })),
+                    };
+
+                    const res = await fetch('/api/export-analytics-report', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify(payload),
+                    });
+
+                    if (!res.ok) throw new Error('Failed to download report');
+
+                    const blob = await res.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `Analytics_Report_${new Date().toISOString().slice(0, 10)}.pdf`;
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                    window.URL.revokeObjectURL(url);
+
+                    setExportSuccess(true);
+                    setTimeout(() => setExportSuccess(false), 4000);
+                  } catch (err) {
+                    console.error('Error generating report:', err);
+                    alert('Failed to generate PDF report. Please try again.');
+                  } finally {
+                    setIsExporting(false);
+                  }
+                }}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-brand-primary text-white text-xs font-semibold hover:bg-brand-primary/90 transition-all shadow-md disabled:opacity-50 cursor-pointer"
+              >
+                {isExporting ? (
+                  <>
+                    <Loader2 size={15} className="animate-spin" />
+                    <span>Rendering PDF...</span>
+                  </>
+                ) : exportSuccess ? (
+                  <>
+                    <CheckCircle2 size={15} className="text-emerald-300" />
+                    <span>Report Downloaded!</span>
+                  </>
+                ) : (
+                  <>
+                    <FileDown size={15} />
+                    <span>Download PDF Report</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* Active Filter Scope Overview */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 my-6">
+            <div className="bg-[#0B0F19] border border-[#1E293B] rounded-xl p-3.5">
+              <span className="text-[10px] uppercase font-bold text-[#64748B] tracking-wider block mb-1">FPSO Fleet</span>
+              <span className="text-xs font-semibold text-white truncate block">
+                {selectedFpsos.length === 0 || selectedFpsos.length === allFpsos.length ? 'All FPSOs' : selectedFpsos.join(', ')}
+              </span>
+            </div>
+            <div className="bg-[#0B0F19] border border-[#1E293B] rounded-xl p-3.5">
+              <span className="text-[10px] uppercase font-bold text-[#64748B] tracking-wider block mb-1">Period</span>
+              <span className="text-xs font-semibold text-white truncate block">
+                {period}
+              </span>
+            </div>
+            <div className="bg-[#0B0F19] border border-[#1E293B] rounded-xl p-3.5">
+              <span className="text-[10px] uppercase font-bold text-[#64748B] tracking-wider block mb-1">Monitored Assets</span>
+              <span className="text-xs font-semibold text-white truncate block">
+                {selectedEquipments.length === 0 || selectedEquipments.length === equipments.length ? 'All Assets' : `${selectedEquipments.length} Assets`}
+              </span>
+            </div>
+            <div className="bg-[#0B0F19] border border-[#1E293B] rounded-xl p-3.5">
+              <span className="text-[10px] uppercase font-bold text-[#64748B] tracking-wider block mb-1">Rule Categories</span>
+              <span className="text-xs font-semibold text-white truncate block">
+                {selectedCategories.length === 0 || selectedCategories.length === CATEGORIES_LIST.length ? 'All Categories' : selectedCategories.join(', ')}
+              </span>
+            </div>
+          </div>
+
+          {/* Summary Preview Box */}
+          <div className="bg-[#0B0F19]/60 border border-[#1E293B] rounded-xl p-4">
+            <h4 className="text-xs font-semibold text-white uppercase tracking-wider mb-2">Report Content Preview</h4>
+            <ul className="text-xs text-[#94A3B8] space-y-1.5 list-disc pl-4">
+              <li><strong>Executive KPI Scorecard:</strong> Accuracy ({globalAccuracy}), False Positive Rate ({globalFalsePositiveRate}), and Lead Time ({avgDaysToTreat}).</li>
+              <li><strong>Top 10 Bad Actor Rules:</strong> Filtered ranking by volume and nuisance alarm frequency.</li>
+              <li><strong>Process System Distribution:</strong> Complete cross-tabulation across gas, water injection, utilities, crude oil, and power generation systems.</li>
+            </ul>
           </div>
         </div>
       )}

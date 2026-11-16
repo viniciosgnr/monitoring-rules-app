@@ -1,271 +1,234 @@
-# Technical Specification: Analytics Mathematical Model, Filters & SQL Queries
+# Analytics Guide & Mathematical Specification for Reliability Engineers
 
-This document provides the complete technical specification for the calculation engine powering the **Analytics** page in the **Monitoring Rules Management (SLB Optisite)** application. It details the official status lifecycle (`New`, `Review in Progress`, `Eligible for Event Manager`, `Rejected`), mathematical formulas for all KPI cards and charts across both tabs (**Overview & Trends** and **Alerts Treated**), the cumulative time-series strategy, global filter intersections, and production-ready SQL query implementations.
+## Monitoring Rules Management Analytics Page
 
 ---
 
-## 1. Overview & Layout Architecture
+## 1. Executive Summary & Purpose
 
-The **Analytics** page is organized into global controls, top-level KPI summary cards, and two specialized analytical tabs:
+The **Analytics Module** in **Monitoring Rules Management** empowers Reliability, Surveillance, and Process Engineers to continuously evaluate monitoring rule effectiveness, minimize alarm fatigue, monitor fleet-wide lead times, and pinpoint "bad actor" assets or rules requiring parameter recalibration.
 
-1. **Global KPI Summary Cards**:
-   - **Accuracy (%)**
-   - **False Positive Rate (%)**
-   - **Avg. Time to Treat (days)**
-2. **Tab 1 — Overview & Trends**:
-   - **Trend Line Charts**: *Accuracy Over Time* and *False Positive Over Time* (cumulative percentage progression alongside the cumulative count on hover).
-   - **Breakdown Tables**: *Accuracy Breakdown by Instance* and *False Positive Breakdown by Instance*.
-   - **Ranking Table**: *Bad Actors List* (ranked by highest alert volume and noise).
-3. **Tab 2 — Alerts Treated**:
-   - **Lead Time Composed Chart**: *Days to Treat an Alert (Average)* (grouped vertical bars per FPSO unit overlaid with the weighted *Fleet* average trend line, displaying average days and absolute treated alerts in tooltips).
-   - **Distribution Charts**: *Alerts Treated by Status* (with Volume vs. 100% Normalized Percentage toggle) and *Alerts Treated by Monitoring Rule* (dynamic Top 5 rule families + `Other`).
-   - **Workforce & Process Breakdown**: *Alerts by Responsible* (stacked bars for `Eligible for Event Manager`, `Rejected`, and `Review in Progress` per reviewer) and *Alerts by System* (stacked bars for all 4 lifecycle statuses per monitored process system).
+This guide provides reliability engineers with:
+- The operational definition of the alert lifecycle.
+- Descriptive mathematical formulations for all KPIs and visual components, naming every variable in full.
+- The reliability engineering objective and practical interpretation for every metric.
+- Clear instructions on how filters and time windows interact.
 
-### 1.1 Official Alert Status Lifecycle & Mapping
+---
 
-| UI Status Name | Database `status` Value | Lifecycle Role in Analytics |
+## 2. Alert Lifecycle & Evaluation Scope
+
+In surveillance and predictive monitoring workflows, every triggered alert passes through an operational lifecycle. For reliability metrics, a clear boundary is established between **in-flight** alerts and **resolved** evaluations.
+
+| UI Status Name | Operational Definition | Role in Reliability Analytics |
 | :--- | :--- | :--- |
-| **New** | `'new'`, `'to_be_validated'` | Pending initial review (excluded from evaluation denominators; included in volume/system distributions). |
-| **Review in Progress** | `'review_in_progress'`, `'validation_in_progress'` | Currently under operator investigation (included in workforce review charts and status/system distributions). |
-| **Eligible for Event Manager** | `'eligible_for_em'`, `'validated'` | Confirmed true positive operational alert (numerator for *Accuracy*; included in *Total Evaluations* and *Time to Treat*). |
-| **Rejected** | `'rejected'` | Discarded false positive / noise alert (numerator for *False Positive Rate*; included in *Total Evaluations* and *Time to Treat*). |
+| **New** | Newly triggered alert awaiting initial surveillance triage. | Excluded from evaluation denominators (Accuracy / FP Rate). Included in total trigger volume, process system distribution, and bad actor rankings. |
+| **Review in Progress** | Currently assigned to a surveillance engineer and under active technical investigation. | Excluded from final evaluation denominators. Included in review workload analysis (Alerts by Responsible) and system distributions. |
+| **Eligible for Event Manager** | Validated as a genuine operational anomaly and escalated to Event Manager for corrective maintenance. | **True Positive**. Serves as the primary numerator for **Accuracy**, evaluation denominator, and lead time calculations. |
+| **Rejected** | Reviewed and discarded by the engineer as nuisance alarm, sensor noise, or unactionable fluctuation. | **False Positive / Noise**. Serves as the primary numerator for **False Positive Rate**, evaluation denominator, and lead time calculations. |
 
-### Mathematical Integrity Principle
-
-To prevent discrepancies where charts show different values from top summary cards, **100% of calculations are unified and derived from the exact same alert database history (`alerts`)**:
-
-> **NOTE:** All components utilize the exact same time window (`periodStart` to `periodEnd`) and the same globally filtered alert dataset (`FPSO ∩ Period ∩ Asset ∩ Category`).
+> **Key Reliability Principle:**  
+> Unreviewed alerts (`New`, `Review in Progress`) are **never** included in performance denominators. This prevents artificial dilution of accuracy when a high volume of alerts is awaiting review.
 
 ---
 
-## 2. Unified Calculation Formulas
+## 3. Global Reliability KPI Summary Cards
 
-### 2.1 Total Evaluations (Resolved Alert Denominator)
+The top of the Analytics dashboard displays three global performance indicators reflecting the active cross-filter selection.
 
-Only alerts that have reached a final operator resolution (**Eligible for Event Manager** or **Rejected**) are counted as evaluations. Pending alerts (**New** and **Review in Progress**) are excluded from the denominator so they do not artificially depress accuracy or false positive rates before review.
+### 3.1 Accuracy (%)
+- **Reliability Objective:** Measures surveillance precision — the percentage of treated alerts that represented actionable equipment degradation rather than false alarms.
+- **Reliability Engineering Benchmark:** Target $> 80\%$. Lower values indicate excessive sensitivity or loose thresholds that require recalibration.
+- **Mathematical Formula:**
 
-$$\text{Total Evaluations} = \text{Eligible for Event Manager} + \text{Rejected}$$
-
-### 2.2 Accuracy (Accuracy %)
-
-Accuracy measures the proportion of evaluated alerts that were confirmed as legitimate operational events (**Eligible for Event Manager**):
-
-$$\text{Accuracy \%} = \frac{\text{Eligible for Event Manager}}{\text{Eligible for Event Manager} + \text{Rejected}} \times 100$$
-
-- **Eligible for Event Manager (`eligible_for_em`)**: Alerts confirmed as real operational events and eligible for release to Event Manager.
-- **Complementarity Property**: For any evaluated dataset where $\text{Total Evaluations} > 0$, $\text{Accuracy \%} + \text{False Positive \%} = 100\%$.
-
-### 2.3 False Positive Rate (False Positive %)
-
-The false positive rate measures the percentage of discarded/noise alerts (**Rejected**) relative to total evaluated alerts:
-
-$$\text{False Positive \%} = \frac{\text{Rejected}}{\text{Eligible for Event Manager} + \text{Rejected}} \times 100$$
-
-- **Rejected (`rejected`)**: Alerts classified by the operator as false alarms or sensor/process noise.
-
-### 2.4 Average Time to Treat (Avg. Time to Treat)
-
-Measures the mean lead time in days required for an operator to resolve an alert from creation (`triggeredAt`) to final review (`reviewedAt`):
-
-$$\text{Avg. Time to Treat (days)} = \frac{1}{N_{\text{treated}}} \sum_{k=1}^{N_{\text{treated}}} \max\left(0, \frac{\text{reviewedAt}_k - \text{triggeredAt}_k}{86,400,000\text{ ms}}\right)$$
-
-- **$N_{\text{treated}}$**: Total alerts within the filtered period with status in (`Eligible for Event Manager`, `Rejected`) and a non-null `reviewedAt` timestamp.
+$$\text{Accuracy \%} = \frac{\text{Eligible for Event Manager Alerts}}{\text{Total Evaluations (Eligible for Event Manager Alerts} + \text{Rejected Alerts)}} \times 100$$
 
 ---
 
-## 3. Cumulative Trend Line Strategy (Overview & Trends)
+### 3.2 False Positive Rate (%)
+- **Reliability Objective:** Measures noise and operator workload burden. Quantifies the fraction of alerts dismissed without requiring maintenance action.
+- **Reliability Engineering Benchmark:** Target $< 20\%$. High rates cause alarm fatigue and delay responses to genuine equipment failures.
+- **Mathematical Complementarity:** $\text{Accuracy \%} + \text{False Positive Rate \%} = 100\%$.
+- **Mathematical Formula:**
 
-### 3.1 Cumulative Formulation
-
-In the cumulative model, for each bucket $i$ in the time-series (from bucket $0$ to bucket $N-1$), the percentage curve aggregates resolved alerts occurring **from the start of the selected period (`periodStart`) up to the end boundary of that bucket (`bucket_i.end`)**, while the tooltip surfaces the **cumulative count** to maintain 100% mathematical fidelity with the percentage:
-
-- **Bucket $i$ Cumulative Window**: $[\text{periodStart} \rightarrow \text{bucket\_i.end}]$
-- **Cumulative Eligible Count ($\text{CumEligible}_i$)**: Count of `Eligible for Event Manager` alerts in $[\text{periodStart}, \text{bucket\_i.end}]$.
-- **Cumulative Rejected Count ($\text{CumRejected}_i$)**: Count of `Rejected` alerts in $[\text{periodStart}, \text{bucket\_i.end}]$.
-
-$$\text{Accuracy}(i) = \frac{\text{CumEligible}_i}{\text{CumEligible}_i + \text{CumRejected}_i} \times 100$$
-
-$$\text{False Positive \%}(i) = \frac{\text{CumRejected}_i}{\text{CumEligible}_i + \text{CumRejected}_i} \times 100$$
-
-- **Interactive Tooltip Format**: Hovering over bucket $i$ displays the cumulative percentage and the cumulative count of alerts:
-  - *Accuracy Over Time*: `Accuracy : {Accuracy(i)}% ({CumEligible_i} alerts)`
-  - *False Positive Over Time*: `False Positive Rate : {False Positive %(i)}% ({CumRejected_i} alerts)`
+$$\text{False Positive Rate \%} = \frac{\text{Rejected Alerts}}{\text{Total Evaluations (Eligible for Event Manager Alerts} + \text{Rejected Alerts)}} \times 100$$
 
 ---
 
-## 4. Tab-Specific Chart Mathematical Definitions
+### 3.3 Average Time to Treat (Avg. Time to Treat)
+- **Reliability Objective:** Quantifies operational responsiveness and surveillance latency — the average lead time in days elapsed from automated detection to operator resolution.
+- **Reliability Engineering Benchmark:** Target $< 3.0\text{ days (72 hours)}$. Longer response times diminish the P-F interval advantage of predictive monitoring.
+- **Mathematical Formula:**
 
-### 4.1 Tab 1 — Overview & Trends
-
-#### 4.1.1 Accuracy & False Positive Breakdown Tables
-- **Evaluations**: $\text{TotalEvaluations} = \text{Eligible} + \text{Rejected}$ per instance.
-- **Accuracy**: $(\text{Eligible} / \text{TotalEvaluations}) \times 100$.
-- **FP Rate**: $(\text{Rejected} / \text{TotalEvaluations}) \times 100$.
-
-#### 4.1.2 Bad Actors List
-- **Ranking Metric**: Sort descending by total alert volume $\text{AlertsCount} = \text{Eligible} + \text{Rejected} + \text{Review in Progress} + \text{New}$.
-- Displays FPSO, Rule Name, Asset, Accuracy (%), FP Rate (%), and Alerts Count.
+$$\text{Avg. Time to Treat} = \frac{\sum(\text{Resolution Date} - \text{Trigger Date})\text{ in Days}}{\text{Total Treated Alerts (Eligible for Event Manager Alerts} + \text{Rejected Alerts)}}$$
 
 ---
 
-### 4.2 Tab 2 — Alerts Treated
+## 4. Tab 1 — Overview & Trends
 
-#### 4.2.1 Days to Treat an Alert — Per FPSO & Fleet Average
-For each time bucket $i$ ($\text{bucket\_i.start}$ to $\text{bucket\_i.end}$), grouped vertical bars represent each active FPSO $u$ alongside an overlaid **Fleet** line:
+This tab provides high-level temporal trends, instance-level breakdowns, and worst-performing rule rankings.
 
-- **Per-FPSO Bar ($\text{Days}_{u,i}$)**:
-  $$\text{Days}_{u,i} = \frac{1}{|T_{u,i}|} \sum_{a \in T_{u,i}} \max\left(0, \frac{a.\text{reviewedAt} - a.\text{triggeredAt}}{86,400,000\text{ ms}}\right)$$
-- **Fleet Average Line ($\text{Fleet}_i$)**:
-  $$\text{Fleet}_i = \frac{1}{|T_i|} \sum_{a \in T_i} \max\left(0, \frac{a.\text{reviewedAt} - a.\text{triggeredAt}}{86,400,000\text{ ms}}\right)$$
-- **Tooltip**: Displays lead time in days and treated alert count: `{Days} days ({Count} alerts)` and `Fleet Avg : {Fleet} days ({Total} total)`.
+### 4.1 Accuracy Over Time
+- **Component Type:** Temporal Line Chart.
+- **Reliability Objective:** Tracks whether surveillance precision is improving or degrading over time as rules are calibrated and operational regimes change.
+- **Formulation:** Cumulative percentage progression from the beginning of the filtered period up to each time interval $i$:
 
-#### 4.2.2 Alerts Treated by Status
-- **Volume Mode (`Vol`)**: Plots raw counts of `New`, `Review in Progress`, `Eligible for Event Manager`, and `Rejected` in bucket $i$.
-- **Normalized Mode (`%`)**: Plots 100% normalized proportions:
-  $$\text{Status \%}_{s,i} = \frac{\text{Count}_{s,i}}{\text{Total}_i} \times 100$$
-- **Tooltip**: Details counts, percentages, and total alerts.
+$$\text{Cumulative Accuracy \%}(i) = \frac{\text{Cumulative Eligible for Event Manager Alerts}_i}{\text{Cumulative Total Evaluations (Eligible} + \text{Rejected)}_i} \times 100$$
 
-#### 4.2.3 Alerts Treated by Monitoring Rule
-- Dynamically calculates the **Top 5 rule families by volume** for the active period/filters, aggregating all remaining families into an **`Other`** series.
-- **Tooltip**: Displays individual count and percentage share per rule family plus total alerts.
-
-#### 4.2.4 Alerts by Responsible
-- Stacked bar chart grouped by reviewer (`reviewedBy`):
-  $$\text{Total}_r = \text{Eligible}_r + \text{Rejected}_r + \text{ReviewInProgress}_r$$
-- **Colors**: Blue (`#5C9DFF`) for Eligible, Purple (`#8F75FF`) for Rejected, Amber (`#F59E0B`) for Review in Progress.
-- **Tooltip**: Details counts and percentages for all 3 review statuses.
-
-#### 4.2.5 Alerts by System
-- Stacked bar chart grouped by monitored process system (`Gas System`, `Water Injection System`, `Utility System`, `Crude Oil System`, `Power Generation System`):
-  $$\text{Total}_{\text{sys}} = \text{Eligible}_{\text{sys}} + \text{Rejected}_{\text{sys}} + \text{ReviewInProgress}_{\text{sys}} + \text{New}_{\text{sys}}$$
-- **Colors**: Blue (`#5C9DFF`), Coral (`#F87171`), Amber (`#F59E0B`), Emerald (`#4ADE80`).
-- **Tooltip**: Details counts and percentages for all 4 statuses plus total alerts per system.
+- **Interactive Tooltip:** Displays the cumulative percentage alongside the isolated alert count of that specific month/bucket:
+  `Accuracy : 80.1% (159 alerts)`
+- **Operational Interpretation:** A downward slope indicates sensor drift, changed operating baselines, or uncalibrated rule instances.
 
 ---
 
-## 5. Time Windows & Cross-Filter Intersections
+### 4.2 False Positive Over Time
+- **Component Type:** Temporal Line Chart.
+- **Reliability Objective:** Tracks the evolution of surveillance noise and operator nuisance alarm rate over time.
+- **Formulation:** Cumulative percentage progression from the beginning of the filtered period up to each time interval $i$:
 
-### 5.1 Time Windows per Period Filter
+$$\text{Cumulative False Positive Rate \%}(i) = \frac{\text{Cumulative Rejected Alerts}_i}{\text{Cumulative Total Evaluations (Eligible} + \text{Rejected)}_i} \times 100$$
 
-| Period Filter | Bucket Count | Label Format | Start Time (`periodStart`) | End Time (`periodEnd`) |
-| :--- | :--- | :--- | :--- | :--- |
-| **Last Week** | 7 daily buckets | `DD/MM` | `00:00:00` 6 days ago | `23:59:59` Today |
-| **Last Month** | 30 daily buckets | `DD/MM` | `00:00:00` 29 days ago | `23:59:59` Today |
-| **Last 6 month** | 6 monthly buckets | `Jan`, `Feb`... | `00:00:00` 1st day 5 months ago | `23:59:59` End of current month |
-| **1 Year** | 12 monthly buckets | `Jan`, `Feb`... | `00:00:00` 1st day 11 months ago | `23:59:59` End of current month |
-| **All time** | 12 monthly buckets | `Jan`, `Feb`... | `00:00:00` First record (`1970`) | `23:59:59` Today |
-
-### 5.2 Global Cross-Filter Intersections
-
-$$\text{Filtered Alerts} = \text{FpsoFilter}(\text{alerts}) \cap \text{PeriodFilter}(\text{alerts}) \cap \text{AssetFilter}(\text{alerts}) \cap \text{CategoryFilter}(\text{alerts})$$
+- **Interactive Tooltip:** Displays the cumulative percentage alongside the isolated rejected alert count of that specific month/bucket:
+  `False Positive Rate : 19.9% (27 alerts)`
+- **Operational Interpretation:** Upward trends highlight growing signal degradation or changed process noise requiring threshold adjustments.
 
 ---
 
-## 6. Production SQL Query Implementations
+### 4.3 Accuracy Breakdown by Instance
+- **Component Type:** Interactive Sortable Table.
+- **Reliability Objective:** Pinpoints exact equipment tags and monitoring rule combinations delivering optimal vs. sub-optimal performance across FPSO units.
+- **Mathematical Formulation:** For each instance (`FPSO ∩ Rule ∩ Asset`):
 
-### 6.1 Query 1: KPI Summary Cards & Instance Breakdown
+$$\text{Total Evaluations} = \text{Eligible for Event Manager Alerts} + \text{Rejected Alerts}$$
 
-```sql
-SELECT
-  f.code AS fpso_code,
-  e.code AS equipment_code,
-  mr.name AS rule_name,
-  COUNT(a.id) AS total_alerts,
-  SUM(CASE WHEN a.status IN ('eligible_for_em', 'validated', 'rejected') THEN 1 ELSE 0 END) AS total_evaluations,
-  SUM(CASE WHEN a.status IN ('eligible_for_em', 'validated') THEN 1 ELSE 0 END) AS correct_actions,
-  SUM(CASE WHEN a.status = 'rejected' THEN 1 ELSE 0 END) AS false_positives,
-  ROUND(
-    (SUM(CASE WHEN a.status IN ('eligible_for_em', 'validated') THEN 1 ELSE 0 END) * 100.0) /
-    NULLIF(SUM(CASE WHEN a.status IN ('eligible_for_em', 'validated', 'rejected') THEN 1 ELSE 0 END), 0),
-    1
-  ) AS accuracy_percentage,
-  ROUND(
-    (SUM(CASE WHEN a.status = 'rejected' THEN 1 ELSE 0 END) * 100.0) /
-    NULLIF(SUM(CASE WHEN a.status IN ('eligible_for_em', 'validated', 'rejected') THEN 1 ELSE 0 END), 0),
-    1
-  ) AS fp_rate_percentage,
-  ROUND(
-    AVG(
-      CASE
-        WHEN a.status IN ('eligible_for_em', 'validated', 'rejected') AND a.reviewed_at IS NOT NULL
-        THEN GREATEST(0, EXTRACT(EPOCH FROM (a.reviewed_at - a.triggered_at)) / 86400.0)
-        ELSE NULL
-      END
-    )::numeric,
-    2
-  ) AS avg_days_to_treat
-FROM alerts a
-JOIN rule_instances ri ON a.instance_id = ri.id
-JOIN equipment e ON ri.equipment_id = e.id
-JOIN fpsos f ON e.fpso_id = f.id
-JOIN monitoring_rules mr ON ri.rule_id = mr.id
-WHERE a.triggered_at >= :periodStart
-  AND a.triggered_at <= :periodEnd
-GROUP BY f.code, e.code, mr.name;
-```
+$$\text{Instance Accuracy \%} = \frac{\text{Eligible for Event Manager Alerts}}{\text{Total Evaluations}} \times 100$$
 
-### 6.2 Query 2: Cumulative Trend Line Charts
-
-```sql
-WITH bucket_aggregates AS (
-  SELECT
-    DATE_TRUNC(:bucketGranularity, a.triggered_at) AS bucket_date,
-    SUM(CASE WHEN a.status IN ('eligible_for_em', 'validated', 'rejected') THEN 1 ELSE 0 END) AS bucket_evaluations,
-    SUM(CASE WHEN a.status IN ('eligible_for_em', 'validated') THEN 1 ELSE 0 END) AS bucket_correct,
-    SUM(CASE WHEN a.status = 'rejected' THEN 1 ELSE 0 END) AS bucket_fp
-  FROM alerts a
-  JOIN rule_instances ri ON a.instance_id = ri.id
-  JOIN equipment e ON ri.equipment_id = e.id
-  JOIN fpsos f ON e.fpso_id = f.id
-  JOIN monitoring_rules mr ON ri.rule_id = mr.id
-  WHERE a.triggered_at >= :periodStart
-    AND a.triggered_at <= :periodEnd
-  GROUP BY DATE_TRUNC(:bucketGranularity, a.triggered_at)
-)
-SELECT
-  bucket_date,
-  SUM(bucket_correct) OVER (ORDER BY bucket_date ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS cum_correct_count,
-  SUM(bucket_fp) OVER (ORDER BY bucket_date ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS cum_rejected_count,
-  ROUND(
-    (SUM(bucket_correct) OVER (ORDER BY bucket_date ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) * 100.0) /
-    NULLIF(SUM(bucket_evaluations) OVER (ORDER BY bucket_date ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW), 0),
-    1
-  ) AS cumulative_accuracy_pct,
-  ROUND(
-    (SUM(bucket_fp) OVER (ORDER BY bucket_date ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) * 100.0) /
-    NULLIF(SUM(bucket_evaluations) OVER (ORDER BY bucket_date ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW), 0),
-    1
-  ) AS cumulative_fp_rate_pct
-FROM bucket_aggregates
-ORDER BY bucket_date ASC;
-```
+- **Operational Interpretation:** High-evaluation instances with low accuracy ($< 60\%$) identify immediate targets for threshold adjustment or suppression filtering.
 
 ---
 
-## 7. Tooltip & Formula Reference Matrix
+### 4.4 False Positive Breakdown by Instance
+- **Component Type:** Interactive Sortable Table.
+- **Reliability Objective:** Identifies specific rule instances that generate the highest proportion of nuisance alarms.
+- **Mathematical Formulation:** For each instance (`FPSO ∩ Rule ∩ Asset`):
 
-| Metric / Chart | Formula | Tooltip Description | Included Statuses |
+$$\text{Instance False Positive Rate \%} = \frac{\text{Rejected Alerts}}{\text{Total Evaluations}} \times 100$$
+
+---
+
+### 4.5 Bad Actors List
+- **Component Type:** Ranked Priority Table.
+- **Reliability Objective:** Identifies the rule configurations generating the highest volume of alerts and noise across the fleet.
+- **Ranking Formulation:**
+  $$\text{Total Alerts Count} = \text{Eligible Alerts} + \text{Rejected Alerts} + \text{Review in Progress Alerts} + \text{New Alerts}$$
+- **Operational Interpretation:** Following Pareto’s 80/20 rule, the top 5–10 bad actors typically account for $> 70\%$ of surveillance workload. Re-tuning these instances yields the highest reduction in operator fatigue.
+
+---
+
+## 5. Tab 2 — Alerts Treated
+
+This tab analyzes operational throughput, lead times per vessel, rule family distribution, and team workload allocation.
+
+### 5.1 Days to Treat an Alert (Average)
+- **Component Type:** Composed Chart (Grouped Bars per FPSO + Weighted Fleet Line).
+- **Reliability Objective:** Benchmarks response latency across different offshore units against the fleet-wide average.
+- **Mathematical Formulation:**
+
+$$\text{FPSO Average Days to Treat} = \frac{\sum(\text{Resolution Date} - \text{Trigger Date})\text{ in Days for FPSO}}{\text{Total Treated Alerts for FPSO}}$$
+
+$$\text{Fleet Average Days to Treat} = \frac{\sum(\text{Resolution Date} - \text{Trigger Date})\text{ in Days across All Selected FPSOs}}{\text{Total Treated Alerts across All Selected FPSOs}}$$
+
+- **Interactive Tooltip:** Displays lead time and absolute alert volume:
+  - `ADG : 2.3 days (39 alerts)`
+  - `Fleet Avg : 2.3 days (309 total)`
+- **Operational Interpretation:** Identifies offshore facilities or teams facing surveillance backlogs or staffing bottlenecks.
+
+---
+
+### 5.2 Alerts Treated by Status
+- **Component Type:** Stacked Bar Chart with Volume (`Vol`) vs. 100% Normalized Proportion (`%`) toggle.
+- **Reliability Objective:** Visualizes the operational pipeline health across all four lifecycle statuses.
+- **Mathematical Formulation:**
+
+$$\text{Status Proportion \%} = \frac{\text{Alerts in Specific Status}}{\text{Total Alerts across All 4 Statuses (New} + \text{In Progress} + \text{Eligible} + \text{Rejected)}} \times 100$$
+
+- **Operational Interpretation:** An expanding proportion of `New` alerts indicates an accumulating backlog; a growing `Rejected` segment signals increasing nuisance alarms.
+
+---
+
+### 5.3 Alerts Treated by Monitoring Rule
+- **Component Type:** Scalable Stacked Bar Chart (Dynamic Top 5 Rule Families + `Other`).
+- **Reliability Objective:** Analyzes failure mode recurrence by monitoring rule family (e.g., Spike, Surge, Drift, Trend, Normalized dP).
+- **Scalability Engine:**
+  To support 30+ rule families without visual clutter:
+  1. The top 5 categories by alert volume within the active window are allocated distinct primary series.
+  2. All remaining rule categories are dynamically aggregated into an **`Other`** slice.
+- **Mathematical Formulation:**
+
+$$\text{Rule Family Treated Alerts} = \text{Eligible for Event Manager Alerts} + \text{Rejected Alerts}$$
+
+- **Operational Interpretation:** Highlights prevailing process dynamics — e.g., high `Spike` volume may indicate instrumentation electrical noise, whereas high `Normalized dP` points to filter/heat exchanger fouling.
+
+---
+
+### 5.4 Alerts by Responsible
+- **Component Type:** Stacked Bar Chart grouped by surveillance engineer (`reviewedBy`).
+- **Reliability Objective:** Monitors workforce distribution and triage efficiency across review stages.
+- **Mathematical Formulation:** For each engineer:
+
+$$\text{Total Assigned Alerts} = \text{Eligible for Event Manager Alerts} + \text{Rejected Alerts} + \text{Review in Progress Alerts}$$
+
+- **Operational Interpretation:** Balances surveillance workload across the team and verifies individual review consistency.
+
+---
+
+### 5.5 Alerts by System
+- **Component Type:** Stacked Bar Chart grouped by monitored process system (`Gas System`, `Water Injection System`, `Utility System`, `Crude Oil System`, `Power Generation System`).
+- **Reliability Objective:** Identifies process plant sections experiencing high recurrence of alerts across all 4 lifecycle statuses.
+- **Mathematical Formulation:** For each system:
+
+$$\text{Total System Alerts} = \text{Eligible Alerts} + \text{Rejected Alerts} + \text{Review in Progress Alerts} + \text{New Alerts}$$
+
+- **Operational Interpretation:** Directs reliability capital and root-cause analysis (RCA) toward the process systems with highest instability.
+
+---
+
+## 6. Global Cross-Filter Operations
+
+Every visual component on the Analytics page strictly respects the global filter bar:
+
+$$\text{Active Dataset} = \text{FPSO Filter} \cap \text{Period Filter} \cap \text{Asset Filter} \cap \text{Category Filter}$$
+
+1. **FPSO Filter:** Multi-select filtering across asset units (`ADG`, `ATD`, `CDI`, `SEP`, `UNY`).
+2. **Period Filter:** Dynamic boundary calculator (`Last Week`: 7 days; `Last Month`: 30 days; `Last 6 month`: 6 months; `1 Year`: 12 months; `All time`).
+3. **Asset Filter:** Multi-select filtering by equipment tag.
+4. **Category Filter:** Multi-select filtering by rule family.
+
+---
+
+## 7. Reliability Engineering Reference Matrix
+
+| Metric / Component | Descriptive Formula | Tooltip Description | Target Benchmark |
 | :--- | :--- | :--- | :--- |
-| **Accuracy (KPI)** | `Eligible / (Eligible + Rejected) × 100` | Percentage of treated alerts confirmed as true positives relative to resolved alerts. | Eligible for Event Manager, Rejected |
-| **False Positive Rate (KPI)** | `Rejected / (Eligible + Rejected) × 100` | Percentage of treated alerts discarded as false positives relative to resolved alerts. | Rejected, Eligible for Event Manager |
-| **Avg. Time to Treat (KPI)** | `∑(ReviewedAt - TriggeredAt) / Total Treated` | Average lead time in days for an operator to resolve an alert. | Eligible for Event Manager, Rejected |
-| **Accuracy Over Time** | `(Cum. Eligible / Cum. Total Treated) × 100` | Cumulative progression of accuracy across time intervals for active filters. | Eligible for Event Manager, Rejected |
-| **False Positive Over Time** | `(Cum. Rejected / Cum. Total Treated) × 100` | Cumulative progression of the proportion of rejected alerts (noise) over time. | Rejected, Eligible for Event Manager |
-| **Accuracy Breakdown** | `Eligible / Total Evaluations × 100` | Individual accuracy for each monitoring rule and asset instance in the filtered period. | Eligible for Event Manager, Rejected |
-| **FP Breakdown** | `Rejected / Total Evaluations × 100` | Breakdown of discarded alerts (false positives) and noise rate per rule and asset. | Rejected, Eligible for Event Manager |
-| **Bad Actors List** | `Rank by Total Volume (All Statuses)` | Ranking of rule instances with highest trigger frequency and noise. | Eligible for EM, Rejected, Review in Progress, New |
-| **Days to Treat an Alert** | `∑(ReviewedAt - TriggeredAt) / Total Treated` | Average lead time in days per FPSO and weighted Fleet average from creation to resolution. | Eligible for Event Manager, Rejected |
-| **Alerts Treated by Status** | `Count by Status or 100% Proportion` | Distribution of alerts across official lifecycle statuses for selected period. | Eligible for EM, Rejected, Review in Progress, New |
-| **Alerts by Rule** | `∑(Treated Alerts) per Rule Family` | Total volume of treated alerts grouped by Top 5 monitoring rule families + Other. | Eligible for Event Manager, Rejected |
-| **Alerts by Responsible** | `∑(Eligible + Rejected + In Progress) per Reviewer` | Volume of alerts assigned or treated per responsible reviewer across review statuses. | Eligible for EM, Rejected, Review in Progress |
-| **Alerts by System** | `∑(All Alerts) per System` | Distribution of alerts across all lifecycle statuses grouped by monitored process system. | Eligible for EM, Rejected, Review in Progress, New |
+| **Accuracy (KPI)** | $\frac{\text{Eligible Alerts}}{\text{Eligible Alerts} + \text{Rejected Alerts}} \times 100$ | Percentage of treated alerts confirmed as true positives. | $> 80\%$ |
+| **False Positive Rate (KPI)** | $\frac{\text{Rejected Alerts}}{\text{Eligible Alerts} + \text{Rejected Alerts}} \times 100$ | Percentage of treated alerts dismissed as noise. | $< 20\%$ |
+| **Avg. Time to Treat (KPI)** | $\frac{\sum(\text{Resolution Date} - \text{Trigger Date})\text{ in Days}}{\text{Total Treated Alerts}}$ | Average lead time in days for operator resolution. | $< 3.0\text{ days (72h)}$ |
+| **Accuracy Over Time** | $\frac{\text{Cumulative Eligible Alerts}}{\text{Cumulative Total Evaluations}} \times 100$ | Cumulative accuracy % + isolated monthly count. | Upward / Stable |
+| **False Positive Over Time** | $\frac{\text{Cumulative Rejected Alerts}}{\text{Cumulative Total Evaluations}} \times 100$ | Cumulative FP rate % + isolated monthly count. | Downward $< 20\%$ |
+| **Accuracy Breakdown** | $\frac{\text{Eligible Alerts}}{\text{Total Evaluations}} \times 100$ | Accuracy % per rule and equipment instance. | $> 80\%$ |
+| **FP Breakdown** | $\frac{\text{Rejected Alerts}}{\text{Total Evaluations}} \times 100$ | Noise rate % per rule and equipment instance. | $< 20\%$ |
+| **Bad Actors List** | Sort by Total Volume Descending | Ranking of rule instances by alert volume and noise. | Prioritize Top 5 |
+| **Days to Treat an Alert** | $\frac{\sum(\text{Resolution Date} - \text{Trigger Date})\text{ in Days}}{\text{Treated Alerts per FPSO}}$ | Average lead time in days per FPSO and Fleet average. | Fleet Avg $< 3.0\text{d}$ |
+| **Alerts Treated by Status** | Absolute Volume or Normalized Share % | Counts and percentages for all 4 statuses + Total. | Low New Backlog |
+| **Alerts by Rule** | Top 5 Rule Families + Other | Volume per rule family + Total Alerts. | Failure Modes |
+| **Alerts by Responsible** | $\sum(\text{Eligible} + \text{Rejected} + \text{Review in Progress})$ | Volume and % for 3 review statuses per engineer. | Balanced Load |
+| **Alerts by System** | $\sum(\text{All 4 Lifecycle Statuses})$ | Volume and % for 4 statuses per process system. | System Stability |
 
 ---
 
-## 8. Conclusion
+## 8. Summary for Surveillance Engineers
 
-The mathematical model rigorously guarantees:
-1. **Denominators are never polluted** by unreviewed alerts (`New`, `Review in Progress`) for performance KPIs.
-2. **Complementarity** is mathematically preserved: $\text{Accuracy} + \text{False Positive Rate} = 100\%$.
-3. **Cumulative alignment**: The final point of the trend line charts matches the global top KPI card to the exact decimal.
-4. **Tooltips** are 100% synchronized with the visual curves and bars.
+- **High Accuracy ($> 80\%$) + Low FP Rate ($< 20\%$):** Healthy, high-confidence monitoring configuration.
+- **Low Accuracy ($< 60\%$):** Priority candidate for threshold tuning, persistence adjustment, or signal de-noising.
+- **Long Time to Treat ($> 3.0\text{ days / 72h}$):** Surveillance bottleneck requiring workflow balancing or alert suppression.
+- **Bad Actors Table:** The quickest starting point for monthly surveillance review meetings.
