@@ -3,6 +3,7 @@ import { useState, useMemo } from 'react';
 import KpiCard from '@/components/ui/KpiCard';
 import ColumnFilterDropdown from '@/components/ui/ColumnFilterDropdown';
 import FpsosFilterDropdown from '@/components/ui/FpsosFilterDropdown';
+import PeriodFilterDropdown, { PresetPeriod } from '@/components/ui/PeriodFilterDropdown';
 import AccuracyChart from './AccuracyChart';
 import FalsePositiveChart from './FalsePositiveChart';
 import RuleAlertsChart from './RuleAlertsChart';
@@ -13,7 +14,6 @@ import AlertsBySystemChart from './AlertsBySystemChart';
 import InfoTooltip from '@/components/ui/InfoTooltip';
 import { SlidersHorizontal, Maximize2, ArrowUp, ArrowDown, ArrowUpDown, FileDown, CheckCircle2, Loader2, FileText } from 'lucide-react';
 
-const PERIODS = ['Last Week', 'Last Month', 'Last 6 month', '1 Year', 'All time'];
 const CATEGORIES_LIST = ['Drift', 'Spike', 'Surge', 'Trend', 'Normalized dP'];
 
 interface RuleInstanceRow {
@@ -112,23 +112,20 @@ function getRuleFriendlyCategory(ruleName: string): string {
   return 'Trend';
 }
 
-function Sel({ value, onChange, options }: { value: string; onChange: (v: string) => void; options: string[] }) {
-  return (
-    <select
-      value={value}
-      onChange={e => onChange(e.target.value)}
-      className="bg-[#0B0F19] border border-[#1E293B] rounded-full px-3.5 py-1.5 text-xs text-white outline-none cursor-pointer hover:border-[#3B82F6] transition-colors"
-    >
-      {options.map(o => <option key={o} value={o} className="bg-[#111827] text-white">{o}</option>)}
-    </select>
-  );
-}
-
 export default function AnalyticsClient({ equipments, ruleInstances, alertsList }: Props) {
   const [activeTab, setActiveTab] = useState<'overview' | 'bad_actors' | 'export'>('overview');
   const [isExporting, setIsExporting] = useState(false);
   const [exportSuccess, setExportSuccess] = useState(false);
-  const [period, setPeriod] = useState('Last Week');
+  const [period, setPeriod] = useState<PresetPeriod>('Last week');
+  const [customFrom, setCustomFrom] = useState<string>(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 7);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  });
+  const [customTo, setCustomTo] = useState<string>(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  });
   const allFpsos = useMemo(() => Array.from(new Set(ruleInstances.map(i => i.fpsoCode))).filter(Boolean).sort(), [ruleInstances]);
   const [selectedFpsos, setSelectedFpsos] = useState<string[]>([]);
 
@@ -167,14 +164,56 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
 
   // Shared time buckets & exact period boundaries for 100% mathematical synchronization
   const periodBoundaries = useMemo(() => {
-    const isWeekly = period === 'Last Week';
-    const isDailyMonth = period === 'Last Month';
-    const is6Months = period === 'Last 6 month';
-    const isAllTime = period === 'All time';
-    const bucketsCount = isWeekly ? 7 : isDailyMonth ? 30 : is6Months ? 6 : 12;
-
     const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const now = new Date();
+
+    if (period === 'Custom dates' && customFrom && customTo) {
+      const [fy, fm, fd] = customFrom.split('-').map(Number);
+      const [ty, tm, td] = customTo.split('-').map(Number);
+      const startBound = new Date(fy, fm - 1, fd, 0, 0, 0);
+      const endBound = new Date(ty, tm - 1, td, 23, 59, 59);
+      const diffDays = Math.max(1, Math.round((endBound.getTime() - startBound.getTime()) / 86400000) + 1);
+
+      if (diffDays <= 45) {
+        // Daily buckets across custom range
+        const buckets = Array.from({ length: diffDays }, (_, idx) => {
+          const targetDate = new Date(startBound.getFullYear(), startBound.getMonth(), startBound.getDate() + idx);
+          const dayStr = String(targetDate.getDate()).padStart(2, '0');
+          const monthStr = String(targetDate.getMonth() + 1).padStart(2, '0');
+          return {
+            label: `${dayStr}/${monthStr}`,
+            start: new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 0, 0, 0),
+            end: new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 23, 59, 59),
+          };
+        });
+        return { buckets, periodStart: startBound, periodEnd: endBound };
+      } else {
+        // Monthly buckets across custom range
+        const monthsDiff = Math.max(
+          1,
+          (endBound.getFullYear() - startBound.getFullYear()) * 12 + (endBound.getMonth() - startBound.getMonth()) + 1
+        );
+        const buckets = Array.from({ length: monthsDiff }, (_, idx) => {
+          const targetMonth = new Date(startBound.getFullYear(), startBound.getMonth() + idx, 1);
+          const mStart = idx === 0 ? startBound : new Date(targetMonth.getFullYear(), targetMonth.getMonth(), 1, 0, 0, 0);
+          const mEnd =
+            idx === monthsDiff - 1
+              ? endBound
+              : new Date(targetMonth.getFullYear(), targetMonth.getMonth() + 1, 0, 23, 59, 59);
+          return {
+            label: monthNames[targetMonth.getMonth()],
+            start: mStart,
+            end: mEnd,
+          };
+        });
+        return { buckets, periodStart: startBound, periodEnd: endBound };
+      }
+    }
+
+    const isWeekly = period === 'Last week';
+    const isDailyMonth = period === 'Last month';
+    const is6Months = period === 'Last 6 months';
+    const bucketsCount = isWeekly ? 7 : isDailyMonth ? 30 : is6Months ? 6 : 12;
 
     const buckets = Array.from({ length: bucketsCount }, (_, index) => {
       let start = new Date();
@@ -209,11 +248,11 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
       return { label, start, end };
     });
 
-    const periodStart = isAllTime ? new Date(0) : buckets[0].start;
-    const periodEnd = isAllTime ? new Date() : buckets[buckets.length - 1].end;
+    const periodStart = buckets[0].start;
+    const periodEnd = buckets[buckets.length - 1].end;
 
     return { buckets, periodStart, periodEnd };
-  }, [period]);
+  }, [period, customFrom, customTo]);
 
   // Process rules instances dynamically based on alert database logs
   const processedInstances = useMemo(() => {
@@ -385,12 +424,9 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
   }, [alertsList, periodBoundaries, selectedFpsos, allFpsos, selectedEquipments, selectedCategories, equipments]);
 
   const periodSubtitle = useMemo(() => {
-    if (period === 'Last Week') return 'Last week';
-    if (period === 'Last Month') return 'Last month';
-    if (period === 'Last 6 month') return 'Last 6 months';
-    if (period === '1 Year') return 'Last 1 year';
-    return 'All time';
-  }, [period]);
+    if (period === 'Custom dates') return `${customFrom} to ${customTo}`;
+    return period;
+  }, [period, customFrom, customTo]);
 
   // Dynamic series aggregation for line and bar charts
   const trendData = useMemo(() => {
@@ -815,7 +851,17 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
             onMultiChange={setSelectedFpsos}
             baseLabel="All FPSOs"
           />
-          <Sel value={period} onChange={setPeriod} options={PERIODS} />
+          <PeriodFilterDropdown
+            value={period}
+            customFrom={customFrom}
+            customTo={customTo}
+            onSelectPreset={p => setPeriod(p)}
+            onApplyCustomDates={(from, to) => {
+              setCustomFrom(from);
+              setCustomTo(to);
+              setPeriod('Custom dates');
+            }}
+          />
           <ColumnFilterDropdown
             variant="select"
             placeholder="All Assets"
@@ -1367,7 +1413,7 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
                     const payload = {
                       filters: {
                         fpsos: selectedFpsos.length === 0 || selectedFpsos.length === allFpsos.length ? 'All FPSOs' : selectedFpsos.join(', '),
-                        period: period,
+                        period: periodSubtitle,
                         equipments: selectedEquipments.length === 0 || selectedEquipments.length === equipments.length ? 'All Assets' : `${selectedEquipments.length} selected assets`,
                         categories: selectedCategories.length === 0 || selectedCategories.length === CATEGORIES_LIST.length ? 'All Categories' : selectedCategories.join(', '),
                       },
@@ -1453,7 +1499,7 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
             <div className="bg-[#0B0F19] border border-[#1E293B] rounded-xl p-3.5">
               <span className="text-[10px] uppercase font-bold text-[#64748B] tracking-wider block mb-1">Period</span>
               <span className="text-xs font-semibold text-white truncate block">
-                {period}
+                {periodSubtitle}
               </span>
             </div>
             <div className="bg-[#0B0F19] border border-[#1E293B] rounded-xl p-3.5">
