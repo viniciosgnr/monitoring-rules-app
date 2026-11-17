@@ -1,106 +1,109 @@
 'use client';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import { useState, useEffect } from 'react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
-export interface RuleCategorySeries {
-  key: string;
-  color: string;
+export interface RuleGroupAlertItem {
+  group: string;
+  count: number;
+  eligible: number;
+  rejected: number;
+  percent: number;
 }
 
 interface Props {
-  data: {
-    timeKey: string;
-    [categoryOrOther: string]: number | string;
-  }[];
-  activeSeries: RuleCategorySeries[];
+  data: RuleGroupAlertItem[];
+  totalAlerts: number;
 }
 
-export default function RuleAlertsChart({ data, activeSeries }: Props) {
+const PAGE_SIZE = 7;
+
+export default function RuleAlertsChart({ data, totalAlerts }: Props) {
+  const [page, setPage] = useState(0);
+
+  const totalGroups = data.length;
+  const totalPages = Math.max(1, Math.ceil(totalGroups / PAGE_SIZE));
+
+  useEffect(() => {
+    if (page >= totalPages) {
+      setPage(Math.max(0, totalPages - 1));
+    }
+  }, [totalGroups, totalPages, page]);
+
+  const maxCount = data.length > 0 ? Math.max(...data.map(d => d.count), 1) : 1;
+  const paginatedItems = data.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+
+  const startIdx = totalGroups === 0 ? 0 : page * PAGE_SIZE + 1;
+  const endIdx = Math.min(totalGroups, (page + 1) * PAGE_SIZE);
+
   return (
-    <div>
-      {/* Official SLB Optisite Left-Aligned Legend */}
-      <div className="flex items-center flex-wrap gap-x-5 gap-y-2 mb-4 select-none">
-        {activeSeries.map(item => (
-          <div key={item.key} className="flex items-center gap-2">
-            <span
-              className="w-3.5 h-3.5 rounded-[3px] inline-block shrink-0"
-              style={{ backgroundColor: item.color }}
-            />
-            <span className="text-xs text-[#CBD5E1]">{item.key}</span>
-          </div>
-        ))}
-      </div>
+    <div className="flex flex-col justify-between h-full">
+      <div>
+        <p className="text-xs text-[#94A3B8] mb-5">
+          Volume and share of treated alerts across all active rule groups ({totalGroups} groups)
+        </p>
 
-      <ResponsiveContainer width="100%" height={220}>
-        <BarChart data={data} margin={{ top: 10, right: 10, left: -15, bottom: 10 }}>
-          <XAxis
-            dataKey="timeKey"
-            tick={{ fill: '#94A3B8', fontSize: 11 }}
-            axisLine={{ stroke: '#1E293B' }}
-            tickLine={false}
-            minTickGap={15}
-          />
-          <YAxis
-            tick={{ fill: '#94A3B8', fontSize: 11 }}
-            axisLine={false}
-            tickLine={false}
-            allowDecimals={false}
-            domain={[0, 'auto']}
-          />
-          <Tooltip
-            cursor={{ fill: '#1E293B', opacity: 0.25 }}
-            content={({ active, payload, label }) => {
-              if (!active || !payload || payload.length === 0) return null;
-              const point = payload[0]?.payload as (Props['data'][0] | undefined);
-              if (!point) return null;
-
-              const total = activeSeries.reduce((sum, s) => sum + (Number(point[s.key]) || 0), 0);
+        <div className="space-y-3.5 min-h-[196px]">
+          {paginatedItems.length === 0 ? (
+            <div className="py-12 text-center text-xs text-[#64748B] italic">
+              No treated alerts found for the selected filters.
+            </div>
+          ) : (
+            paginatedItems.map(item => {
+              const barWidthPct = item.count > 0 ? Math.max(4, (item.count / maxCount) * 100) : 0;
 
               return (
-                <div className="bg-[#111827] border border-[#1E293B] rounded-lg px-3 py-2.5 text-xs text-[#E2E8F0] shadow-lg space-y-1.5 min-w-[200px]">
-                  <div className="font-semibold text-white pb-1 border-b border-[#1E293B]">
-                    {label}
-                  </div>
-                  {activeSeries.map(s => {
-                    const count = Number(point[s.key]) || 0;
-                    const pct = total > 0 ? ((count / total) * 100).toFixed(1) : '0.0';
+                <div
+                  key={item.group}
+                  className="grid grid-cols-[minmax(130px,1.25fr)_2fr_minmax(88px,auto)] items-center gap-4 group"
+                  title={`${item.group}: ${item.count} treated alerts (${item.eligible} Eligible for EM, ${item.rejected} Rejected)`}
+                >
+                  <span className="text-[13px] text-[#E2E8F0] truncate group-hover:text-white transition-colors">
+                    {item.group}
+                  </span>
 
-                    return (
-                      <div key={s.key} className="flex items-center justify-between gap-4">
-                        <span className="flex items-center gap-1.5 text-[#CBD5E1]">
-                          <span
-                            className="w-2.5 h-2.5 rounded-[2px] inline-block shrink-0"
-                            style={{ backgroundColor: s.color }}
-                          />
-                          {s.key} :
-                        </span>
-                        <span className="font-mono text-white">
-                          {count} alerts ({pct}%)
-                        </span>
-                      </div>
-                    );
-                  })}
-                  <div className="flex items-center justify-between gap-4 pt-1 border-t border-[#1E293B]/80 text-[#94A3B8]">
-                    <span>Total Alerts :</span>
-                    <span className="font-mono font-semibold text-white">
-                      {total} alerts
-                    </span>
+                  <div className="h-2 w-full rounded-full bg-[#1E293B] overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-[#4F8EF7] transition-all duration-300"
+                      style={{ width: `${barWidthPct}%` }}
+                    />
                   </div>
+
+                  <span className="text-[13px] text-[#E2E8F0] tabular-nums text-right whitespace-nowrap">
+                    {item.count} ({item.percent.toFixed(1)}%)
+                  </span>
                 </div>
               );
-            }}
-          />
-          {activeSeries.map(item => (
-            <Bar
-              key={item.key}
-              dataKey={item.key}
-              stackId="a"
-              fill={item.color}
-              radius={[0, 0, 0, 0]}
-              barSize={24}
-            />
-          ))}
-        </BarChart>
-      </ResponsiveContainer>
+            })
+          )}
+        </div>
+      </div>
+
+      {/* Pagination Footer */}
+      <div className="border-t border-[#1E293B] mt-5 pt-3 flex items-center justify-end gap-3 text-xs text-[#94A3B8] select-none">
+        <span>
+          {startIdx}–{endIdx} of {totalGroups} groups
+        </span>
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            disabled={page === 0}
+            onClick={() => setPage(p => Math.max(0, p - 1))}
+            className="p-0.5 text-[#94A3B8] hover:text-white disabled:opacity-35 disabled:cursor-not-allowed transition-colors cursor-pointer"
+            aria-label="Previous page"
+          >
+            <ChevronLeft size={15} />
+          </button>
+          <button
+            type="button"
+            disabled={page >= totalPages - 1}
+            onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
+            className="p-0.5 text-[#94A3B8] hover:text-white disabled:opacity-35 disabled:cursor-not-allowed transition-colors cursor-pointer"
+            aria-label="Next page"
+          >
+            <ChevronRight size={15} />
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

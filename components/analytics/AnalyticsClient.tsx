@@ -478,105 +478,64 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
     }));
   }, [trendData]);
 
-  // Dynamic Top 5 Rule Families + Other calculation for scalability (supports 30+ rule families)
-  const TOP_RULE_PALETTE = ['#E595F7', '#9E28B5', '#C843E6', '#6929C4', '#3B82F6'];
-  const OTHER_COLOR = '#60A5FA';
+  // Horizontal Ranked Bar Data for Alerts Treated by Monitoring Rule (supports 30+ rule groups with pagination)
+  const { ruleAlertsChartData, totalRuleTreatedAlerts } = useMemo(() => {
+    const { periodStart, periodEnd } = periodBoundaries;
 
-  const { ruleAlertsChartData, ruleActiveSeries } = useMemo(() => {
-    const { buckets, periodStart, periodEnd } = periodBoundaries;
+    const activeCategoryList =
+      selectedCategories.length > 0 && selectedCategories.length < CATEGORIES_LIST.length
+        ? selectedCategories
+        : CATEGORIES_LIST;
 
-    // Filter relevant treated alerts in the active overall period
-    const periodFilteredAlerts = alertsList.filter(a => {
-      const isTreated = a.status === 'eligible_for_em' || a.status === 'validated' || a.status === 'rejected';
-      if (!isTreated) return false;
+    const categoryMap: Record<string, { eligible: number; rejected: number }> = {};
+    activeCategoryList.forEach(cat => {
+      categoryMap[cat] = { eligible: 0, rejected: 0 };
+    });
+
+    alertsList.forEach(a => {
+      const isEligible = a.status === 'eligible_for_em' || a.status === 'validated';
+      const isRejected = a.status === 'rejected';
+      if (!isEligible && !isRejected) return;
       if (selectedFpsos.length > 0 && selectedFpsos.length < allFpsos.length && !selectedFpsos.includes(a.fpsoCode)) {
-        return false;
+        return;
       }
       if (selectedEquipments.length > 0 && selectedEquipments.length < equipments.length && !selectedEquipments.includes(a.equipmentCode)) {
-        return false;
+        return;
       }
+      const friendlyCat = getRuleFriendlyCategory(a.ruleName);
       if (selectedCategories.length > 0 && selectedCategories.length < CATEGORIES_LIST.length) {
-        const friendlyCat = getRuleFriendlyCategory(a.ruleName);
-        if (!selectedCategories.includes(friendlyCat)) return false;
+        if (!selectedCategories.includes(friendlyCat)) return;
       }
       const tTime = new Date(a.triggeredAt).getTime();
-      return tTime >= periodStart.getTime() && tTime <= periodEnd.getTime();
+      if (tTime < periodStart.getTime() || tTime > periodEnd.getTime()) return;
+
+      if (!categoryMap[friendlyCat]) {
+        categoryMap[friendlyCat] = { eligible: 0, rejected: 0 };
+      }
+      if (isEligible) categoryMap[friendlyCat].eligible += 1;
+      else if (isRejected) categoryMap[friendlyCat].rejected += 1;
     });
 
-    // Count volume per rule category
-    const categoryTotals: Record<string, number> = {};
-    periodFilteredAlerts.forEach(a => {
-      const cat = getRuleFriendlyCategory(a.ruleName);
-      categoryTotals[cat] = (categoryTotals[cat] || 0) + 1;
-    });
-
-    const sortedCategories = Object.keys(categoryTotals).sort(
-      (a, b) => categoryTotals[b] - categoryTotals[a] || a.localeCompare(b)
+    const totalTreated = Object.values(categoryMap).reduce(
+      (sum, entry) => sum + entry.eligible + entry.rejected,
+      0
     );
 
-    // If selectedCategories is explicitly chosen and fewer than 6, respect user filter directly
-    const userFiltered = selectedCategories.length > 0 && selectedCategories.length < CATEGORIES_LIST.length;
-    let topCategories: string[] = [];
-    let hasOther = false;
+    const rankedList = Object.entries(categoryMap)
+      .map(([group, entry]) => {
+        const count = entry.eligible + entry.rejected;
+        const percent = totalTreated > 0 ? (count / totalTreated) * 100 : 0;
+        return {
+          group,
+          count,
+          eligible: entry.eligible,
+          rejected: entry.rejected,
+          percent,
+        };
+      })
+      .sort((a, b) => b.count - a.count || a.group.localeCompare(b.group));
 
-    if (userFiltered) {
-      topCategories = sortedCategories;
-    } else if (sortedCategories.length <= 5) {
-      topCategories = sortedCategories;
-    } else {
-      topCategories = sortedCategories.slice(0, 5);
-      hasOther = true;
-    }
-
-    const series: { key: string; color: string }[] = topCategories.map((cat, idx) => ({
-      key: cat,
-      color: TOP_RULE_PALETTE[idx % TOP_RULE_PALETTE.length],
-    }));
-
-    if (hasOther) {
-      series.push({ key: 'Other', color: OTHER_COLOR });
-    }
-
-    // Now aggregate each bucket according to the top categories + Other
-    const chartData = buckets.map(({ label, start, end }) => {
-      const bucketAlerts = alertsList.filter(a => {
-        const isTreated = a.status === 'eligible_for_em' || a.status === 'validated' || a.status === 'rejected';
-        if (!isTreated) return false;
-        if (selectedFpsos.length > 0 && selectedFpsos.length < allFpsos.length && !selectedFpsos.includes(a.fpsoCode)) {
-          return false;
-        }
-        if (selectedEquipments.length > 0 && selectedEquipments.length < equipments.length && !selectedEquipments.includes(a.equipmentCode)) {
-          return false;
-        }
-        if (selectedCategories.length > 0 && selectedCategories.length < CATEGORIES_LIST.length) {
-          const friendlyCat = getRuleFriendlyCategory(a.ruleName);
-          if (!selectedCategories.includes(friendlyCat)) return false;
-        }
-        const tTime = new Date(a.triggeredAt).getTime();
-        return tTime >= start.getTime() && tTime <= end.getTime();
-      });
-
-      const row: { timeKey: string; [key: string]: number | string } = { timeKey: label };
-      topCategories.forEach(cat => {
-        row[cat] = 0;
-      });
-      if (hasOther) {
-        row['Other'] = 0;
-      }
-
-      bucketAlerts.forEach(a => {
-        const cat = getRuleFriendlyCategory(a.ruleName);
-        if (topCategories.includes(cat)) {
-          (row[cat] as number) += 1;
-        } else if (hasOther) {
-          (row['Other'] as number) += 1;
-        }
-      });
-
-      return row;
-    });
-
-    return { ruleAlertsChartData: chartData, ruleActiveSeries: series };
+    return { ruleAlertsChartData: rankedList, totalRuleTreatedAlerts: totalTreated };
   }, [alertsList, periodBoundaries, selectedFpsos, allFpsos, selectedEquipments, selectedCategories, equipments]);
 
   // Status chart data (Both counts and percentages available for rich tooltips)
@@ -1339,23 +1298,26 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
             </div>
 
             {/* Alerts Treated by Monitoring Rule */}
-            <div className="bg-bg-card border border-border-panel rounded-card p-4">
-              <div className="flex justify-between items-center mb-3">
+            <div className="bg-bg-card border border-border-panel rounded-card p-5 flex flex-col justify-between">
+              <div className="flex justify-between items-center mb-1.5">
                 <div className="flex items-center gap-1.5">
                   <h3 className="text-sm font-semibold text-text-primary">Alerts Treated by Monitoring Rule</h3>
                   <InfoTooltip
                     title="Alerts Treated by Monitoring Rule"
-                    formula="∑(Eligible for Event Manager + Rejected) per Rule Family"
-                    description="Total volume of treated alerts grouped by Top 5 monitoring rule families + Other."
+                    formula="∑(Eligible for Event Manager + Rejected) per Rule Group"
+                    description="Volume and percentage share of treated alerts across all active monitoring rule groups."
                     statusList={['Eligible for Event Manager', 'Rejected']}
                   />
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-3">
+                  <span className="text-xs text-[#94A3B8]">
+                    Total: <span className="text-[#CBD5E1] font-medium">{totalRuleTreatedAlerts} alerts</span>
+                  </span>
                   <SlidersHorizontal size={14} className="text-text-muted cursor-pointer hover:text-text-primary transition-colors" />
                   <Maximize2 size={14} className="text-text-muted cursor-pointer hover:text-text-primary transition-colors" />
                 </div>
               </div>
-              <RuleAlertsChart data={ruleAlertsChartData} activeSeries={ruleActiveSeries} />
+              <RuleAlertsChart data={ruleAlertsChartData} totalAlerts={totalRuleTreatedAlerts} />
             </div>
           </div>
 
