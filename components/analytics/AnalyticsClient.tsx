@@ -593,6 +593,13 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
     });
   }, [trendData, statusChartMode]);
 
+  const totalStatusAlerts = useMemo(() => {
+    return trendData.reduce(
+      (sum, d) => sum + d.newCount + d.reviewInProgressCount + d.eligibleForEmCount + d.rejectedCount,
+      0
+    );
+  }, [trendData]);
+
   const activeFpsos = useMemo(() => {
     return selectedFpsos.length > 0 && selectedFpsos.length < allFpsos.length
       ? [...selectedFpsos].sort()
@@ -1261,6 +1268,9 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
+                  <span className="text-[11px] font-mono text-[#94A3B8] bg-[#0B0F19] px-2.5 py-1 rounded-md border border-[#1E293B] whitespace-nowrap">
+                    Total: <strong className="text-white">{totalStatusAlerts} alerts</strong>
+                  </span>
                   {/* Mode Toggle Buttons */}
                   <div className="flex items-center bg-[#0B0F19] border border-[#1E293B] rounded-lg p-0.5">
                     <button
@@ -1309,9 +1319,9 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
                     statusList={['Eligible for Event Manager', 'Rejected']}
                   />
                 </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-xs text-[#94A3B8]">
-                    Total: <span className="text-[#CBD5E1] font-medium">{totalRuleTreatedAlerts} alerts</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] font-mono text-[#94A3B8] bg-[#0B0F19] px-2.5 py-1 rounded-md border border-[#1E293B] whitespace-nowrap">
+                    Total: <strong className="text-white">{totalRuleTreatedAlerts} alerts</strong>
                   </span>
                   <SlidersHorizontal size={14} className="text-text-muted cursor-pointer hover:text-text-primary transition-colors" />
                   <Maximize2 size={14} className="text-text-muted cursor-pointer hover:text-text-primary transition-colors" />

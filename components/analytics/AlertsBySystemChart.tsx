@@ -22,16 +22,16 @@ interface Props {
   data: SystemAlertPoint[];
 }
 
-// Figma Palette (Diverse Multicolor from Maintenance Work Orders):
-// Eligible for Event Manager: #5C9DFF (Blue)
-// Rejected: #F87171 (Coral Red)
+// Standardized Semantic Status Palette:
+// Eligible for Event Manager: #22C55E (Green)
+// Rejected: #EF4444 (Red)
 // Review in Progress: #F59E0B (Amber/Orange)
-// New: #4ADE80 (Emerald Green)
+// New: #3B82F6 (Blue)
 const SYSTEM_STATUS_SERIES = [
-  { key: 'eligible', label: 'Eligible for Event Manager', color: '#5C9DFF' },
-  { key: 'rejected', label: 'Rejected', color: '#F87171' },
+  { key: 'eligible', label: 'Eligible for Event Manager', color: '#22C55E' },
+  { key: 'rejected', label: 'Rejected', color: '#EF4444' },
   { key: 'reviewInProgress', label: 'Review in Progress', color: '#F59E0B' },
-  { key: 'newCount', label: 'New', color: '#4ADE80' },
+  { key: 'newCount', label: 'New', color: '#3B82F6' },
 ] as const;
 
 export default function AlertsBySystemChart({ data }: Props) {

@@ -20,12 +20,12 @@ interface Props {
   data: ResponsibleAlertPoint[];
 }
 
-// Figma Palette (Harmonized):
-// Eligible for Event Manager: #5C9DFF (Blue)
-// Rejected: #8F75FF (Purple)
+// Standardized Semantic Status Palette:
+// Eligible for Event Manager: #22C55E (Green)
+// Rejected: #EF4444 (Red)
 // Review in Progress: #F59E0B (Amber/Orange)
-const ELIGIBLE_COLOR = '#5C9DFF';
-const REJECTED_COLOR = '#8F75FF';
+const ELIGIBLE_COLOR = '#22C55E';
+const REJECTED_COLOR = '#EF4444';
 const REVIEW_IN_PROGRESS_COLOR = '#F59E0B';
 
 export default function AlertsPerResponsibleChart({ data }: Props) {
