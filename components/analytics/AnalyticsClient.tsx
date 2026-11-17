@@ -1317,7 +1317,7 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
                   <Maximize2 size={14} className="text-text-muted cursor-pointer hover:text-text-primary transition-colors" />
                 </div>
               </div>
-              <RuleAlertsChart data={ruleAlertsChartData} totalAlerts={totalRuleTreatedAlerts} />
+              <RuleAlertsChart data={ruleAlertsChartData} />
             </div>
           </div>
 

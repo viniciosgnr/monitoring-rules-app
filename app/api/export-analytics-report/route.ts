@@ -3,6 +3,23 @@ import { chromium } from '@playwright/test';
 
 export const dynamic = 'force-dynamic';
 
+interface BadActorReportRow {
+  fpsoCode: string;
+  ruleName: string;
+  equipmentCode: string;
+  accuracy: number | null;
+  fpRate: number | null;
+  alertsCount: number;
+}
+
+interface SystemAlertReportRow {
+  system: string;
+  eligible: number;
+  rejected: number;
+  reviewInProgress: number;
+  total: number;
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
@@ -10,8 +27,12 @@ export async function POST(req: NextRequest) {
       filters,
       kpis,
       badActors,
-      alertsByStatus,
       alertsBySystem,
+    }: {
+      filters?: { fpsos?: string; period?: string; equipments?: string; categories?: string };
+      kpis?: { accuracy?: string; fpRate?: string; avgDays?: string };
+      badActors?: BadActorReportRow[];
+      alertsBySystem?: SystemAlertReportRow[];
     } = body;
 
     const htmlContent = `<!DOCTYPE html>
@@ -224,7 +245,7 @@ export async function POST(req: NextRequest) {
     </tr>
   </thead>
   <tbody>
-    ${(badActors || []).slice(0, 10).map((r: any) => `
+    ${(badActors || []).slice(0, 10).map((r: BadActorReportRow) => `
       <tr>
         <td class="font-mono"><strong>${r.fpsoCode}</strong></td>
         <td>${r.ruleName}</td>
@@ -249,7 +270,7 @@ export async function POST(req: NextRequest) {
     </tr>
   </thead>
   <tbody>
-    ${(alertsBySystem || []).map((s: any) => `
+    ${(alertsBySystem || []).map((s: SystemAlertReportRow) => `
       <tr>
         <td><strong>${s.system}</strong></td>
         <td class="text-right font-mono">${s.eligible}</td>

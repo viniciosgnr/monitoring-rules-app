@@ -12,12 +12,11 @@ export interface RuleGroupAlertItem {
 
 interface Props {
   data: RuleGroupAlertItem[];
-  totalAlerts: number;
 }
 
 const PAGE_SIZE = 7;
 
-export default function RuleAlertsChart({ data, totalAlerts }: Props) {
+export default function RuleAlertsChart({ data }: Props) {
   const [page, setPage] = useState(0);
 
   const totalGroups = data.length;
