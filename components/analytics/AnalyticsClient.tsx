@@ -11,7 +11,7 @@ import DaysToTreatChart from './DaysToTreatChart';
 import AlertsPerResponsibleChart from './AlertsPerResponsibleChart';
 import AlertsBySystemChart from './AlertsBySystemChart';
 import InfoTooltip from '@/components/ui/InfoTooltip';
-import { SlidersHorizontal, Maximize2, ArrowUp, ArrowDown, ArrowUpDown, BarChart3, Percent, FileDown, CheckCircle2, Loader2, FileText } from 'lucide-react';
+import { SlidersHorizontal, Maximize2, ArrowUp, ArrowDown, ArrowUpDown, FileDown, CheckCircle2, Loader2, FileText } from 'lucide-react';
 
 const PERIODS = ['Last Week', 'Last Month', 'Last 6 month', '1 Year', 'All time'];
 const CATEGORIES_LIST = ['Drift', 'Spike', 'Surge', 'Trend', 'Normalized dP'];
@@ -134,7 +134,6 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
 
   const [selectedEquipments, setSelectedEquipments] = useState<string[]>([]);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
-  const [statusChartMode, setStatusChartMode] = useState<'count' | 'percent'>('count');
 
   // Local column filters for Overview breakdown tables
   const [accuracyRuleSelected, setAccuracyRuleSelected] = useState<string[]>([]);
@@ -547,29 +546,6 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
       const eligPct = total > 0 ? parseFloat(((d.eligibleForEmCount / total) * 100).toFixed(1)) : 0;
       const rejPct = total > 0 ? parseFloat(((d.rejectedCount / total) * 100).toFixed(1)) : 0;
 
-      if (statusChartMode === 'percent') {
-        return {
-          timeKey: d.label,
-          'New': newPct,
-          'Review in Progress': revPct,
-          'Eligible for Event Manager': eligPct,
-          'Rejected': rejPct,
-          _counts: {
-            'New': d.newCount,
-            'Review in Progress': d.reviewInProgressCount,
-            'Eligible for Event Manager': d.eligibleForEmCount,
-            'Rejected': d.rejectedCount,
-          },
-          _pcts: {
-            'New': newPct,
-            'Review in Progress': revPct,
-            'Eligible for Event Manager': eligPct,
-            'Rejected': rejPct,
-          },
-          _total: total,
-        };
-      }
-
       return {
         timeKey: d.label,
         'New': d.newCount,
@@ -591,7 +567,7 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
         _total: total,
       };
     });
-  }, [trendData, statusChartMode]);
+  }, [trendData]);
 
   const totalStatusAlerts = useMemo(() => {
     return trendData.reduce(
@@ -669,7 +645,7 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
     });
   }, [alertsList, periodBoundaries, activeFpsos, selectedEquipments, selectedCategories, equipments]);
 
-  // Alerts per Responsible (Eligible for Event Manager, Rejected & Review in Progress) stacked bar chart data
+  // Alerts per Responsible (All 4 statuses: Eligible for EM, Rejected, Review in Progress & New under 'Unassigned') stacked bar chart data
   const alertsPerResponsibleData = useMemo(() => {
     const { periodStart, periodEnd } = periodBoundaries;
 
@@ -677,20 +653,21 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
     const responsibleSet = new Set<string>(DEFAULT_RESPONSIBLES);
     alertsList.forEach(a => {
       const formatted = formatResponsibleName(a.reviewedBy);
-      if (formatted) responsibleSet.add(formatted);
+      if (formatted && formatted !== 'Unassigned') responsibleSet.add(formatted);
     });
 
-    const sortedResponsibles = Array.from(responsibleSet).sort((a, b) => a.localeCompare(b));
-    const countsMap: Record<string, { eligible: number; rejected: number; reviewInProgress: number }> = {};
+    const sortedResponsibles = [...Array.from(responsibleSet).sort((a, b) => a.localeCompare(b)), 'Unassigned'];
+    const countsMap: Record<string, { eligible: number; rejected: number; reviewInProgress: number; newCount: number }> = {};
     sortedResponsibles.forEach(r => {
-      countsMap[r] = { eligible: 0, rejected: 0, reviewInProgress: 0 };
+      countsMap[r] = { eligible: 0, rejected: 0, reviewInProgress: 0, newCount: 0 };
     });
 
     alertsList.forEach(a => {
       const isEligible = a.status === 'eligible_for_em' || a.status === 'validated';
       const isRejected = a.status === 'rejected';
       const isReviewInProgress = a.status === 'review_in_progress' || a.status === 'validation_in_progress';
-      if (!isEligible && !isRejected && !isReviewInProgress) return;
+      const isNew = a.status === 'new' || a.status === 'to_be_validated';
+      if (!isEligible && !isRejected && !isReviewInProgress && !isNew) return;
       if (!activeFpsos.includes(a.fpsoCode)) return;
       if (selectedEquipments.length > 0 && selectedEquipments.length < equipments.length && !selectedEquipments.includes(a.equipmentCode)) {
         return;
@@ -702,25 +679,25 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
       const tTime = new Date(a.triggeredAt).getTime();
       if (tTime < periodStart.getTime() || tTime > periodEnd.getTime()) return;
 
-      const formatted = formatResponsibleName(a.reviewedBy);
-      if (formatted) {
-        if (!countsMap[formatted]) {
-          countsMap[formatted] = { eligible: 0, rejected: 0, reviewInProgress: 0 };
-        }
-        if (isEligible) countsMap[formatted].eligible += 1;
-        else if (isRejected) countsMap[formatted].rejected += 1;
-        else if (isReviewInProgress) countsMap[formatted].reviewInProgress += 1;
+      const targetResponsible = isNew ? 'Unassigned' : (formatResponsibleName(a.reviewedBy) || 'Unassigned');
+      if (!countsMap[targetResponsible]) {
+        countsMap[targetResponsible] = { eligible: 0, rejected: 0, reviewInProgress: 0, newCount: 0 };
       }
+      if (isEligible) countsMap[targetResponsible].eligible += 1;
+      else if (isRejected) countsMap[targetResponsible].rejected += 1;
+      else if (isReviewInProgress) countsMap[targetResponsible].reviewInProgress += 1;
+      else if (isNew) countsMap[targetResponsible].newCount += 1;
     });
 
     return sortedResponsibles.map(responsible => {
-      const entry = countsMap[responsible] || { eligible: 0, rejected: 0, reviewInProgress: 0 };
+      const entry = countsMap[responsible] || { eligible: 0, rejected: 0, reviewInProgress: 0, newCount: 0 };
       return {
         responsible,
         eligible: entry.eligible,
         rejected: entry.rejected,
         reviewInProgress: entry.reviewInProgress,
-        total: entry.eligible + entry.rejected + entry.reviewInProgress,
+        newCount: entry.newCount,
+        total: entry.eligible + entry.rejected + entry.reviewInProgress + entry.newCount,
       };
     });
   }, [alertsList, periodBoundaries, activeFpsos, selectedEquipments, selectedCategories, equipments]);
@@ -1252,59 +1229,27 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
 
           {/* Middle Section: 2 Charts Grid (Status & Rule Type) */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Alerts by Status with Count vs % Toggle */}
+            {/* Alerts by Status */}
             <div className="bg-bg-card border border-border-panel rounded-card p-4">
               <div className="flex justify-between items-center mb-3">
                 <div className="flex items-center gap-2">
                   <h3 className="text-sm font-semibold text-text-primary">Alerts by Status</h3>
                   <InfoTooltip
                     title="Alerts by Status"
-                    formula="Count by status or 100% normalized proportion"
+                    formula="∑(All Alerts) per Status"
                     description="Distribution of alerts across official lifecycle statuses for the selected time period."
                     statusList={['Eligible for Event Manager', 'Rejected', 'Review in Progress', 'New']}
                   />
-                  <span className="text-[10px] text-[#94A3B8] font-mono">
-                    ({statusChartMode === 'percent' ? '100% Normalized' : 'Volume'})
-                  </span>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-[11px] font-mono text-[#94A3B8] bg-[#0B0F19] px-2.5 py-1 rounded-md border border-[#1E293B] whitespace-nowrap">
                     Total: <strong className="text-white">{totalStatusAlerts} alerts</strong>
                   </span>
-                  {/* Mode Toggle Buttons */}
-                  <div className="flex items-center bg-[#0B0F19] border border-[#1E293B] rounded-lg p-0.5">
-                    <button
-                      type="button"
-                      onClick={() => setStatusChartMode('count')}
-                      className={`flex items-center gap-1 px-2.5 py-1 text-[11px] rounded-md transition-colors ${
-                        statusChartMode === 'count'
-                          ? 'bg-[#1E293B] text-white font-medium shadow-sm'
-                          : 'text-[#94A3B8] hover:text-white'
-                      }`}
-                      title="Show absolute alert counts"
-                    >
-                      <BarChart3 size={11} />
-                      <span>Vol</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setStatusChartMode('percent')}
-                      className={`flex items-center gap-1 px-2.5 py-1 text-[11px] rounded-md transition-colors ${
-                        statusChartMode === 'percent'
-                          ? 'bg-[#1E293B] text-white font-medium shadow-sm'
-                          : 'text-[#94A3B8] hover:text-white'
-                      }`}
-                      title="Show 100% normalized proportions"
-                    >
-                      <Percent size={11} />
-                      <span>%</span>
-                    </button>
-                  </div>
                   <SlidersHorizontal size={14} className="text-text-muted cursor-pointer hover:text-text-primary transition-colors" />
                   <Maximize2 size={14} className="text-text-muted cursor-pointer hover:text-text-primary transition-colors" />
                 </div>
               </div>
-              <StatusAlertsChart data={statusAlertsChartData} mode={statusChartMode} />
+              <StatusAlertsChart data={statusAlertsChartData} />
             </div>
 
             {/* Alerts Treated by Monitoring Rule */}
@@ -1343,13 +1288,13 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
                     </h3>
                     <InfoTooltip
                       title="Alerts by Responsible"
-                      formula="∑(Eligible for Event Manager + Rejected + Review in Progress) per Reviewer"
-                      description="Volume of alerts assigned or treated (Eligible for Event Manager, Rejected, and Review in Progress) per responsible reviewer for the selected period and global filters."
-                      statusList={['Eligible for Event Manager', 'Rejected', 'Review in Progress']}
+                      formula="∑(All Alerts) per Reviewer & Unassigned"
+                      description="Volume of alerts across all lifecycle statuses per responsible reviewer, with New alerts grouped under Unassigned."
+                      statusList={['Eligible for Event Manager', 'Rejected', 'Review in Progress', 'New']}
                     />
                   </div>
                   <p className="text-xs text-[#94A3B8] mt-0.5">
-                    Volume of alerts per responsible reviewer across review statuses
+                    Volume of alerts per responsible reviewer and unassigned backlog across all statuses
                   </p>
                 </div>
                 <div className="flex items-center gap-2">

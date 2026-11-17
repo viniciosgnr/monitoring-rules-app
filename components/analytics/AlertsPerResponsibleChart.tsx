@@ -13,6 +13,7 @@ export interface ResponsibleAlertPoint {
   eligible: number;
   rejected: number;
   reviewInProgress: number;
+  newCount: number;
   total: number;
 }
 
@@ -24,9 +25,13 @@ interface Props {
 // Eligible for Event Manager: #22C55E (Green)
 // Rejected: #EF4444 (Red)
 // Review in Progress: #F59E0B (Amber/Orange)
-const ELIGIBLE_COLOR = '#22C55E';
-const REJECTED_COLOR = '#EF4444';
-const REVIEW_IN_PROGRESS_COLOR = '#F59E0B';
+// New: #3B82F6 (Blue)
+const RESPONSIBLE_STATUS_SERIES = [
+  { key: 'eligible', label: 'Eligible for Event Manager', color: '#22C55E' },
+  { key: 'rejected', label: 'Rejected', color: '#EF4444' },
+  { key: 'reviewInProgress', label: 'Review in Progress', color: '#F59E0B' },
+  { key: 'newCount', label: 'New', color: '#3B82F6' },
+] as const;
 
 export default function AlertsPerResponsibleChart({ data }: Props) {
   const totals = (data || []).map(d => d.total).filter(v => typeof v === 'number' && !isNaN(v));
@@ -37,33 +42,15 @@ export default function AlertsPerResponsibleChart({ data }: Props) {
     <div>
       {/* Official SLB Optisite Left-Aligned Legend */}
       <div className="flex items-center flex-wrap gap-x-5 gap-y-2 mb-4 select-none">
-        <div className="flex items-center gap-2">
-          <span
-            className="w-3.5 h-3.5 rounded-[3px] inline-block shrink-0"
-            style={{ backgroundColor: ELIGIBLE_COLOR }}
-          />
-          <span className="text-xs text-[#CBD5E1]">
-            Eligible for Event Manager
-          </span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span
-            className="w-3.5 h-3.5 rounded-[3px] inline-block shrink-0"
-            style={{ backgroundColor: REJECTED_COLOR }}
-          />
-          <span className="text-xs text-[#CBD5E1]">
-            Rejected
-          </span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span
-            className="w-3.5 h-3.5 rounded-[3px] inline-block shrink-0"
-            style={{ backgroundColor: REVIEW_IN_PROGRESS_COLOR }}
-          />
-          <span className="text-xs text-[#CBD5E1]">
-            Review in Progress
-          </span>
-        </div>
+        {RESPONSIBLE_STATUS_SERIES.map(item => (
+          <div key={item.key} className="flex items-center gap-2">
+            <span
+              className="w-3.5 h-3.5 rounded-[3px] inline-block shrink-0"
+              style={{ backgroundColor: item.color }}
+            />
+            <span className="text-xs text-[#CBD5E1]">{item.label}</span>
+          </div>
+        ))}
       </div>
 
       <ResponsiveContainer width="100%" height={240}>
@@ -93,51 +80,30 @@ export default function AlertsPerResponsibleChart({ data }: Props) {
               if (!point) return null;
 
               const total = point.total || 0;
-              const eligPct = total > 0 ? ((point.eligible / total) * 100).toFixed(1) : '0.0';
-              const rejPct = total > 0 ? ((point.rejected / total) * 100).toFixed(1) : '0.0';
-              const revPct = total > 0 ? ((point.reviewInProgress / total) * 100).toFixed(1) : '0.0';
 
               return (
-                <div className="bg-[#111827] border border-[#1E293B] rounded-lg px-3 py-2.5 text-xs text-[#E2E8F0] shadow-lg space-y-1.5">
+                <div className="bg-[#111827] border border-[#1E293B] rounded-lg px-3 py-2.5 text-xs text-[#E2E8F0] shadow-lg space-y-1.5 min-w-[220px]">
                   <div className="font-semibold text-white pb-1 border-b border-[#1E293B]">
                     {label}
                   </div>
-                  <div className="flex items-center justify-between gap-4">
-                    <span className="flex items-center gap-1.5 text-[#CBD5E1]">
-                      <span
-                        className="w-2.5 h-2.5 rounded-[2px] inline-block"
-                        style={{ backgroundColor: ELIGIBLE_COLOR }}
-                      />
-                      Eligible for Event Manager :
-                    </span>
-                    <span className="font-mono text-white">
-                      {point.eligible} alerts ({eligPct}%)
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between gap-4">
-                    <span className="flex items-center gap-1.5 text-[#CBD5E1]">
-                      <span
-                        className="w-2.5 h-2.5 rounded-[2px] inline-block"
-                        style={{ backgroundColor: REJECTED_COLOR }}
-                      />
-                      Rejected :
-                    </span>
-                    <span className="font-mono text-white">
-                      {point.rejected} alerts ({rejPct}%)
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between gap-4">
-                    <span className="flex items-center gap-1.5 text-[#CBD5E1]">
-                      <span
-                        className="w-2.5 h-2.5 rounded-[2px] inline-block"
-                        style={{ backgroundColor: REVIEW_IN_PROGRESS_COLOR }}
-                      />
-                      Review in Progress :
-                    </span>
-                    <span className="font-mono text-white">
-                      {point.reviewInProgress} alerts ({revPct}%)
-                    </span>
-                  </div>
+                  {RESPONSIBLE_STATUS_SERIES.map(s => {
+                    const count = point[s.key] || 0;
+                    const pct = total > 0 ? ((count / total) * 100).toFixed(1) : '0.0';
+                    return (
+                      <div key={s.key} className="flex items-center justify-between gap-4">
+                        <span className="flex items-center gap-1.5 text-[#CBD5E1]">
+                          <span
+                            className="w-2.5 h-2.5 rounded-[2px] inline-block shrink-0"
+                            style={{ backgroundColor: s.color }}
+                          />
+                          {s.label} :
+                        </span>
+                        <span className="font-mono text-white">
+                          {count} alerts ({pct}%)
+                        </span>
+                      </div>
+                    );
+                  })}
                   <div className="flex items-center justify-between gap-4 pt-1 border-t border-[#1E293B]/80 text-[#94A3B8]">
                     <span>Total Alerts :</span>
                     <span className="font-mono font-semibold text-white">
@@ -148,30 +114,17 @@ export default function AlertsPerResponsibleChart({ data }: Props) {
               );
             }}
           />
-          <Bar
-            dataKey="eligible"
-            name="Eligible for Event Manager"
-            stackId="responsible"
-            fill={ELIGIBLE_COLOR}
-            radius={[0, 0, 0, 0]}
-            barSize={24}
-          />
-          <Bar
-            dataKey="rejected"
-            name="Rejected"
-            stackId="responsible"
-            fill={REJECTED_COLOR}
-            radius={[0, 0, 0, 0]}
-            barSize={24}
-          />
-          <Bar
-            dataKey="reviewInProgress"
-            name="Review in Progress"
-            stackId="responsible"
-            fill={REVIEW_IN_PROGRESS_COLOR}
-            radius={[0, 0, 0, 0]}
-            barSize={24}
-          />
+          {RESPONSIBLE_STATUS_SERIES.map(item => (
+            <Bar
+              key={item.key}
+              dataKey={item.key}
+              name={item.label}
+              stackId="responsible"
+              fill={item.color}
+              radius={[0, 0, 0, 0]}
+              barSize={24}
+            />
+          ))}
         </BarChart>
       </ResponsiveContainer>
     </div>
