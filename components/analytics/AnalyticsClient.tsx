@@ -137,9 +137,13 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
   const [accuracyFpsoSelected, setAccuracyFpsoSelected] = useState<string[]>([]);
   const [accuracyRuleSelected, setAccuracyRuleSelected] = useState<string[]>([]);
   const [accuracyEquipSelected, setAccuracyEquipSelected] = useState<string[]>([]);
+  const [accuracyPage, setAccuracyPage] = useState(1);
+  const [accuracyPageSize, setAccuracyPageSize] = useState(10);
   const [fpFpsoSelected, setFpFpsoSelected] = useState<string[]>([]);
   const [fpRuleSelected, setFpRuleSelected] = useState<string[]>([]);
   const [fpEquipSelected, setFpEquipSelected] = useState<string[]>([]);
+  const [fpPage, setFpPage] = useState(1);
+  const [fpPageSize, setFpPageSize] = useState(10);
   const [badActorsFpsoSelected, setBadActorsFpsoSelected] = useState<string[]>([]);
   const [badActorsRuleSelected, setBadActorsRuleSelected] = useState<string[]>([]);
   const [badActorsEquipSelected, setBadActorsEquipSelected] = useState<string[]>([]);
@@ -381,6 +385,30 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
       return fpSortDir === 'asc' ? valA - valB : valB - valA;
     });
   }, [filteredInstances, fpFpsoSelected, fpFpsoOpts, fpRuleSelected, fpRuleOpts, fpEquipSelected, fpEquipOpts, fpSortField, fpSortDir]);
+
+  useEffect(() => {
+    const totalPages = Math.max(1, Math.ceil(filteredAccuracyRows.length / accuracyPageSize));
+    if (accuracyPage > totalPages) {
+      setAccuracyPage(1);
+    }
+  }, [filteredAccuracyRows.length, accuracyPageSize, accuracyPage]);
+
+  const paginatedAccuracyRows = useMemo(() => {
+    const start = (accuracyPage - 1) * accuracyPageSize;
+    return filteredAccuracyRows.slice(start, start + accuracyPageSize);
+  }, [filteredAccuracyRows, accuracyPage, accuracyPageSize]);
+
+  useEffect(() => {
+    const totalPages = Math.max(1, Math.ceil(filteredFpRows.length / fpPageSize));
+    if (fpPage > totalPages) {
+      setFpPage(1);
+    }
+  }, [filteredFpRows.length, fpPageSize, fpPage]);
+
+  const paginatedFpRows = useMemo(() => {
+    const start = (fpPage - 1) * fpPageSize;
+    return filteredFpRows.slice(start, start + fpPageSize);
+  }, [filteredFpRows, fpPage, fpPageSize]);
 
   const badActorsBaseRows = useMemo(() => filteredInstances.filter(inst => inst.alertsCount > 0), [filteredInstances]);
   const badActorsFpsoOpts = useMemo(() => Array.from(new Set(badActorsBaseRows.map(i => i.fpsoCode))).filter(Boolean).sort(), [badActorsBaseRows]);
@@ -1035,7 +1063,7 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
                   />
                 </div>
               </div>
-              <div className="overflow-x-auto max-h-60 overflow-y-auto pr-1 rounded-b-card">
+              <div className="overflow-x-auto">
                 <table className="w-full text-xs">
                   <thead>
                     <tr className="border-b border-border-panel bg-bg-panel/40 select-none">
@@ -1108,12 +1136,12 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredAccuracyRows.length === 0 ? (
+                    {paginatedAccuracyRows.length === 0 ? (
                       <tr>
                         <td colSpan={6} className="px-4 py-8 text-center text-text-muted italic bg-bg-panel/5">No instances found</td>
                       </tr>
                     ) : (
-                      filteredAccuracyRows.map(inst => (
+                      paginatedAccuracyRows.map(inst => (
                         <tr key={inst.id} className="border-b border-border-panel hover:bg-bg-panel/10 transition-colors">
                           <td className="px-4 py-3 text-[#CBD5E1] font-mono">{inst.fpsoCode}</td>
                           <td className="px-4 py-3 text-[#CBD5E1] font-normal">{inst.ruleName}</td>
@@ -1127,6 +1155,15 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
                   </tbody>
                 </table>
               </div>
+              {filteredAccuracyRows.length > 0 && (
+                <Pagination
+                  total={filteredAccuracyRows.length}
+                  page={accuracyPage}
+                  pageSize={accuracyPageSize}
+                  onPageChange={setAccuracyPage}
+                  onPageSizeChange={setAccuracyPageSize}
+                />
+              )}
             </div>
 
             {/* False Positive Breakdown Table Card */}
@@ -1143,7 +1180,7 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
                   />
                 </div>
               </div>
-              <div className="overflow-x-auto max-h-60 overflow-y-auto pr-1 rounded-b-card">
+              <div className="overflow-x-auto">
                 <table className="w-full text-xs">
                   <thead>
                     <tr className="border-b border-border-panel bg-bg-panel/40 select-none">
@@ -1216,12 +1253,12 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredFpRows.length === 0 ? (
+                    {paginatedFpRows.length === 0 ? (
                       <tr>
                         <td colSpan={6} className="px-4 py-8 text-center text-text-muted italic bg-bg-panel/5">No instances found</td>
                       </tr>
                     ) : (
-                      filteredFpRows.map(inst => (
+                      paginatedFpRows.map(inst => (
                         <tr key={inst.id} className="border-b border-border-panel hover:bg-bg-panel/10 transition-colors">
                           <td className="px-4 py-3 text-[#CBD5E1] font-mono">{inst.fpsoCode}</td>
                           <td className="px-4 py-3 text-[#CBD5E1] font-normal">{inst.ruleName}</td>
@@ -1235,6 +1272,15 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
                   </tbody>
                 </table>
               </div>
+              {filteredFpRows.length > 0 && (
+                <Pagination
+                  total={filteredFpRows.length}
+                  page={fpPage}
+                  pageSize={fpPageSize}
+                  onPageChange={setFpPage}
+                  onPageSizeChange={setFpPageSize}
+                />
+              )}
             </div>
           </div>
 
