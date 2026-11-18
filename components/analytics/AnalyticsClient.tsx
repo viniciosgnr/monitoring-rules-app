@@ -1,9 +1,10 @@
 'use client';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import KpiCard from '@/components/ui/KpiCard';
 import ColumnFilterDropdown from '@/components/ui/ColumnFilterDropdown';
 import FpsosFilterDropdown from '@/components/ui/FpsosFilterDropdown';
 import PeriodFilterDropdown, { PresetPeriod } from '@/components/ui/PeriodFilterDropdown';
+import Pagination from '@/components/ui/Pagination';
 import AccuracyChart from './AccuracyChart';
 import FalsePositiveChart from './FalsePositiveChart';
 import RuleAlertsChart from './RuleAlertsChart';
@@ -133,16 +134,25 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
 
   // Local column filters for Overview breakdown tables
+  const [accuracyFpsoSelected, setAccuracyFpsoSelected] = useState<string[]>([]);
   const [accuracyRuleSelected, setAccuracyRuleSelected] = useState<string[]>([]);
   const [accuracyEquipSelected, setAccuracyEquipSelected] = useState<string[]>([]);
+  const [fpFpsoSelected, setFpFpsoSelected] = useState<string[]>([]);
   const [fpRuleSelected, setFpRuleSelected] = useState<string[]>([]);
   const [fpEquipSelected, setFpEquipSelected] = useState<string[]>([]);
+  const [badActorsFpsoSelected, setBadActorsFpsoSelected] = useState<string[]>([]);
+  const [badActorsRuleSelected, setBadActorsRuleSelected] = useState<string[]>([]);
+  const [badActorsEquipSelected, setBadActorsEquipSelected] = useState<string[]>([]);
+  const [badActorsPage, setBadActorsPage] = useState(1);
+  const [badActorsPageSize, setBadActorsPageSize] = useState(10);
 
   // Sorting state for Breakdown Tables
   const [accSortField, setAccSortField] = useState<'evaluations' | 'correct' | 'accuracy' | null>(null);
   const [accSortDir, setAccSortDir] = useState<'asc' | 'desc'>('asc');
   const [fpSortField, setFpSortField] = useState<'alerts' | 'fp' | 'fpRate' | null>(null);
   const [fpSortDir, setFpSortDir] = useState<'asc' | 'desc'>('desc');
+  const [badActorsSortField, setBadActorsSortField] = useState<'accuracy' | 'fpRate' | 'alerts'>('alerts');
+  const [badActorsSortDir, setBadActorsSortDir] = useState<'asc' | 'desc'>('desc');
 
   const toggleAccSort = (field: 'evaluations' | 'correct' | 'accuracy') => {
     if (accSortField === field) {
@@ -159,6 +169,15 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
     } else {
       setFpSortField(field);
       setFpSortDir('desc');
+    }
+  };
+
+  const toggleBadActorsSort = (field: 'accuracy' | 'fpRate' | 'alerts') => {
+    if (badActorsSortField === field) {
+      setBadActorsSortDir(prev => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setBadActorsSortField(field);
+      setBadActorsSortDir(field === 'accuracy' ? 'asc' : 'desc');
     }
   };
 
@@ -312,17 +331,20 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
     });
   }, [processedInstances, selectedFpsos, allFpsos, selectedEquipments, selectedCategories, equipments]);
 
+  const accuracyFpsoOpts = useMemo(() => Array.from(new Set(filteredInstances.map(i => i.fpsoCode))).filter(Boolean).sort(), [filteredInstances]);
   const accuracyRuleOpts = useMemo(() => Array.from(new Set(filteredInstances.map(i => i.ruleName))).filter(Boolean).sort(), [filteredInstances]);
   const accuracyEquipOpts = useMemo(() => Array.from(new Set(filteredInstances.map(i => i.equipmentCode))).filter(Boolean).sort(), [filteredInstances]);
   
+  const fpFpsoOpts = useMemo(() => Array.from(new Set(filteredInstances.map(i => i.fpsoCode))).filter(Boolean).sort(), [filteredInstances]);
   const fpRuleOpts = useMemo(() => Array.from(new Set(filteredInstances.map(i => i.ruleName))).filter(Boolean).sort(), [filteredInstances]);
   const fpEquipOpts = useMemo(() => Array.from(new Set(filteredInstances.map(i => i.equipmentCode))).filter(Boolean).sort(), [filteredInstances]);
 
   const filteredAccuracyRows = useMemo(() => {
     const rows = filteredInstances.filter(inst => {
+      const matchFpso = accuracyFpsoSelected.length === 0 || accuracyFpsoSelected.length === accuracyFpsoOpts.length || accuracyFpsoSelected.includes(inst.fpsoCode);
       const matchRule = accuracyRuleSelected.length === 0 || accuracyRuleSelected.length === accuracyRuleOpts.length || accuracyRuleSelected.includes(inst.ruleName);
       const matchEquip = accuracyEquipSelected.length === 0 || accuracyEquipSelected.length === accuracyEquipOpts.length || accuracyEquipSelected.includes(inst.equipmentCode);
-      return matchRule && matchEquip;
+      return matchFpso && matchRule && matchEquip;
     });
 
     if (!accSortField) return rows;
@@ -335,13 +357,14 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
       else if (accSortField === 'accuracy') { valA = a.accuracy ?? -1; valB = b.accuracy ?? -1; }
       return accSortDir === 'asc' ? valA - valB : valB - valA;
     });
-  }, [filteredInstances, accuracyRuleSelected, accuracyRuleOpts, accuracyEquipSelected, accuracyEquipOpts, accSortField, accSortDir]);
+  }, [filteredInstances, accuracyFpsoSelected, accuracyFpsoOpts, accuracyRuleSelected, accuracyRuleOpts, accuracyEquipSelected, accuracyEquipOpts, accSortField, accSortDir]);
 
   const filteredFpRows = useMemo(() => {
     const rows = filteredInstances.filter(inst => {
+      const matchFpso = fpFpsoSelected.length === 0 || fpFpsoSelected.length === fpFpsoOpts.length || fpFpsoSelected.includes(inst.fpsoCode);
       const matchRule = fpRuleSelected.length === 0 || fpRuleSelected.length === fpRuleOpts.length || fpRuleSelected.includes(inst.ruleName);
       const matchEquip = fpEquipSelected.length === 0 || fpEquipSelected.length === fpEquipOpts.length || fpEquipSelected.includes(inst.equipmentCode);
-      return matchRule && matchEquip;
+      return matchFpso && matchRule && matchEquip;
     });
 
     if (!fpSortField) return rows;
@@ -357,15 +380,53 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
       }
       return fpSortDir === 'asc' ? valA - valB : valB - valA;
     });
-  }, [filteredInstances, fpRuleSelected, fpRuleOpts, fpEquipSelected, fpEquipOpts, fpSortField, fpSortDir]);
+  }, [filteredInstances, fpFpsoSelected, fpFpsoOpts, fpRuleSelected, fpRuleOpts, fpEquipSelected, fpEquipOpts, fpSortField, fpSortDir]);
 
-  // Calculate Bad Actors List (up to 30) by highest alerts count, strictly respecting global filters
+  const badActorsBaseRows = useMemo(() => filteredInstances.filter(inst => inst.alertsCount > 0), [filteredInstances]);
+  const badActorsFpsoOpts = useMemo(() => Array.from(new Set(badActorsBaseRows.map(i => i.fpsoCode))).filter(Boolean).sort(), [badActorsBaseRows]);
+  const badActorsRuleOpts = useMemo(() => Array.from(new Set(badActorsBaseRows.map(i => i.ruleName))).filter(Boolean).sort(), [badActorsBaseRows]);
+  const badActorsEquipOpts = useMemo(() => Array.from(new Set(badActorsBaseRows.map(i => i.equipmentCode))).filter(Boolean).sort(), [badActorsBaseRows]);
+
+  // Calculate all Bad Actors occurrences (paginated in UI) with local column filters & sorting, strictly respecting global filters
   const badActorsList = useMemo(() => {
-    return [...filteredInstances]
-      .filter(inst => inst.alertsCount > 0)
-      .sort((a, b) => b.alertsCount - a.alertsCount)
-      .slice(0, 30);
-  }, [filteredInstances]);
+    const rows = badActorsBaseRows.filter(inst => {
+      const matchFpso = badActorsFpsoSelected.length === 0 || badActorsFpsoSelected.length === badActorsFpsoOpts.length || badActorsFpsoSelected.includes(inst.fpsoCode);
+      const matchRule = badActorsRuleSelected.length === 0 || badActorsRuleSelected.length === badActorsRuleOpts.length || badActorsRuleSelected.includes(inst.ruleName);
+      const matchEquip = badActorsEquipSelected.length === 0 || badActorsEquipSelected.length === badActorsEquipOpts.length || badActorsEquipSelected.includes(inst.equipmentCode);
+      return matchFpso && matchRule && matchEquip;
+    });
+
+    return [...rows].sort((a, b) => {
+      let valA = 0;
+      let valB = 0;
+      if (badActorsSortField === 'accuracy') { valA = a.accuracy ?? -1; valB = b.accuracy ?? -1; }
+      else if (badActorsSortField === 'fpRate') { valA = a.fpRate ?? -1; valB = b.fpRate ?? -1; }
+      else { valA = a.alertsCount; valB = b.alertsCount; }
+      return badActorsSortDir === 'asc' ? valA - valB : valB - valA;
+    });
+  }, [
+    badActorsBaseRows,
+    badActorsFpsoSelected,
+    badActorsFpsoOpts,
+    badActorsRuleSelected,
+    badActorsRuleOpts,
+    badActorsEquipSelected,
+    badActorsEquipOpts,
+    badActorsSortField,
+    badActorsSortDir,
+  ]);
+
+  useEffect(() => {
+    const totalPages = Math.max(1, Math.ceil(badActorsList.length / badActorsPageSize));
+    if (badActorsPage > totalPages) {
+      setBadActorsPage(1);
+    }
+  }, [badActorsList.length, badActorsPageSize, badActorsPage]);
+
+  const paginatedBadActors = useMemo(() => {
+    const start = (badActorsPage - 1) * badActorsPageSize;
+    return badActorsList.slice(start, start + badActorsPageSize);
+  }, [badActorsList, badActorsPage, badActorsPageSize]);
 
   // Calculate KPI card values dynamically
   const globalAccuracy = useMemo(() => {
@@ -980,6 +1041,12 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
                     <tr className="border-b border-border-panel bg-bg-panel/40 select-none">
                       <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary whitespace-nowrap">
                         FPSO
+                        <ColumnFilterDropdown
+                          title="FPSO"
+                          options={accuracyFpsoOpts}
+                          selectedValues={accuracyFpsoSelected.length === 0 ? accuracyFpsoOpts : accuracyFpsoSelected}
+                          onChange={setAccuracyFpsoSelected}
+                        />
                       </th>
                       <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary whitespace-nowrap">
                         Rule / Instance
@@ -1082,6 +1149,12 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
                     <tr className="border-b border-border-panel bg-bg-panel/40 select-none">
                       <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary whitespace-nowrap">
                         FPSO
+                        <ColumnFilterDropdown
+                          title="FPSO"
+                          options={fpFpsoOpts}
+                          selectedValues={fpFpsoSelected.length === 0 ? fpFpsoOpts : fpFpsoSelected}
+                          onChange={setFpFpsoSelected}
+                        />
                       </th>
                       <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary whitespace-nowrap">
                         Rule / Instance
@@ -1165,12 +1238,12 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
             </div>
           </div>
 
-          {/* Bottom Section: Bad Actors List Card (SLB Design) */}
-          <div className="bg-[#0E131F] border border-[#232938] rounded-xl mt-6 shadow-sm">
-            <div className="px-5 py-4 border-b border-[#232938] flex flex-col md:flex-row md:items-center justify-between gap-4 bg-[#141824]/40 rounded-t-xl relative z-20">
+          {/* Bottom Section: Bad Actors List Card */}
+          <div className="bg-bg-card border border-border-panel rounded-card mt-6">
+            <div className="px-4 py-3 border-b border-border-panel flex flex-col md:flex-row md:items-center justify-between gap-4 relative z-20">
               <div>
-                <div className="flex items-center gap-2">
-                  <h3 className="text-sm font-semibold text-white tracking-wide">Bad Actors List</h3>
+                <div className="flex items-center gap-1.5">
+                  <h3 className="text-sm font-semibold text-text-primary">Bad Actors List</h3>
                   <InfoTooltip
                     side="bottom"
                     title="Bad Actors List"
@@ -1183,35 +1256,95 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-xs text-[#94A3B8] font-mono">
-                  Showing top {badActorsList.length} rules
+                  Total: {badActorsList.length} rules
                 </span>
               </div>
             </div>
 
-            <div className="overflow-x-auto max-h-96 overflow-y-auto rounded-b-xl">
+            <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
-                  <tr className="border-b border-[#232938] bg-[#141824]/60 text-[#CBD5E1] select-none text-[11px] font-semibold sticky top-0 z-10 backdrop-blur-md">
-                    <th className="py-3 px-4 w-28">FPSO</th>
-                    <th className="py-3 px-4 min-w-[260px]">Rule / Instance</th>
-                    <th className="py-3 px-4 w-40">Asset</th>
-                    <th className="py-3 px-4 text-right w-24">Accuracy</th>
-                    <th className="py-3 px-4 text-right w-24">FP Rate</th>
-                    <th className="py-3 px-4 text-right w-24">Alerts</th>
+                  <tr className="border-b border-border-panel bg-bg-panel/40 select-none sticky top-0 z-10 backdrop-blur-md">
+                    <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary whitespace-nowrap w-28">
+                      FPSO
+                      <ColumnFilterDropdown
+                        title="FPSO"
+                        options={badActorsFpsoOpts}
+                        selectedValues={badActorsFpsoSelected.length === 0 ? badActorsFpsoOpts : badActorsFpsoSelected}
+                        onChange={setBadActorsFpsoSelected}
+                      />
+                    </th>
+                    <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary whitespace-nowrap min-w-[260px]">
+                      Rule
+                      <ColumnFilterDropdown
+                        title="Rule"
+                        options={badActorsRuleOpts}
+                        selectedValues={badActorsRuleSelected.length === 0 ? badActorsRuleOpts : badActorsRuleSelected}
+                        onChange={setBadActorsRuleSelected}
+                      />
+                    </th>
+                    <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary whitespace-nowrap w-40">
+                      Asset
+                      <ColumnFilterDropdown
+                        title="Asset"
+                        options={badActorsEquipOpts}
+                        selectedValues={badActorsEquipSelected.length === 0 ? badActorsEquipOpts : badActorsEquipSelected}
+                        onChange={setBadActorsEquipSelected}
+                      />
+                    </th>
+                    <th
+                      onClick={() => toggleBadActorsSort('accuracy')}
+                      className="text-right px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary whitespace-nowrap w-24 cursor-pointer hover:bg-bg-panel/60 hover:text-white transition-colors group select-none"
+                    >
+                      <div className="inline-flex items-center gap-1.5 justify-end">
+                        <span>Accuracy</span>
+                        {badActorsSortField === 'accuracy' ? (
+                          badActorsSortDir === 'asc' ? <ArrowUp className="w-3 h-3 text-brand-primary" /> : <ArrowDown className="w-3 h-3 text-brand-primary" />
+                        ) : (
+                          <ArrowUpDown className="w-3 h-3 opacity-0 group-hover:opacity-60 transition-opacity" />
+                        )}
+                      </div>
+                    </th>
+                    <th
+                      onClick={() => toggleBadActorsSort('fpRate')}
+                      className="text-right px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary whitespace-nowrap w-24 cursor-pointer hover:bg-bg-panel/60 hover:text-white transition-colors group select-none"
+                    >
+                      <div className="inline-flex items-center gap-1.5 justify-end">
+                        <span>FP Rate</span>
+                        {badActorsSortField === 'fpRate' ? (
+                          badActorsSortDir === 'asc' ? <ArrowUp className="w-3 h-3 text-status-warn" /> : <ArrowDown className="w-3 h-3 text-status-warn" />
+                        ) : (
+                          <ArrowUpDown className="w-3 h-3 opacity-0 group-hover:opacity-60 transition-opacity" />
+                        )}
+                      </div>
+                    </th>
+                    <th
+                      onClick={() => toggleBadActorsSort('alerts')}
+                      className="text-right px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary whitespace-nowrap w-24 cursor-pointer hover:bg-bg-panel/60 hover:text-white transition-colors group select-none"
+                    >
+                      <div className="inline-flex items-center gap-1.5 justify-end">
+                        <span>Alerts</span>
+                        {badActorsSortField === 'alerts' ? (
+                          badActorsSortDir === 'asc' ? <ArrowUp className="w-3 h-3 text-brand-primary" /> : <ArrowDown className="w-3 h-3 text-brand-primary" />
+                        ) : (
+                          <ArrowUpDown className="w-3 h-3 opacity-0 group-hover:opacity-60 transition-opacity" />
+                        )}
+                      </div>
+                    </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#1E2536] text-xs">
-                  {badActorsList.length === 0 ? (
+                <tbody className="text-xs">
+                  {paginatedBadActors.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="py-12 text-center text-[#64748B] italic">
+                      <td colSpan={6} className="px-4 py-8 text-center text-text-muted italic bg-bg-panel/5">
                         No active bad actor rules found for the selected filters and time period.
                       </td>
                     </tr>
                   ) : (
-                    badActorsList.map(inst => (
+                    paginatedBadActors.map(inst => (
                       <tr
                         key={inst.id}
-                        className="hover:bg-[#161D2C] transition-colors"
+                        className="border-b border-border-panel hover:bg-bg-panel/10 transition-colors"
                       >
                         <td className="py-3 px-4 font-mono text-[#CBD5E1]">
                           {inst.fpsoCode}
@@ -1237,6 +1370,15 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
                 </tbody>
               </table>
             </div>
+            {badActorsList.length > 0 && (
+              <Pagination
+                total={badActorsList.length}
+                page={badActorsPage}
+                pageSize={badActorsPageSize}
+                onPageChange={setBadActorsPage}
+                onPageSizeChange={setBadActorsPageSize}
+              />
+            )}
           </div>
         </>
       )}
