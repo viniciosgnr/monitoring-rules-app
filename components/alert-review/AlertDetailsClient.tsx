@@ -686,7 +686,7 @@ export default function AlertDetailsClient({
                 </div>
 
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-[#94A3B8] text-xs">Reviewed by:</span>
+                  <span className="text-[#94A3B8] text-xs">Review By:</span>
                   <span className="text-[#94A3B8] font-mono text-xs">{validationByDisplay}</span>
                 </div>
 
