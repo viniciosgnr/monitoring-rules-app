@@ -381,7 +381,6 @@ export default function AlarmManagementClient({
   const handleExportExcel = async () => {
     if (selectedTable === 'most_frequent_alarms') {
       const rows = (filteredRows as MostFrequentAlarmRow[]).map(r => [
-        r.fpso,
         r.tag,
         r.identifier,
         r.count,
@@ -394,13 +393,12 @@ export default function AlarmManagementClient({
         sheetName: 'Most Frequent Alarms',
         title: 'Alarm Management — Most Frequent Alarms',
         originTab: 'Alarm Management',
-        headers: ['FPSO', 'Tag', 'Identifier', 'Count', 'Percentage', 'Priority', 'Description', 'Asset'],
+        headers: ['Tag', 'Identifier', 'Count', 'Percentage', 'Priority', 'Description', 'Asset'],
         rows,
         filename: 'Alarm_Management_Most_Frequent_Alarms',
       });
     } else if (selectedTable === 'most_frequent_actions') {
       const rows = (filteredRows as MostFrequentActionRow[]).map(r => [
-        r.fpso,
         r.tag,
         r.parameter || '—',
         r.count,
@@ -409,13 +407,12 @@ export default function AlarmManagementClient({
         sheetName: 'Most Frequent Actions',
         title: 'Alarm Management — Most Frequent Actions',
         originTab: 'Alarm Management',
-        headers: ['FPSO', 'Tag', 'Parameter', 'Count'],
+        headers: ['Tag', 'Parameter', 'Count'],
         rows,
         filename: 'Alarm_Management_Most_Frequent_Actions',
       });
     } else if (selectedTable === 'chattering_alarms' || selectedTable === 'fleeting_alarms') {
       const rows = (filteredRows as (ChatteringAlarmRow | FleetingAlarmRow)[]).map(r => [
-        r.fpso,
         r.tag,
         r.identifier,
         r.priority,
@@ -425,13 +422,12 @@ export default function AlarmManagementClient({
         sheetName: activeTableMeta.label,
         title: `Alarm Management — ${activeTableMeta.label}`,
         originTab: 'Alarm Management',
-        headers: ['FPSO', 'Tag', 'Identifier', 'Priority', 'Occurrence'],
+        headers: ['Tag', 'Identifier', 'Priority', 'Occurrence'],
         rows,
         filename: `Alarm_Management_${activeTableMeta.label.replace(/\s+/g, '_')}`,
       });
     } else {
       const rows = (filteredRows as SymptomaticAnalysisRow[]).map(r => [
-        r.fpso,
         r.parentTag,
         r.parentIdentifier,
         r.childTag,
@@ -447,7 +443,6 @@ export default function AlarmManagementClient({
         title: 'Alarm Management — Symptomatic Analysis',
         originTab: 'Alarm Management',
         headers: [
-          'FPSO',
           'Parent Tag',
           'Parent Identifier',
           'Child Tag',
@@ -578,9 +573,6 @@ export default function AlarmManagementClient({
             <thead>
               <tr className="border-b border-border-panel bg-bg-panel/40 select-none">
                 <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary whitespace-nowrap">
-                  FPSO
-                </th>
-                <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary whitespace-nowrap">
                   Tag
                   <ColumnFilterDropdown
                     title="Tag"
@@ -642,14 +634,13 @@ export default function AlarmManagementClient({
             <tbody>
               {paginatedRows.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-10 text-center text-text-muted italic bg-bg-panel/5">
+                  <td colSpan={7} className="px-4 py-10 text-center text-text-muted italic bg-bg-panel/5">
                     No alarm records found for the selected period and filters.
                   </td>
                 </tr>
               ) : (
                 (paginatedRows as MostFrequentAlarmRow[]).map(row => (
                   <tr key={row.id} className="border-b border-border-panel hover:bg-bg-panel/10 transition-colors">
-                    <td className="px-4 py-3 text-[#CBD5E1] font-mono">{row.fpso}</td>
                     <td className="px-4 py-3 text-white font-mono font-medium">{row.tag}</td>
                     <td className="px-4 py-3 text-[#CBD5E1]">{row.identifier}</td>
                     <td className="px-4 py-3 text-right text-[#CBD5E1] font-mono">{row.count}</td>
@@ -668,9 +659,6 @@ export default function AlarmManagementClient({
           <table className="w-full text-xs">
             <thead>
               <tr className="border-b border-border-panel bg-bg-panel/40 select-none">
-                <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary whitespace-nowrap">
-                  FPSO
-                </th>
                 <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary whitespace-nowrap">
                   Tag
                   <ColumnFilterDropdown
@@ -697,14 +685,13 @@ export default function AlarmManagementClient({
             <tbody>
               {paginatedRows.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="px-4 py-10 text-center text-text-muted italic bg-bg-panel/5">
+                  <td colSpan={3} className="px-4 py-10 text-center text-text-muted italic bg-bg-panel/5">
                     No action records found for the selected period and filters.
                   </td>
                 </tr>
               ) : (
                 (paginatedRows as MostFrequentActionRow[]).map(row => (
                   <tr key={row.id} className="border-b border-border-panel hover:bg-bg-panel/10 transition-colors">
-                    <td className="px-4 py-3 text-[#CBD5E1] font-mono">{row.fpso}</td>
                     <td className="px-4 py-3 text-white font-mono font-medium">{row.tag}</td>
                     <td className="px-4 py-3 text-[#CBD5E1] font-mono">{row.parameter || '—'}</td>
                     <td className="px-4 py-3 text-right text-[#CBD5E1] font-mono">{row.count}</td>
@@ -719,9 +706,6 @@ export default function AlarmManagementClient({
           <table className="w-full text-xs">
             <thead>
               <tr className="border-b border-border-panel bg-bg-panel/40 select-none">
-                <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary whitespace-nowrap">
-                  FPSO
-                </th>
                 <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary whitespace-nowrap">
                   Tag
                   <ColumnFilterDropdown
@@ -763,14 +747,13 @@ export default function AlarmManagementClient({
             <tbody>
               {paginatedRows.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-10 text-center text-text-muted italic bg-bg-panel/5">
+                  <td colSpan={4} className="px-4 py-10 text-center text-text-muted italic bg-bg-panel/5">
                     No alarm records found for the selected period and filters.
                   </td>
                 </tr>
               ) : (
                 (paginatedRows as (ChatteringAlarmRow | FleetingAlarmRow)[]).map(row => (
                   <tr key={row.id} className="border-b border-border-panel hover:bg-bg-panel/10 transition-colors">
-                    <td className="px-4 py-3 text-[#CBD5E1] font-mono">{row.fpso}</td>
                     <td className="px-4 py-3 text-white font-mono font-medium">{row.tag}</td>
                     <td className="px-4 py-3 text-[#CBD5E1]">{row.identifier}</td>
                     <td className="px-4 py-3"><PriorityBadge priority={row.priority} /></td>
@@ -786,9 +769,6 @@ export default function AlarmManagementClient({
           <table className="w-full text-xs">
             <thead>
               <tr className="border-b border-border-panel bg-bg-panel/40 select-none">
-                <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary whitespace-nowrap">
-                  FPSO
-                </th>
                 <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary whitespace-nowrap">
                   Parent Tag
                   <ColumnFilterDropdown
@@ -857,14 +837,13 @@ export default function AlarmManagementClient({
             <tbody>
               {paginatedRows.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="px-4 py-10 text-center text-text-muted italic bg-bg-panel/5">
+                  <td colSpan={9} className="px-4 py-10 text-center text-text-muted italic bg-bg-panel/5">
                     No symptomatic pairs found for the selected period and filters.
                   </td>
                 </tr>
               ) : (
                 (paginatedRows as SymptomaticAnalysisRow[]).map(row => (
                   <tr key={row.id} className="border-b border-border-panel hover:bg-bg-panel/10 transition-colors">
-                    <td className="px-4 py-3 text-[#CBD5E1] font-mono">{row.fpso}</td>
                     <td className="px-4 py-3 text-white font-mono font-medium">{row.parentTag}</td>
                     <td className="px-4 py-3 text-[#CBD5E1]">{row.parentIdentifier}</td>
                     <td className="px-4 py-3 text-white font-mono font-medium">{row.childTag}</td>
