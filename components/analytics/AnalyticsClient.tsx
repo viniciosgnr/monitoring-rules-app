@@ -335,16 +335,19 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
     });
   }, [processedInstances, selectedFpsos, allFpsos, selectedEquipments, selectedCategories, equipments]);
 
-  const accuracyFpsoOpts = useMemo(() => Array.from(new Set(filteredInstances.map(i => i.fpsoCode))).filter(Boolean).sort(), [filteredInstances]);
-  const accuracyRuleOpts = useMemo(() => Array.from(new Set(filteredInstances.map(i => i.ruleName))).filter(Boolean).sort(), [filteredInstances]);
-  const accuracyEquipOpts = useMemo(() => Array.from(new Set(filteredInstances.map(i => i.equipmentCode))).filter(Boolean).sort(), [filteredInstances]);
+  // Only instances with at least 1 evaluated alert (Eligible for Event Manager or Rejected) participate in Accuracy & FP calculations
+  const evaluatedBaseRows = useMemo(() => filteredInstances.filter(inst => inst.totalEvaluations > 0), [filteredInstances]);
+
+  const accuracyFpsoOpts = useMemo(() => Array.from(new Set(evaluatedBaseRows.map(i => i.fpsoCode))).filter(Boolean).sort(), [evaluatedBaseRows]);
+  const accuracyRuleOpts = useMemo(() => Array.from(new Set(evaluatedBaseRows.map(i => i.ruleName))).filter(Boolean).sort(), [evaluatedBaseRows]);
+  const accuracyEquipOpts = useMemo(() => Array.from(new Set(evaluatedBaseRows.map(i => i.equipmentCode))).filter(Boolean).sort(), [evaluatedBaseRows]);
   
-  const fpFpsoOpts = useMemo(() => Array.from(new Set(filteredInstances.map(i => i.fpsoCode))).filter(Boolean).sort(), [filteredInstances]);
-  const fpRuleOpts = useMemo(() => Array.from(new Set(filteredInstances.map(i => i.ruleName))).filter(Boolean).sort(), [filteredInstances]);
-  const fpEquipOpts = useMemo(() => Array.from(new Set(filteredInstances.map(i => i.equipmentCode))).filter(Boolean).sort(), [filteredInstances]);
+  const fpFpsoOpts = useMemo(() => Array.from(new Set(evaluatedBaseRows.map(i => i.fpsoCode))).filter(Boolean).sort(), [evaluatedBaseRows]);
+  const fpRuleOpts = useMemo(() => Array.from(new Set(evaluatedBaseRows.map(i => i.ruleName))).filter(Boolean).sort(), [evaluatedBaseRows]);
+  const fpEquipOpts = useMemo(() => Array.from(new Set(evaluatedBaseRows.map(i => i.equipmentCode))).filter(Boolean).sort(), [evaluatedBaseRows]);
 
   const filteredAccuracyRows = useMemo(() => {
-    const rows = filteredInstances.filter(inst => {
+    const rows = evaluatedBaseRows.filter(inst => {
       const matchFpso = accuracyFpsoSelected.length === 0 || accuracyFpsoSelected.length === accuracyFpsoOpts.length || accuracyFpsoSelected.includes(inst.fpsoCode);
       const matchRule = accuracyRuleSelected.length === 0 || accuracyRuleSelected.length === accuracyRuleOpts.length || accuracyRuleSelected.includes(inst.ruleName);
       const matchEquip = accuracyEquipSelected.length === 0 || accuracyEquipSelected.length === accuracyEquipOpts.length || accuracyEquipSelected.includes(inst.equipmentCode);
@@ -361,10 +364,10 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
       else if (accSortField === 'accuracy') { valA = a.accuracy ?? -1; valB = b.accuracy ?? -1; }
       return accSortDir === 'asc' ? valA - valB : valB - valA;
     });
-  }, [filteredInstances, accuracyFpsoSelected, accuracyFpsoOpts, accuracyRuleSelected, accuracyRuleOpts, accuracyEquipSelected, accuracyEquipOpts, accSortField, accSortDir]);
+  }, [evaluatedBaseRows, accuracyFpsoSelected, accuracyFpsoOpts, accuracyRuleSelected, accuracyRuleOpts, accuracyEquipSelected, accuracyEquipOpts, accSortField, accSortDir]);
 
   const filteredFpRows = useMemo(() => {
-    const rows = filteredInstances.filter(inst => {
+    const rows = evaluatedBaseRows.filter(inst => {
       const matchFpso = fpFpsoSelected.length === 0 || fpFpsoSelected.length === fpFpsoOpts.length || fpFpsoSelected.includes(inst.fpsoCode);
       const matchRule = fpRuleSelected.length === 0 || fpRuleSelected.length === fpRuleOpts.length || fpRuleSelected.includes(inst.ruleName);
       const matchEquip = fpEquipSelected.length === 0 || fpEquipSelected.length === fpEquipOpts.length || fpEquipSelected.includes(inst.equipmentCode);
@@ -384,7 +387,7 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
       }
       return fpSortDir === 'asc' ? valA - valB : valB - valA;
     });
-  }, [filteredInstances, fpFpsoSelected, fpFpsoOpts, fpRuleSelected, fpRuleOpts, fpEquipSelected, fpEquipOpts, fpSortField, fpSortDir]);
+  }, [evaluatedBaseRows, fpFpsoSelected, fpFpsoOpts, fpRuleSelected, fpRuleOpts, fpEquipSelected, fpEquipOpts, fpSortField, fpSortDir]);
 
   useEffect(() => {
     const totalPages = Math.max(1, Math.ceil(filteredAccuracyRows.length / accuracyPageSize));
