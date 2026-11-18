@@ -3,7 +3,7 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, ExternalLink, ChevronDown, Info, AlertCircle, Check, X } from 'lucide-react';
+import { ArrowLeft, ExternalLink, ChevronDown, Info, Check, X } from 'lucide-react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import * as Dialog from '@radix-ui/react-dialog';
 import Topbar from '@/components/layout/Topbar';
@@ -12,6 +12,7 @@ import StatusBadge, { Status } from '@/components/ui/StatusBadge';
 import EquipmentBadge from '@/components/ui/EquipmentBadge';
 import SeverityBadge from '@/components/ui/SeverityBadge';
 import RejectEventModal from '@/components/alert-review/RejectEventModal';
+import ReviewInProgressModal from '@/components/alert-review/ReviewInProgressModal';
 import { updateAlertStatus } from '@/app/actions/alerts';
 import { formatAlertRef } from '@/lib/systemUtils';
 
@@ -220,12 +221,12 @@ export default function AlertDetailsClient({
   const router = useRouter();
   const [currentAlert, setCurrentAlert] = useState<AlertDetailData>(initialAlert);
   const [commentText, setCommentText] = useState<string>((initialAlert.comment as string) || '');
-  const [commentError, setCommentError] = useState<string | null>(null);
-  const [isSavingComment, setIsSavingComment] = useState<boolean>(false);
-  const [commentSavedFeedback, setCommentSavedFeedback] = useState<boolean>(false);
 
   // Validation confirmation modal (image 5)
   const [showValidateConfirm, setShowValidateConfirm] = useState<boolean>(false);
+
+  // Review in Progress confirmation modal
+  const [showReviewInProgressModal, setShowReviewInProgressModal] = useState<boolean>(false);
 
   // Rejection modal
   const [showRejectModal, setShowRejectModal] = useState<boolean>(false);
@@ -453,15 +454,11 @@ export default function AlertDetailsClient({
       return;
     }
 
-    if (
-      (newStatus === 'validation_in_progress' || newStatus === 'review_in_progress') &&
-      !commentText.trim()
-    ) {
-      setCommentError('Comment is mandatory when setting status to Review in Progress');
+    if (newStatus === 'validation_in_progress' || newStatus === 'review_in_progress') {
+      setShowReviewInProgressModal(true);
       return;
     }
 
-    setCommentError(null);
     const updatedReviewer = 'Jon Doe';
     const updatedDate = '—';
 
@@ -476,9 +473,30 @@ export default function AlertDetailsClient({
     await updateAlertStatus(currentAlert.id, newStatus, currentAlert.severity || currentAlert.tier || undefined, commentText);
   };
 
+  const handleConfirmReviewInProgress = async (modalComment: string) => {
+    setShowReviewInProgressModal(false);
+    const updatedReviewer = 'Jon Doe';
+    const updatedDate = '—';
+
+    setCurrentAlert(prev => ({
+      ...prev,
+      status: 'validation_in_progress',
+      reviewedBy: updatedReviewer,
+      reviewedAt: updatedDate,
+      comment: modalComment,
+    }));
+    setCommentText(modalComment);
+
+    await updateAlertStatus(
+      currentAlert.id,
+      'validation_in_progress',
+      currentAlert.severity || currentAlert.tier || undefined,
+      modalComment
+    );
+  };
+
   const handleConfirmValidation = async () => {
     setShowValidateConfirm(false);
-    setCommentError(null);
     const updatedReviewer = 'Jon Doe';
     const updatedDate = new Date().toLocaleString('pt-BR');
 
@@ -494,7 +512,6 @@ export default function AlertDetailsClient({
 
   const handleConfirmRejection = async (reasons: string[], reasonComment: string) => {
     setShowRejectModal(false);
-    setCommentError(null);
     const updatedReviewer = 'Jon Doe';
     const updatedDate = new Date().toLocaleString('pt-BR');
     const fullComment = reasons.length > 0 ? `${reasons.join(', ')}${reasonComment ? ` - ${reasonComment}` : ''}` : reasonComment;
@@ -513,22 +530,6 @@ export default function AlertDetailsClient({
     setCommentText(fullComment);
 
     await updateAlertStatus(currentAlert.id, 'rejected', undefined, fullComment);
-  };
-
-  const handleSaveComment = async () => {
-    if (!commentText.trim()) return;
-    setIsSavingComment(true);
-    setCommentError(null);
-    try {
-      await updateAlertStatus(currentAlert.id, currentAlert.status, currentAlert.severity || currentAlert.tier || undefined, commentText.trim());
-      setCurrentAlert(prev => ({ ...prev, comment: commentText.trim() }));
-      setCommentSavedFeedback(true);
-      setTimeout(() => setCommentSavedFeedback(false), 2500);
-    } catch {
-      setCommentError('Failed to save comment. Please try again.');
-    } finally {
-      setIsSavingComment(false);
-    }
   };
 
   const isAlertValidated = currentAlert.status === 'validated' || (currentAlert.status as string) === 'eligible_for_em';
@@ -689,82 +690,30 @@ export default function AlertDetailsClient({
                   <span className="text-[#94A3B8] font-mono text-xs">{validationByDisplay}</span>
                 </div>
 
-                {/* In read-only mode, Comment / Justification is presented as a clean row */}
-                {isReadOnly && (
-                  <div className="flex items-start justify-between gap-2">
-                    <span className="text-[#94A3B8] text-xs">
-                      {currentAlert.status === 'rejected' ? 'Justification:' : 'Comment:'}
-                    </span>
-                    <span className="text-[#E2E8F0] text-xs text-right max-w-[200px] leading-relaxed select-text">
-                      {currentAlert.comment || (currentAlert.status === 'rejected' ? 'No justification provided' : 'A monitoring alert has been triggered, potentially indicating a failure.')}
-                    </span>
-                  </div>
-                )}
+                {/* Read-only Comment / Justification row (populated via status transition modals) */}
+                <div className="flex items-start justify-between gap-2">
+                  <span className="text-[#94A3B8] text-xs">
+                    {currentAlert.status === 'rejected' ? 'Justification:' : 'Comment:'}
+                  </span>
+                  <span className="text-[#E2E8F0] text-xs text-right max-w-[200px] leading-relaxed select-text">
+                    {currentAlert.comment || (isReadOnly
+                      ? (currentAlert.status === 'rejected' ? 'No justification provided' : 'A monitoring alert has been triggered, potentially indicating a failure.')
+                      : '—')}
+                  </span>
+                </div>
               </div>
 
-              {/* Action / Comment Section */}
-              {isReadOnly ? (
-                <div className="pt-2 border-t border-[#1E293B]">
-                  <button
-                    type="button"
-                    onClick={() => alert('Opening Workbench...')}
-                    className="w-full flex items-center justify-center gap-2 px-3.5 py-1.5 rounded-full bg-[#0B0F19] border border-[#1E293B] text-white text-xs font-normal hover:border-[#3B82F6] transition-colors cursor-pointer"
-                  >
-                    <ExternalLink size={13} />
-                    <span>Open Workbench</span>
-                  </button>
-                </div>
-              ) : (
-                <div className="space-y-2 pt-2 border-t border-[#1E293B]">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-[#94A3B8]">Comment</span>
-                    {commentSavedFeedback && (
-                      <span className="text-[11px] text-emerald-400 flex items-center gap-1">
-                        <Check size={12} /> Saved
-                      </span>
-                    )}
-                  </div>
-
-                  <textarea
-                    value={commentText}
-                    onChange={e => {
-                      setCommentText(e.target.value);
-                      if (commentError) setCommentError(null);
-                    }}
-                    rows={4}
-                    placeholder="Type here..."
-                    className={`w-full bg-[#0B0F19] border rounded-xl p-3 text-xs text-white placeholder-[#64748B] outline-none transition-colors resize-y ${
-                      commentError ? 'border-red-500' : 'border-[#1E293B] focus:border-[#3B82F6]'
-                    }`}
-                  />
-                  {commentError && (
-                    <div className="flex items-center gap-1.5 text-xs text-red-400">
-                      <AlertCircle size={13} className="shrink-0" />
-                      <span>{commentError}</span>
-                    </div>
-                  )}
-
-                  {/* Bottom Action Buttons: Open Workbench & Save Note */}
-                  <div className="flex items-center gap-2 pt-2">
-                    <button
-                      type="button"
-                      onClick={() => alert('Opening Workbench...')}
-                      className="flex-1 flex items-center justify-center gap-2 px-3.5 py-1.5 rounded-full bg-[#0B0F19] border border-[#1E293B] text-white text-xs font-normal hover:border-[#3B82F6] transition-colors cursor-pointer"
-                    >
-                      <ExternalLink size={13} />
-                      <span>Open Workbench</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleSaveComment}
-                      disabled={isSavingComment || !commentText.trim()}
-                      className="px-4 py-1.5 rounded-full text-xs font-normal bg-[#0B0F19] border border-[#1E293B] text-white hover:border-[#3B82F6] hover:text-[#3B82F6] disabled:opacity-50 transition-colors cursor-pointer whitespace-nowrap"
-                    >
-                      {isSavingComment ? 'Saving...' : 'Save Note'}
-                    </button>
-                  </div>
-                </div>
-              )}
+              {/* Action Section */}
+              <div className="pt-2 border-t border-[#1E293B]">
+                <button
+                  type="button"
+                  onClick={() => alert('Opening Workbench...')}
+                  className="w-full flex items-center justify-center gap-2 px-3.5 py-1.5 rounded-full bg-[#0B0F19] border border-[#1E293B] text-white text-xs font-normal hover:border-[#3B82F6] transition-colors cursor-pointer"
+                >
+                  <ExternalLink size={13} />
+                  <span>Open Workbench</span>
+                </button>
+              </div>
             </div>
 
             {/* Alert History Card (matching SLB design in mockup) */}
@@ -1291,6 +1240,13 @@ export default function AlertDetailsClient({
           </Dialog.Content>
         </Dialog.Portal>
       </Dialog.Root>
+
+      {/* Review in Progress Modal */}
+      <ReviewInProgressModal
+        open={showReviewInProgressModal}
+        onClose={() => setShowReviewInProgressModal(false)}
+        onSubmit={handleConfirmReviewInProgress}
+      />
 
       {/* Reject Event Modal */}
       <RejectEventModal
