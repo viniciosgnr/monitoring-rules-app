@@ -1,6 +1,6 @@
 'use client';
 import React, { useState, useRef, useEffect } from 'react';
-import { ChevronDown, ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Calendar } from 'lucide-react';
 
 export type PresetPeriod = 'Last week' | 'Last month' | 'Last 6 months' | 'Last year' | 'Custom dates';
 
@@ -17,23 +17,40 @@ const WEEKDAYS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 
 interface PeriodFilterDropdownProps {
   value: PresetPeriod;
-  customFrom: string; // YYYY-MM-DD
-  customTo: string;   // YYYY-MM-DD
+  customFrom: string; // YYYY-MM-DD HH:mm:ss (or YYYY-MM-DD)
+  customTo: string;   // YYYY-MM-DD HH:mm:ss (or YYYY-MM-DD)
   onSelectPreset: (period: Exclude<PresetPeriod, 'Custom dates'>) => void;
   onApplyCustomDates: (from: string, to: string) => void;
 }
 
-function formatDateYMD(date: Date): string {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, '0');
-  const d = String(date.getDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
+function pad2(n: number): string {
+  return String(n).padStart(2, '0');
 }
 
-function parseDateYMD(ymd: string): Date {
-  const [y, m, d] = ymd.split('-').map(Number);
+function normalizeDateTimeStr(val: string, defaultTime: '00:00:00' | '23:59:59'): string {
+  const trimmed = (val || '').trim();
+  if (!trimmed) return '';
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    return `${trimmed} ${defaultTime}`;
+  }
+  if (/^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(:\d{2})?$/.test(trimmed)) {
+    const clean = trimmed.replace('T', ' ');
+    return clean.length === 16 ? `${clean}:00` : clean;
+  }
+  return trimmed;
+}
+
+function parseDateTime(val: string, defaultTime: '00:00:00' | '23:59:59'): Date {
+  const norm = normalizeDateTimeStr(val, defaultTime);
+  const [datePart, timePart] = norm.split(' ');
+  const [y, m, d] = (datePart || '').split('-').map(Number);
+  const [hh, mm, ss] = (timePart || defaultTime).split(':').map(Number);
   if (!y || !m || !d) return new Date();
-  return new Date(y, m - 1, d);
+  return new Date(y, m - 1, d, isNaN(hh) ? 0 : hh, isNaN(mm) ? 0 : mm, isNaN(ss) ? 0 : ss);
+}
+
+function formatDateTime(date: Date): string {
+  return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())} ${pad2(date.getHours())}:${pad2(date.getMinutes())}:${pad2(date.getSeconds())}`;
 }
 
 export default function PeriodFilterDropdown({
@@ -45,8 +62,8 @@ export default function PeriodFilterDropdown({
 }: PeriodFilterDropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [stagedOption, setStagedOption] = useState<PresetPeriod>(value);
-  const [stagedFrom, setStagedFrom] = useState<string>(customFrom);
-  const [stagedTo, setStagedTo] = useState<string>(customTo);
+  const [stagedFrom, setStagedFrom] = useState<string>(() => normalizeDateTimeStr(customFrom, '00:00:00'));
+  const [stagedTo, setStagedTo] = useState<string>(() => normalizeDateTimeStr(customTo, '23:59:59'));
 
   // Calendar popover state ('from' | 'to' | null)
   const [activeCalendarField, setActiveCalendarField] = useState<'from' | 'to' | null>(null);
@@ -75,8 +92,8 @@ export default function PeriodFilterDropdown({
   const handleOpenToggle = () => {
     if (!isOpen) {
       setStagedOption(value);
-      setStagedFrom(customFrom);
-      setStagedTo(customTo);
+      setStagedFrom(normalizeDateTimeStr(customFrom, '00:00:00'));
+      setStagedTo(normalizeDateTimeStr(customTo, '23:59:59'));
       setActiveCalendarField(null);
       setShowMonthYearSelect(false);
     }
@@ -90,14 +107,16 @@ export default function PeriodFilterDropdown({
       setIsOpen(false);
       setActiveCalendarField(null);
     } else {
-      // Ensure valid default dates when opening Custom dates
       if (!stagedFrom) {
         const d = new Date();
         d.setDate(d.getDate() - 7);
-        setStagedFrom(formatDateYMD(d));
+        d.setHours(0, 0, 0, 0);
+        setStagedFrom(formatDateTime(d));
       }
       if (!stagedTo) {
-        setStagedTo(formatDateYMD(new Date()));
+        const d = new Date();
+        d.setHours(23, 59, 59, 0);
+        setStagedTo(formatDateTime(d));
       }
     }
   };
@@ -107,8 +126,8 @@ export default function PeriodFilterDropdown({
       setActiveCalendarField(null);
       return;
     }
-    const targetYmd = field === 'from' ? stagedFrom : stagedTo;
-    const parsed = parseDateYMD(targetYmd);
+    const targetVal = field === 'from' ? stagedFrom : stagedTo;
+    const parsed = parseDateTime(targetVal, field === 'from' ? '00:00:00' : '23:59:59');
     setViewYear(parsed.getFullYear());
     setViewMonth(parsed.getMonth());
     setShowMonthYearSelect(false);
@@ -116,20 +135,69 @@ export default function PeriodFilterDropdown({
   };
 
   const handleDaySelect = (day: number) => {
-    const selectedDate = new Date(viewYear, viewMonth, day);
-    const formatted = formatDateYMD(selectedDate);
+    if (!activeCalendarField) return;
+    const current = parseDateTime(
+      activeCalendarField === 'from' ? stagedFrom : stagedTo,
+      activeCalendarField === 'from' ? '00:00:00' : '23:59:59'
+    );
+    const updated = new Date(
+      viewYear,
+      viewMonth,
+      day,
+      current.getHours(),
+      current.getMinutes(),
+      current.getSeconds()
+    );
+    const formatted = formatDateTime(updated);
     if (activeCalendarField === 'from') {
       setStagedFrom(formatted);
-      if (stagedTo && formatted > stagedTo) {
-        setStagedTo(formatted);
-      }
-    } else if (activeCalendarField === 'to') {
+    } else {
       setStagedTo(formatted);
-      if (stagedFrom && formatted < stagedFrom) {
-        setStagedFrom(formatted);
-      }
     }
-    setActiveCalendarField(null);
+  };
+
+  const updateTimeUnit = (unit: 'hours' | 'minutes' | 'seconds', delta: number) => {
+    if (!activeCalendarField) return;
+    const current = parseDateTime(
+      activeCalendarField === 'from' ? stagedFrom : stagedTo,
+      activeCalendarField === 'from' ? '00:00:00' : '23:59:59'
+    );
+    if (unit === 'hours') {
+      current.setHours((current.getHours() + delta + 24) % 24);
+    } else if (unit === 'minutes') {
+      current.setMinutes((current.getMinutes() + delta + 60) % 60);
+    } else {
+      current.setSeconds((current.getSeconds() + delta + 60) % 60);
+    }
+    const formatted = formatDateTime(current);
+    if (activeCalendarField === 'from') {
+      setStagedFrom(formatted);
+    } else {
+      setStagedTo(formatted);
+    }
+  };
+
+  const setTimeUnitExact = (unit: 'hours' | 'minutes' | 'seconds', raw: string) => {
+    if (!activeCalendarField) return;
+    const num = parseInt(raw, 10);
+    if (isNaN(num)) return;
+    const current = parseDateTime(
+      activeCalendarField === 'from' ? stagedFrom : stagedTo,
+      activeCalendarField === 'from' ? '00:00:00' : '23:59:59'
+    );
+    if (unit === 'hours') {
+      current.setHours(Math.min(23, Math.max(0, num)));
+    } else if (unit === 'minutes') {
+      current.setMinutes(Math.min(59, Math.max(0, num)));
+    } else {
+      current.setSeconds(Math.min(59, Math.max(0, num)));
+    }
+    const formatted = formatDateTime(current);
+    if (activeCalendarField === 'from') {
+      setStagedFrom(formatted);
+    } else {
+      setStagedTo(formatted);
+    }
   };
 
   const handlePrevMonth = () => {
@@ -152,8 +220,10 @@ export default function PeriodFilterDropdown({
 
   const handleApply = () => {
     if (stagedFrom && stagedTo) {
-      const start = stagedFrom <= stagedTo ? stagedFrom : stagedTo;
-      const end = stagedFrom <= stagedTo ? stagedTo : stagedFrom;
+      const fromNorm = normalizeDateTimeStr(stagedFrom, '00:00:00');
+      const toNorm = normalizeDateTimeStr(stagedTo, '23:59:59');
+      const start = fromNorm <= toNorm ? fromNorm : toNorm;
+      const end = fromNorm <= toNorm ? toNorm : fromNorm;
       onApplyCustomDates(start, end);
       setIsOpen(false);
       setActiveCalendarField(null);
@@ -162,8 +232,8 @@ export default function PeriodFilterDropdown({
 
   const handleCancel = () => {
     setStagedOption(value);
-    setStagedFrom(customFrom);
-    setStagedTo(customTo);
+    setStagedFrom(normalizeDateTimeStr(customFrom, '00:00:00'));
+    setStagedTo(normalizeDateTimeStr(customTo, '23:59:59'));
     setActiveCalendarField(null);
     setIsOpen(false);
   };
@@ -172,7 +242,7 @@ export default function PeriodFilterDropdown({
   const firstDayOfWeek = new Date(viewYear, viewMonth, 1).getDay();
   const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
   const activeFieldValue = activeCalendarField === 'from' ? stagedFrom : stagedTo;
-  const activeDateObj = parseDateYMD(activeFieldValue);
+  const activeDateObj = parseDateTime(activeFieldValue, activeCalendarField === 'from' ? '00:00:00' : '23:59:59');
 
   const isSelectedDay = (day: number) =>
     activeDateObj.getFullYear() === viewYear &&
@@ -194,7 +264,7 @@ export default function PeriodFilterDropdown({
           isOpen ? 'border-[#3B82F6]' : 'border-[#1E293B] hover:border-[#3B82F6]'
         }`}
       >
-        <span className="truncate max-w-[180px]">{buttonLabel}</span>
+        <span className="truncate max-w-[260px]">{buttonLabel}</span>
         <ChevronDown
           size={13}
           className={`text-[#94A3B8] transition-transform duration-150 ${isOpen ? 'rotate-180 text-white' : ''}`}
@@ -203,7 +273,7 @@ export default function PeriodFilterDropdown({
 
       {/* Dropdown Menu */}
       {isOpen && (
-        <div className="absolute right-0 mt-1.5 w-[256px] bg-[#161923] border border-[#2B3142] rounded-lg shadow-2xl z-50 overflow-visible">
+        <div className="absolute right-0 mt-1.5 w-[264px] bg-[#161923] border border-[#2B3142] rounded-lg shadow-2xl z-50 overflow-visible">
           <div className="py-1">
             {PRESET_PERIODS.map(option => {
               const isSelected = stagedOption === option;
@@ -235,7 +305,7 @@ export default function PeriodFilterDropdown({
                 <button
                   type="button"
                   onClick={() => openCalendarFor('from')}
-                  className={`w-full bg-[#0B0E17] border rounded-lg px-3 py-2 text-[13px] font-semibold text-white flex items-center justify-between cursor-pointer transition-colors ${
+                  className={`w-full bg-[#0B0E17] border rounded-lg px-3 py-2 text-[12.5px] font-semibold text-white flex items-center justify-between cursor-pointer transition-colors ${
                     activeCalendarField === 'from'
                       ? 'border-[#3B82F6] ring-1 ring-[#3B82F6]/40'
                       : 'border-[#2E3646] hover:border-[#475569]'
@@ -254,7 +324,7 @@ export default function PeriodFilterDropdown({
                 <button
                   type="button"
                   onClick={() => openCalendarFor('to')}
-                  className={`w-full bg-[#0B0E17] border rounded-lg px-3 py-2 text-[13px] font-semibold text-white flex items-center justify-between cursor-pointer transition-colors ${
+                  className={`w-full bg-[#0B0E17] border rounded-lg px-3 py-2 text-[12.5px] font-semibold text-white flex items-center justify-between cursor-pointer transition-colors ${
                     activeCalendarField === 'to'
                       ? 'border-[#3B82F6] ring-1 ring-[#3B82F6]/40'
                       : 'border-[#2E3646] hover:border-[#475569]'
@@ -284,9 +354,9 @@ export default function PeriodFilterDropdown({
                 </button>
               </div>
 
-              {/* SLB Optisite Calendar Popover */}
+              {/* SLB Optisite Calendar & Time Popover */}
               {activeCalendarField && (
-                <div className="absolute right-0 bottom-full mb-2 w-[264px] bg-[#121621] border border-[#2B3142] rounded-lg shadow-2xl p-4 z-[60]">
+                <div className="absolute right-full top-0 mr-2 w-[272px] bg-[#121621] border border-[#2B3142] rounded-lg shadow-2xl p-4 z-[60]">
                   {/* Calendar Top Bar */}
                   <div className="flex items-center justify-between mb-3">
                     <div className="relative">
@@ -377,7 +447,7 @@ export default function PeriodFilterDropdown({
                   </div>
 
                   {/* Days Grid */}
-                  <div className="grid grid-cols-7 gap-y-1 text-center">
+                  <div className="grid grid-cols-7 gap-y-1 text-center pb-3 border-b border-[#232938]">
                     {Array.from({ length: firstDayOfWeek }).map((_, i) => (
                       <div key={`empty-${i}`} className="w-8 h-8" />
                     ))}
@@ -399,6 +469,91 @@ export default function PeriodFilterDropdown({
                       );
                     })}
                   </div>
+
+                  {/* SLB Optisite Time Spinner (HH : mm : ss) */}
+                  <div className="pt-3 flex items-center justify-center gap-2.5">
+                    {/* Hours */}
+                    <div className="flex flex-col items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => updateTimeUnit('hours', 1)}
+                        className="p-0.5 text-[#CBD5E1] hover:text-white cursor-pointer"
+                        aria-label="Increase hours"
+                      >
+                        <ChevronUp size={14} />
+                      </button>
+                      <input
+                        type="text"
+                        value={pad2(activeDateObj.getHours())}
+                        onChange={e => setTimeUnitExact('hours', e.target.value)}
+                        className="w-11 h-9 bg-[#0B0E17] border border-[#2E3646] focus:border-[#3B82F6] rounded-md text-center text-xs font-semibold font-mono text-white outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => updateTimeUnit('hours', -1)}
+                        className="p-0.5 text-[#CBD5E1] hover:text-white cursor-pointer"
+                        aria-label="Decrease hours"
+                      >
+                        <ChevronDown size={14} />
+                      </button>
+                    </div>
+
+                    <span className="text-sm font-bold text-[#94A3B8]">:</span>
+
+                    {/* Minutes */}
+                    <div className="flex flex-col items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => updateTimeUnit('minutes', 1)}
+                        className="p-0.5 text-[#CBD5E1] hover:text-white cursor-pointer"
+                        aria-label="Increase minutes"
+                      >
+                        <ChevronUp size={14} />
+                      </button>
+                      <input
+                        type="text"
+                        value={pad2(activeDateObj.getMinutes())}
+                        onChange={e => setTimeUnitExact('minutes', e.target.value)}
+                        className="w-11 h-9 bg-[#0B0E17] border border-[#2E3646] focus:border-[#3B82F6] rounded-md text-center text-xs font-semibold font-mono text-white outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => updateTimeUnit('minutes', -1)}
+                        className="p-0.5 text-[#CBD5E1] hover:text-white cursor-pointer"
+                        aria-label="Decrease minutes"
+                      >
+                        <ChevronDown size={14} />
+                      </button>
+                    </div>
+
+                    <span className="text-sm font-bold text-[#94A3B8]">:</span>
+
+                    {/* Seconds */}
+                    <div className="flex flex-col items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => updateTimeUnit('seconds', 1)}
+                        className="p-0.5 text-[#CBD5E1] hover:text-white cursor-pointer"
+                        aria-label="Increase seconds"
+                      >
+                        <ChevronUp size={14} />
+                      </button>
+                      <input
+                        type="text"
+                        value={pad2(activeDateObj.getSeconds())}
+                        onChange={e => setTimeUnitExact('seconds', e.target.value)}
+                        className="w-11 h-9 bg-[#0B0E17] border border-[#2E3646] focus:border-[#3B82F6] rounded-md text-center text-xs font-semibold font-mono text-white outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => updateTimeUnit('seconds', -1)}
+                        className="p-0.5 text-[#CBD5E1] hover:text-white cursor-pointer"
+                        aria-label="Decrease seconds"
+                      >
+                        <ChevronDown size={14} />
+                      </button>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
@@ -408,4 +563,3 @@ export default function PeriodFilterDropdown({
     </div>
   );
 }
-

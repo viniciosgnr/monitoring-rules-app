@@ -121,11 +121,11 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
   const [customFrom, setCustomFrom] = useState<string>(() => {
     const d = new Date();
     d.setDate(d.getDate() - 7);
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} 00:00:00`;
   });
   const [customTo, setCustomTo] = useState<string>(() => {
     const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} 23:59:59`;
   });
   const allFpsos = useMemo(() => Array.from(new Set(ruleInstances.map(i => i.fpsoCode))).filter(Boolean).sort(), [ruleInstances]);
   const [selectedFpsos, setSelectedFpsos] = useState<string[]>([]);
@@ -191,22 +191,29 @@ export default function AnalyticsClient({ equipments, ruleInstances, alertsList 
     const now = new Date();
 
     if (period === 'Custom dates' && customFrom && customTo) {
-      const [fy, fm, fd] = customFrom.split('-').map(Number);
-      const [ty, tm, td] = customTo.split('-').map(Number);
-      const startBound = new Date(fy, fm - 1, fd, 0, 0, 0);
-      const endBound = new Date(ty, tm - 1, td, 23, 59, 59);
-      const diffDays = Math.max(1, Math.round((endBound.getTime() - startBound.getTime()) / 86400000) + 1);
+      const [fDate, fTime] = customFrom.split(' ');
+      const [tDate, tTime] = customTo.split(' ');
+      const [fy, fm, fd] = (fDate || '').split('-').map(Number);
+      const [fh, fmin, fs] = (fTime || '00:00:00').split(':').map(Number);
+      const [ty, tm, td] = (tDate || '').split('-').map(Number);
+      const [th, tmin, ts] = (tTime || '23:59:59').split(':').map(Number);
+
+      const startBound = new Date(fy, fm - 1, fd, isNaN(fh) ? 0 : fh, isNaN(fmin) ? 0 : fmin, isNaN(fs) ? 0 : fs);
+      const endBound = new Date(ty, tm - 1, td, isNaN(th) ? 23 : th, isNaN(tmin) ? 59 : tmin, isNaN(ts) ? 59 : ts);
+      const startDay = new Date(fy, fm - 1, fd, 0, 0, 0);
+      const endDay = new Date(ty, tm - 1, td, 23, 59, 59);
+      const diffDays = Math.max(1, Math.round((endDay.getTime() - startDay.getTime()) / 86400000) + 1);
 
       if (diffDays <= 45) {
-        // Daily buckets across custom range
+        // Daily buckets across custom range, respecting exact start/end time on boundaries
         const buckets = Array.from({ length: diffDays }, (_, idx) => {
-          const targetDate = new Date(startBound.getFullYear(), startBound.getMonth(), startBound.getDate() + idx);
+          const targetDate = new Date(startDay.getFullYear(), startDay.getMonth(), startDay.getDate() + idx);
           const dayStr = String(targetDate.getDate()).padStart(2, '0');
           const monthStr = String(targetDate.getMonth() + 1).padStart(2, '0');
           return {
             label: `${dayStr}/${monthStr}`,
-            start: new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 0, 0, 0),
-            end: new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 23, 59, 59),
+            start: idx === 0 ? startBound : new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 0, 0, 0),
+            end: idx === diffDays - 1 ? endBound : new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 23, 59, 59),
           };
         });
         return { buckets, periodStart: startBound, periodEnd: endBound };

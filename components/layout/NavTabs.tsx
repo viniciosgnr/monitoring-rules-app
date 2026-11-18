@@ -7,6 +7,7 @@ const TABS = [
   { label: 'MR Database',      href: '/' },
   { label: 'Analytics',        href: '/analytics' },
   { label: 'Alert Review',     href: '/alert-review' },
+  { label: 'Alarm Management', href: '/alarm-management' },
   { label: 'MR Audit Changes', href: '/audit-changes' },
 ];
 
