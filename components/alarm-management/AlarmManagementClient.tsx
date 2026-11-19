@@ -168,7 +168,10 @@ export default function AlarmManagementClient({
   // Local column filters
   const [tagFilter, setTagFilter] = useState<string[]>([]);
   const [identifierFilter, setIdentifierFilter] = useState<string[]>([]);
+  const [childTagFilter, setChildTagFilter] = useState<string[]>([]);
+  const [childIdentifierFilter, setChildIdentifierFilter] = useState<string[]>([]);
   const [priorityFilter, setPriorityFilter] = useState<string[]>([]);
+  const [descriptionFilter, setDescriptionFilter] = useState<string[]>([]);
   const [assetFilter, setAssetFilter] = useState<string[]>([]);
 
   // Sorting & pagination
@@ -182,7 +185,10 @@ export default function AlarmManagementClient({
     setSelectedTable(key);
     setTagFilter([]);
     setIdentifierFilter([]);
+    setChildTagFilter([]);
+    setChildIdentifierFilter([]);
     setPriorityFilter([]);
+    setDescriptionFilter([]);
     setAssetFilter([]);
     setSortField('default');
     setSortDir('desc');
@@ -302,6 +308,26 @@ export default function AlarmManagementClient({
     return [];
   }, [baseRows, selectedTable]);
 
+  const childTagOpts = useMemo(() => {
+    if (selectedTable !== 'symptomatic_analysis') return [];
+    return Array.from(new Set((baseRows as SymptomaticAnalysisRow[]).map(r => r.childTag))).filter(Boolean).sort();
+  }, [baseRows, selectedTable]);
+
+  const childIdentifierOpts = useMemo(() => {
+    if (selectedTable !== 'symptomatic_analysis') return [];
+    return Array.from(new Set((baseRows as SymptomaticAnalysisRow[]).map(r => r.childIdentifier))).filter(Boolean).sort();
+  }, [baseRows, selectedTable]);
+
+  const descriptionOpts = useMemo(() => {
+    if (selectedTable === 'most_frequent_alarms') {
+      return Array.from(new Set((baseRows as MostFrequentAlarmRow[]).map(r => r.description))).filter(Boolean).sort();
+    }
+    if (selectedTable === 'symptomatic_analysis') {
+      return Array.from(new Set((baseRows as SymptomaticAnalysisRow[]).map(r => r.childDescription))).filter(Boolean).sort();
+    }
+    return [];
+  }, [baseRows, selectedTable]);
+
   // Apply local filters & sorting
   const filteredRows = useMemo(() => {
     if (selectedTable === 'most_frequent_alarms') {
@@ -309,8 +335,9 @@ export default function AlarmManagementClient({
         const mTag = tagFilter.length === 0 || tagFilter.length === tagOpts.length || tagFilter.includes(r.tag);
         const mId = identifierFilter.length === 0 || identifierFilter.length === identifierOpts.length || identifierFilter.includes(r.identifier);
         const mPri = priorityFilter.length === 0 || priorityFilter.length === priorityOpts.length || priorityFilter.includes(r.priority);
+        const mDesc = descriptionFilter.length === 0 || descriptionFilter.length === descriptionOpts.length || descriptionFilter.includes(r.description);
         const mAsset = assetFilter.length === 0 || assetFilter.length === assetOpts.length || assetFilter.includes(r.asset);
-        return mTag && mId && mPri && mAsset;
+        return mTag && mId && mPri && mDesc && mAsset;
       });
       if (sortField === 'default') return rows;
       return [...rows].sort((a, b) => {
@@ -343,8 +370,11 @@ export default function AlarmManagementClient({
     const rows = (baseRows as SymptomaticAnalysisRow[]).filter(r => {
       const mTag = tagFilter.length === 0 || tagFilter.length === tagOpts.length || tagFilter.includes(r.parentTag);
       const mId = identifierFilter.length === 0 || identifierFilter.length === identifierOpts.length || identifierFilter.includes(r.parentIdentifier);
+      const mChildTag = childTagFilter.length === 0 || childTagFilter.length === childTagOpts.length || childTagFilter.includes(r.childTag);
+      const mChildId = childIdentifierFilter.length === 0 || childIdentifierFilter.length === childIdentifierOpts.length || childIdentifierFilter.includes(r.childIdentifier);
+      const mDesc = descriptionFilter.length === 0 || descriptionFilter.length === descriptionOpts.length || descriptionFilter.includes(r.childDescription);
       const mAsset = assetFilter.length === 0 || assetFilter.length === assetOpts.length || assetFilter.includes(r.childAsset);
-      return mTag && mId && mAsset;
+      return mTag && mId && mChildTag && mChildId && mDesc && mAsset;
     });
     if (sortField === 'default') return rows;
     return [...rows].sort((a, b) => {
@@ -361,8 +391,14 @@ export default function AlarmManagementClient({
     tagOpts.length,
     identifierFilter,
     identifierOpts.length,
+    childTagFilter,
+    childTagOpts.length,
+    childIdentifierFilter,
+    childIdentifierOpts.length,
     priorityFilter,
     priorityOpts.length,
+    descriptionFilter,
+    descriptionOpts.length,
     assetFilter,
     assetOpts.length,
     sortField,
@@ -881,6 +917,12 @@ export default function AlarmManagementClient({
                 </th>
                 <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary whitespace-nowrap">
                   Description
+                  <ColumnFilterDropdown
+                    title="Description"
+                    options={descriptionOpts}
+                    selectedValues={descriptionFilter.length === 0 ? descriptionOpts : descriptionFilter}
+                    onChange={setDescriptionFilter}
+                  />
                 </th>
                 <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary whitespace-nowrap">
                   Asset
@@ -1051,12 +1093,30 @@ export default function AlarmManagementClient({
                 </th>
                 <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary whitespace-nowrap">
                   Child Tag
+                  <ColumnFilterDropdown
+                    title="Child Tag"
+                    options={childTagOpts}
+                    selectedValues={childTagFilter.length === 0 ? childTagOpts : childTagFilter}
+                    onChange={setChildTagFilter}
+                  />
                 </th>
                 <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary whitespace-nowrap">
                   Child Identifier
+                  <ColumnFilterDropdown
+                    title="Child Identifier"
+                    options={childIdentifierOpts}
+                    selectedValues={childIdentifierFilter.length === 0 ? childIdentifierOpts : childIdentifierFilter}
+                    onChange={setChildIdentifierFilter}
+                  />
                 </th>
                 <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary whitespace-nowrap">
                   Child Description
+                  <ColumnFilterDropdown
+                    title="Child Description"
+                    options={descriptionOpts}
+                    selectedValues={descriptionFilter.length === 0 ? descriptionOpts : descriptionFilter}
+                    onChange={setDescriptionFilter}
+                  />
                 </th>
                 <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary whitespace-nowrap">
                   Child Asset
