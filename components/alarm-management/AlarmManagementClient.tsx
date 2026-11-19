@@ -14,6 +14,11 @@ import ColumnFilterDropdown from '@/components/ui/ColumnFilterDropdown';
 import Pagination from '@/components/ui/Pagination';
 import InfoTooltip from '@/components/ui/InfoTooltip';
 import { exportBrandedExcel } from '@/lib/excelExportUtils';
+import AlarmChartsGrid, {
+  DonutSlice,
+  StackedBarPoint,
+  StackedBarSeries,
+} from './AlarmChartsGrid';
 
 export type AlarmTableKey =
   | 'most_frequent_alarms'
@@ -378,6 +383,258 @@ export default function AlarmManagementClient({
 
   const activeTableMeta = TABLE_OPTIONS.find(t => t.key === selectedTable)!;
 
+  const chartConfig = useMemo(() => {
+    const PRIORITY_ORDER = ['High', 'Medium', 'Low'];
+    const PRIORITY_COLORS: Record<string, string> = {
+      High: '#FF4D4F',
+      Medium: '#FAAD14',
+      Low: '#73D13D',
+    };
+    const PALETTE = [
+      '#3B82F6',
+      '#73D13D',
+      '#FAAD14',
+      '#FF4D4F',
+      '#A855F7',
+      '#06B6D4',
+      '#EC4899',
+      '#64748B',
+    ];
+
+    const normalizePriority = (p: string) => {
+      const lower = (p || '').trim().toLowerCase();
+      if (lower === 'high') return 'High';
+      if (lower === 'medium') return 'Medium';
+      if (lower === 'low') return 'Low';
+      return p?.trim() || 'Other';
+    };
+
+    const buildPriorityAndIdentifierCharts = (
+      items: Array<{ priority: string; identifier: string; weight: number }>,
+      metricLabel: string,
+      unitLabel: string
+    ) => {
+      const priorityMap = new Map<string, number>();
+      const identifierMap = new Map<
+        string,
+        { High: number; Medium: number; Low: number; Other: number; total: number }
+      >();
+
+      let totalValue = 0;
+      for (const item of items) {
+        const w = item.weight || 0;
+        const p = normalizePriority(item.priority);
+        const id = (item.identifier || 'Unknown').trim() || 'Unknown';
+        totalValue += w;
+
+        priorityMap.set(p, (priorityMap.get(p) ?? 0) + w);
+
+        const entry = identifierMap.get(id) ?? {
+          High: 0,
+          Medium: 0,
+          Low: 0,
+          Other: 0,
+          total: 0,
+        };
+        if (p === 'High') entry.High += w;
+        else if (p === 'Medium') entry.Medium += w;
+        else if (p === 'Low') entry.Low += w;
+        else entry.Other += w;
+        entry.total += w;
+        identifierMap.set(id, entry);
+      }
+
+      const donutData: DonutSlice[] = [];
+      for (const p of PRIORITY_ORDER) {
+        const val = priorityMap.get(p) ?? 0;
+        if (val > 0) {
+          donutData.push({ name: p, value: val, color: PRIORITY_COLORS[p] });
+        }
+      }
+      for (const [p, val] of Array.from(priorityMap.entries())) {
+        if (!PRIORITY_ORDER.includes(p) && val > 0) {
+          donutData.push({ name: p, value: val, color: '#64748B' });
+        }
+      }
+
+      const hasOther = Array.from(identifierMap.values()).some(v => v.Other > 0);
+      const barSeries: StackedBarSeries[] = PRIORITY_ORDER.map(p => ({
+        key: p,
+        label: p,
+        color: PRIORITY_COLORS[p],
+      }));
+      if (hasOther) {
+        barSeries.push({ key: 'Other', label: 'Other', color: '#64748B' });
+      }
+
+      const barData: StackedBarPoint[] = Array.from(identifierMap.entries())
+        .sort((a, b) => b[1].total - a[1].total)
+        .slice(0, 10)
+        .map(([category, counts]) => ({
+          category,
+          High: counts.High,
+          Medium: counts.Medium,
+          Low: counts.Low,
+          ...(hasOther ? { Other: counts.Other } : {}),
+          total: counts.total,
+        }));
+
+      return {
+        leftChart: {
+          kind: 'donut' as const,
+          title: `${metricLabel} by Priority`,
+          subtitle: `Distribution of ${unitLabel} across alarm priority levels`,
+          formula: `Sum(${unitLabel}) grouped by Priority`,
+          data: donutData,
+        },
+        rightChart: {
+          kind: 'bar' as const,
+          title: `${metricLabel} by Identifier`,
+          subtitle: `Top alarm identifiers stacked by priority`,
+          formula: `Sum(${unitLabel}) grouped by Identifier and Priority`,
+          data: barData,
+          series: barSeries,
+        },
+        totalValue,
+        unitLabel,
+      };
+    };
+
+    if (selectedTable === 'most_frequent_alarms') {
+      const rows = (filteredRows as MostFrequentAlarmRow[]).map(r => ({
+        priority: r.priority,
+        identifier: r.identifier,
+        weight: r.count,
+      }));
+      return buildPriorityAndIdentifierCharts(rows, 'Alarm Count', 'alarms');
+    }
+
+    if (selectedTable === 'chattering_alarms') {
+      const rows = (filteredRows as ChatteringAlarmRow[]).map(r => ({
+        priority: r.priority,
+        identifier: r.identifier,
+        weight: r.occurrence,
+      }));
+      return buildPriorityAndIdentifierCharts(rows, 'Chattering Occurrences', 'occurrences');
+    }
+
+    if (selectedTable === 'fleeting_alarms') {
+      const rows = (filteredRows as FleetingAlarmRow[]).map(r => ({
+        priority: r.priority,
+        identifier: r.identifier,
+        weight: r.occurrence,
+      }));
+      return buildPriorityAndIdentifierCharts(rows, 'Fleeting Occurrences', 'occurrences');
+    }
+
+    if (selectedTable === 'most_frequent_actions') {
+      const tagMap = new Map<string, number>();
+      let totalValue = 0;
+      for (const r of filteredRows as MostFrequentActionRow[]) {
+        const tag = (r.tag || 'Unknown').trim() || 'Unknown';
+        const w = r.count || 0;
+        totalValue += w;
+        tagMap.set(tag, (tagMap.get(tag) ?? 0) + w);
+      }
+
+      const sortedTags = Array.from(tagMap.entries()).sort((a, b) => b[1] - a[1]);
+      const top5 = sortedTags.slice(0, 5);
+      const otherSum = sortedTags.slice(5).reduce((acc, [, v]) => acc + v, 0);
+
+      const donutData: DonutSlice[] = top5.map(([name, value], idx) => ({
+        name,
+        value,
+        color: PALETTE[idx % PALETTE.length],
+      }));
+      if (otherSum > 0) {
+        donutData.push({ name: 'Other', value: otherSum, color: '#64748B' });
+      }
+
+      const barSeries: StackedBarSeries[] = [
+        { key: 'count', label: 'Action Count', color: '#3B82F6' },
+      ];
+      const barData: StackedBarPoint[] = sortedTags.slice(0, 10).map(([category, count]) => ({
+        category,
+        count,
+        total: count,
+      }));
+
+      return {
+        leftChart: {
+          kind: 'donut' as const,
+          title: 'Action Share by Top Tags',
+          subtitle: 'Top 5 operator action tags vs remaining tags',
+          formula: 'Sum(Count) grouped by Tag (Top 5 + Other)',
+          data: donutData,
+        },
+        rightChart: {
+          kind: 'bar' as const,
+          title: 'Top Tags by Action Count',
+          subtitle: 'Highest operator intervention volume by tag',
+          formula: 'Top 10 Tags ordered by Sum(Count)',
+          data: barData,
+          series: barSeries,
+        },
+        totalValue,
+        unitLabel: 'actions',
+      };
+    }
+
+    // symptomatic_analysis: 2 Bar Charts (Parent Identifier on left, Child Identifier on right)
+    const parentMap = new Map<string, number>();
+    const childMap = new Map<string, number>();
+    let totalValue = 0;
+
+    for (const r of filteredRows as SymptomaticAnalysisRow[]) {
+      const parentId = (r.parentIdentifier || 'Unknown').trim() || 'Unknown';
+      const childId = (r.childIdentifier || 'Unknown').trim() || 'Unknown';
+      const w = r.occurrence || 0;
+      totalValue += w;
+
+      parentMap.set(parentId, (parentMap.get(parentId) ?? 0) + w);
+      childMap.set(childId, (childMap.get(childId) ?? 0) + w);
+    }
+
+    const parentBarData: StackedBarPoint[] = Array.from(parentMap.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10)
+      .map(([category, occurrence]) => ({
+        category,
+        occurrence,
+        total: occurrence,
+      }));
+
+    const childBarData: StackedBarPoint[] = Array.from(childMap.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10)
+      .map(([category, occurrence]) => ({
+        category,
+        occurrence,
+        total: occurrence,
+      }));
+
+    return {
+      leftChart: {
+        kind: 'bar' as const,
+        title: 'Occurrences by Parent Identifier',
+        subtitle: 'Top parent alarm identifiers by occurrence volume',
+        formula: 'Top 10 Parent Identifiers ordered by Sum(Occurrence)',
+        data: parentBarData,
+        series: [{ key: 'occurrence', label: 'Occurrences', color: '#3B82F6' }],
+      },
+      rightChart: {
+        kind: 'bar' as const,
+        title: 'Occurrences by Child Identifier',
+        subtitle: 'Top child alarm identifiers by occurrence volume',
+        formula: 'Top 10 Child Identifiers ordered by Sum(Occurrence)',
+        data: childBarData,
+        series: [{ key: 'occurrence', label: 'Occurrences', color: '#06B6D4' }],
+      },
+      totalValue,
+      unitLabel: 'occurrences',
+    };
+  }, [filteredRows, selectedTable]);
+
   const handleExportExcel = async () => {
     if (selectedTable === 'most_frequent_alarms') {
       const rows = (filteredRows as MostFrequentAlarmRow[]).map(r => [
@@ -471,9 +728,9 @@ export default function AlarmManagementClient({
   };
 
   return (
-    <div className="bg-bg-card border border-border-panel rounded-card">
-      {/* Top Toolbar: Title & Table Selector + Global FPSO, Duration, Export */}
-      <div className="px-4 py-3.5 border-b border-border-panel flex flex-col lg:flex-row lg:items-center justify-between gap-4 relative z-20">
+    <div className="space-y-6">
+      {/* Top Toolbar Card: Title & Table Selector + Global FPSO, Duration, Export */}
+      <div className="bg-bg-card border border-border-panel rounded-card px-4 py-3.5 flex flex-col lg:flex-row lg:items-center justify-between gap-4 relative z-20">
         <div className="flex items-center gap-3 flex-wrap">
           <div className="flex items-center gap-1.5">
             <h2 className="text-sm font-semibold text-text-primary">
@@ -566,7 +823,12 @@ export default function AlarmManagementClient({
         </div>
       </div>
 
-      {/* Table Content */}
+      {/* 2-Chart Optisite Visualizations Grid */}
+      <AlarmChartsGrid {...chartConfig} />
+
+      {/* Table Card */}
+      <div className="bg-bg-card border border-border-panel rounded-card">
+        {/* Table Content */}
       <div className="overflow-x-auto">
         {selectedTable === 'most_frequent_alarms' && (
           <table className="w-full text-xs">
@@ -871,6 +1133,7 @@ export default function AlarmManagementClient({
           onPageSizeChange={setPageSize}
         />
       )}
+      </div>
     </div>
   );
 }
