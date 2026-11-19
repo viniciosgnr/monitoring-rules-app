@@ -1,6 +1,6 @@
 import { db } from '@/db';
 import { ruleInstances, equipment, monitoringRules, fpsos, auditLog } from '@/db/schema';
-import { eq, inArray } from 'drizzle-orm';
+import { eq, inArray, desc } from 'drizzle-orm';
 import Topbar from '@/components/layout/Topbar';
 import NavTabs from '@/components/layout/NavTabs';
 import RuleInstanceTable from '@/components/mr-database/RuleInstanceTable';
@@ -59,16 +59,46 @@ export default async function MRDatabasePage() {
     });
   }
 
+  // Fetch latest disable justification from audit_log for currently disabled instances
+  const disabledIds = rows.filter(r => !r.enabled).map(r => r.id);
+  const disabledReasonMap = new Map<number, string>();
+  if (disabledIds.length > 0) {
+    const logs = await db
+      .select({
+        instanceId: auditLog.instanceId,
+        description: auditLog.description,
+        afterState: auditLog.afterState,
+      })
+      .from(auditLog)
+      .where(inArray(auditLog.instanceId, disabledIds))
+      .orderBy(desc(auditLog.createdAt));
+
+    for (const log of logs) {
+      if (disabledReasonMap.has(log.instanceId)) continue;
+      const state = log.afterState as { enabled?: boolean; reason?: string | null } | null;
+      if (state && state.enabled === false) {
+        if (state.reason) {
+          disabledReasonMap.set(log.instanceId, state.reason);
+        } else if (log.description?.startsWith('Disabled rule for ')) {
+          disabledReasonMap.set(log.instanceId, log.description.replace('Disabled rule for ', ''));
+        }
+      } else if (!state && log.description?.startsWith('Disabled rule for ')) {
+        disabledReasonMap.set(log.instanceId, log.description.replace('Disabled rule for ', ''));
+      }
+    }
+  }
+
   const serialized = rows.map(r => ({
     ...r,
-    system:          getSystemFromTimeseries(r.timeseries),
-    subsystem:       getSubsystem(r.timeseries, r.equipmentCode),
-    lastRunAt:       r.lastRunAt?.toLocaleString('pt-BR') ?? '—',
-    lastRunAtRaw:    r.lastRunAt ? r.lastRunAt.toISOString() : null,
-    nextRunAt:       r.nextRunAt?.toLocaleString('pt-BR') ?? '—',
-    nextRunAtRaw:    r.nextRunAt ? r.nextRunAt.toISOString() : null,
-    processingSteps: (r.processingSteps as object) ?? {},
+    system:           getSystemFromTimeseries(r.timeseries),
+    subsystem:        getSubsystem(r.timeseries, r.equipmentCode),
+    lastRunAt:        r.lastRunAt?.toLocaleString('pt-BR') ?? '—',
+    lastRunAtRaw:     r.lastRunAt ? r.lastRunAt.toISOString() : null,
+    nextRunAt:        r.nextRunAt?.toLocaleString('pt-BR') ?? '—',
+    nextRunAtRaw:     r.nextRunAt ? r.nextRunAt.toISOString() : null,
+    processingSteps:  (r.processingSteps as object) ?? {},
     deactivatedUntil: r.deactivatedUntil ? r.deactivatedUntil.toISOString() : null,
+    disabledReason:   !r.enabled ? (disabledReasonMap.get(r.id) ?? null) : null,
   }));
 
   return (

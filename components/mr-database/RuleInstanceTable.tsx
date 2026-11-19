@@ -30,6 +30,7 @@ interface InstanceRow {
   enabled: boolean;
   processingSteps: object;
   deactivatedUntil: string | null;
+  disabledReason?: string | null;
   [key: string]: unknown;
 }
 
@@ -339,7 +340,12 @@ export default function RuleInstanceTable({ rows }: { rows: InstanceRow[] }) {
   }, [paginatedInstances]);
 
   async function handleToggle(id: number, enabled: boolean, reason?: string, deactivatedUntil?: Date | null) {
-    setData(d => d.map(r => r.id === id ? { ...r, enabled, deactivatedUntil: deactivatedUntil ? deactivatedUntil.toISOString() : null } : r));
+    setData(d => d.map(r => r.id === id ? {
+      ...r,
+      enabled,
+      deactivatedUntil: deactivatedUntil ? deactivatedUntil.toISOString() : null,
+      disabledReason: enabled ? null : (reason || null),
+    } : r));
     await toggleInstance(id, enabled, reason, deactivatedUntil);
   }
 
@@ -371,7 +377,12 @@ export default function RuleInstanceTable({ rows }: { rows: InstanceRow[] }) {
   }
 
   async function handleGroupToggle(ids: number[], enabled: boolean, reason?: string, deactivatedUntil?: Date | null) {
-    setData(d => d.map(r => ids.includes(r.id) ? { ...r, enabled, deactivatedUntil: deactivatedUntil ? deactivatedUntil.toISOString() : null } : r));
+    setData(d => d.map(r => ids.includes(r.id) ? {
+      ...r,
+      enabled,
+      deactivatedUntil: deactivatedUntil ? deactivatedUntil.toISOString() : null,
+      disabledReason: enabled ? null : (reason || null),
+    } : r));
     await toggleInstancesBulk(ids, enabled, reason, deactivatedUntil);
   }
 
@@ -736,6 +747,7 @@ function formatModalParamsJson(ruleName: string, steps: unknown): string {
           steps={editRow.processingSteps as Record<string, { tags_to_apply?: string; period?: string }>}
           instanceId={editRow.id}
           enabled={editRow.enabled}
+          disabledReason={editRow.disabledReason}
         />
       )}
 

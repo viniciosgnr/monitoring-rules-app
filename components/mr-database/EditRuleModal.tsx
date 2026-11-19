@@ -16,6 +16,7 @@ interface Props {
   steps: any;
   instanceId?: number;
   enabled?: boolean;
+  disabledReason?: string | null;
 }
 
 const inputCls =
@@ -227,6 +228,7 @@ export default function EditRuleModal({
   steps,
   instanceId,
   enabled,
+  disabledReason = null,
 }: Props) {
   const { role } = useUserRole();
   const isViewer = role === 'viewer';
@@ -394,7 +396,9 @@ export default function EditRuleModal({
             <div className="mb-5 flex items-start gap-2.5 p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs leading-relaxed">
               <Info size={16} className="text-amber-400 mt-0.5 flex-shrink-0" />
               <div>
-                <span className="font-semibold block mb-0.5 text-amber-300">Monitoring Rule Instance is Disabled</span>
+                <span className="font-semibold block mb-0.5 text-amber-300">
+                  Monitoring Rule Instance is Disabled{disabledReason ? ` - ${disabledReason}` : ''}
+                </span>
                 This instance is currently disabled. Modifications to these parameters will be saved, but the rule execution scheduler is paused for this asset.
               </div>
             </div>
